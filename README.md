@@ -1,5 +1,16 @@
 # 自用自动化挂课
 
+## 需要的库：
+
+ asyncio
+ json
+ logging
+ math
+ os
+ re
+ time
+ traceback
+
 ## 运行步骤：
 
 1.获取cookie
