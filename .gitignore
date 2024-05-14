@@ -1,3 +1,3 @@
-./cookies.json
-./idea
-./*.txt
+cookies.json
+.idea
+*.txt
