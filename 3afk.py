@@ -6,7 +6,6 @@ import os
 import re
 import time
 import traceback
-
 from playwright.async_api import async_playwright
 
 # 日志基本设置
@@ -14,191 +13,171 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d (%(funcName)s) %(message)s',
     handlers=[
-        logging.FileHandler('log.txt', mode='w'),
+        logging.FileHandler('log.txt', mode='w', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 
 
-# 判断课程是否已学习
-def isLearned(text):
-    match = re.search(r'重新学习', text)
-    if match:
-        return True
-    else:
-        return False
+def is_learned(text: str) -> bool:
+    """判断课程是否已学习"""
+    return re.search(r'重新学习', text) is not None
 
 
-# 时长转换为秒数
-def time2sec(t):
+def time_to_seconds(duration: str) -> int:
+    """时长转换为秒数"""
     pattern = r'(\d{1,2}:)?\d{1,2}:\d{1,2}'
-    match = re.search(pattern, t)
-    t = match.group()
-    temp = t.split(':')
-    result = 0
-    for i in range(len(temp)):
-        result += int(temp[len(temp) - i - 1]) * 60 ** i
-    result = math.ceil(result / 10) * 10
-    return result
+    match = re.search(pattern, duration)
+    if not match:
+        return 0
+
+    units = match.group().split(':')
+    total_seconds = sum(int(unit) * 60 ** index for index, unit in enumerate(reversed(units)))
+    return math.ceil(total_seconds / 10) * 10
 
 
-# 计算当前课程剩余挂课时间
-def remaining_time(pc, t):
-    match = re.search(r'(\d+)%', pc)
+def calculate_remaining_time(percentage: str, total_time: int) -> int:
+    """计算当前课程剩余挂课时间"""
+    match = re.search(r'(\d+)%', percentage)
     if match:
-        pc = int(match.group(1))
-        remain = t * (80 - pc) / 100
-        remain = math.ceil(remain / 60) * 60
-        if remain < t:
-            return remain
-        else:
-            return t
+        percent_completed = int(match.group(1))
+        remaining_time = total_time * (80 - percent_completed) / 100
     else:
-        remain = math.ceil(t * 0.8 / 60) * 60
-        if remain < t:
-            return remain
-        else:
-            return t
+        remaining_time = total_time * 0.8
+
+    return min(math.ceil(remaining_time / 60) * 60, total_time)
 
 
-async def timer(t, interval=10):
-    t = math.ceil(t)
+async def timer(duration: int, interval: int = 10):
+    """定时器"""
+    duration = math.ceil(duration)
     logging.info(f'开始时间: {time.ctime()}')
-    for elapsed in range(0, t, interval):
+    for elapsed in range(0, duration, interval):
         await asyncio.sleep(interval)
-        logging.info(f'已学习 {elapsed + interval} / {t} (秒)')
+        logging.info(f'已学习 {elapsed + interval} / {duration} (秒)')
     logging.info(f'结束时间: {time.ctime()}')
 
 
-# 板块内容学习
-async def block_learning(page1):
-    # 等待特定元素出现
-    # await page1.wait_for_timeout(3 * 1000)
-    await page1.wait_for_load_state('load')
-    await page1.locator('.item.current-hover').last.wait_for()
-    await page1.locator('.item.current-hover').locator('.section-type').last.wait_for()
+async def block_learning(page):
+    """板块内容学习"""
+    await page.wait_for_load_state('load')
+    await page.locator('.item.current-hover').last.wait_for()
+    await page.locator('.item.current-hover').locator('.section-type').last.wait_for()
 
-    # 获取需要学习的链接列表
-    # learn_list = await page1.get_by_text(re.compile(r'开始学习|继续学习')).all()
-    learn_list = await page1.locator('.item.current-hover', has_not_text='重新学习').all()
-    if learn_list:
-        for learn_content in learn_list:
-            if await learn_content.locator('.section-type').inner_text() == '课程':
-                async with page1.expect_popup() as page2_info:
-                    await learn_content.click()
-                page2 = await page2_info.value
-                # try:
-                #     await course_learning(page2)
-                # except Exception as e:
-                #     print(f'出错页面为: {page2.url}\n错误信息为: {e}\n')
-                # finally:
-                #     await page2.close()
-                await course_learning(page2)
-                await page2.close()
-            elif await learn_content.locator('.section-type').inner_text() == 'URL':
-                logging.info('URL学习类型，存入文档单独审查')
-                with open('./URL类型链接.txt', 'a+') as wp:
-                    wp.write(f'{page1.url} \n')
-                async with page1.expect_popup() as page2_info:
-                    await learn_content.click()
-                page2 = await page2_info.value
-                timer_task = asyncio.create_task(timer(10, 1))
-                await page2.wait_for_timeout(10 * 1000)
-                await timer_task
-                await page2.close()
-
-            else:
-                logging.info('非课程类学习类型，存入文档单独审查')
-                with open('./非课程类学习类型链接.txt', 'a+') as wp:
-                    wp.write(f'{page1.url} \n')
+    learn_list = await page.locator('.item.current-hover', has_not_text='重新学习').all()
+    for learn_item in learn_list:
+        section_type = await learn_item.locator('.section-type').inner_text()
+        if section_type == '课程':
+            async with page.expect_popup() as page_info:
+                await learn_item.click()
+            page_detail = await page_info.value
+            await page_detail.wait_for_load_state('load')
+            await handle_course(page_detail)
+            await page_detail.close()
+        elif section_type == 'URL':
+            logging.info('URL学习类型，存入文档单独审查')
+            with open('./URL类型链接.txt', 'a+', encoding='utf-8') as wp:
+                wp.write(f'{page.url} \n')
+            async with page.expect_popup() as page_info:
+                await learn_item.click()
+            page_detail = await page_info.value
+            timer_task = asyncio.create_task(timer(10, 1))
+            await page_detail.wait_for_timeout(10 * 1000)  # For safety
+            await timer_task
+            await page_detail.close()
+        else:
+            logging.info('非课程类学习类型，存入文档单独审查')
+            with open('./非课程类学习类型链接.txt', 'a+', encoding='utf-8') as wp:
+                wp.write(f'{page.url} \n')
 
 
-# 课程内容学习
-async def course_learning(page2):
-    await (page2.locator('.item.pointer')).last.wait_for()
-    await (page2.locator('dl.chapter-list-box.required')).last.wait_for()
-    chapter_list_boxes = await page2.locator('dl.chapter-list-box.required').all()
-    logging.info(f'chapter_list_boxes: {chapter_list_boxes}\n')
-    count = 1
-    for box in chapter_list_boxes:
-        # 获取学习类型参数
+async def handle_course(page_detail):
+    """课程内容学习"""
+    await page_detail.locator('.item.pointer').last.wait_for()
+    await page_detail.locator('dl.chapter-list-box.required').last.wait_for()
+    chapter_boxes = await page_detail.locator('dl.chapter-list-box.required').all()
+
+    for count, box in enumerate(chapter_boxes, start=1):
         section_type = await box.get_attribute('data-sectiontype')
-        text = await box.inner_text()
-        logging.info(f'课程信息: \n{text}\n')
-        if isLearned(text):
+        box_text = await box.inner_text()
+        logging.info(f'课程信息: \n{box_text}\n')
+
+        if is_learned(box_text):
             logging.info(f'课程{count}已学习，跳过该节\n')
             continue
 
-        # 根据不同的 data-sectiontype 执行不同的操作
         if section_type == '6':
-            # 执行操作1
-            logging.info('课程类型为视频类型')
-            await (box.locator('.item.pointer')).click()
-            await (page2.locator('.vjs-progress-control')).first.wait_for()
-            await page2.wait_for_timeout(3 * 1000)
-            logging.info(await (box.locator('.item.pointer')).inner_text())
-            duration_element = page2.locator('.vjs-duration-display')
-            duration = time2sec(await duration_element.inner_text())
-            logging.info(f'课程总时长: {duration}秒')
-            remain = remaining_time(await box.locator('.item.pointer').inner_text(), duration)
-            logging.info(f'还需学习: {remain}秒')
-            timer_task = asyncio.create_task(timer(remain))
-            await page2.wait_for_timeout(remain * 1000)
-            await timer_task
-
+            await handle_video(box, page_detail)
         elif section_type in ['1', '2']:
-            # 执行操作2
-            logging.info('课程类型为文档类型')
-            await (box.locator('.item.pointer')).click()
-            await (page2.locator('.clearfix')).first.wait_for()
-            timer_task = asyncio.create_task(timer(10, 1))
-            await page2.wait_for_timeout(10 * 1000)
-            await timer_task
-        # 添加其他可能的情况
+            await handle_document(box, page_detail)
         else:
             logging.info('非视频学习和文档学习类型，存入文档单独审查')
-            with open('./考试链接.txt', 'a+') as wp:
-                wp.write(f'{page2.url} \n')
+            with open('./考试链接.txt', 'a+', encoding='utf-8') as wp:
+                wp.write(f'{page_detail.url} \n')
+
         logging.info(f'课程{count}学习完毕')
-        count += 1
 
 
-async def isCompleted(page1):
-    await page1.wait_for_load_state('load')
-    await page1.locator('.item.current-hover').last.wait_for()
-    await page1.locator('.item.current-hover').locator('.section-type').last.wait_for()
-    content = await page1.locator('.item.current-hover', has_not_text='重新学习').filter(has_text='URL').all()
-    if content:
-        logging.info(f'URL类型链接未学习完成: {content}')
-        return False
-    else:
-        return True
+async def handle_video(box, page):
+    """处理视频类型课程"""
+    await box.locator('.item.pointer').click()
+    await page.locator('.vjs-progress-control').first.wait_for()
+
+    duration_element = page.locator('.vjs-duration-display')
+    duration = time_to_seconds(await duration_element.inner_text())
+    logging.info(f'课程总时长: {duration}秒')
+
+    percent_complete = await box.locator('.item.pointer').inner_text()
+    remaining = calculate_remaining_time(percent_complete, duration)
+    logging.info(f'还需学习: {remaining}秒')
+
+    timer_task = asyncio.create_task(timer(remaining))
+    await page.wait_for_timeout(remaining * 1000)
+    await timer_task
+
+
+async def handle_document(box, page):
+    """处理文档类型课程"""
+    await box.locator('.item.pointer').click()
+    await page.locator('.clearfix').first.wait_for()
+    timer_task = asyncio.create_task(timer(10, 1))
+    await page.wait_for_timeout(10 * 1000)
+    await timer_task
+
+
+async def is_completed(page):
+    await page.wait_for_load_state('load')
+    await page.locator('.item.current-hover').last.wait_for()
+    await page.locator('.item.current-hover').locator('.section-type').last.wait_for()
+
+    content = await page.locator('.item.current-hover', has_not_text='重新学习').filter(has_text='URL').all()
+    return not bool(content)
 
 
 async def main():
     mark = 0
-    if not os.path.exists('./剩余未看课程链接.txt'):
-        with open('./战新产品规模发展专区.txt', encoding='utf-8') as f:
-            urls = f.readlines()
-    else:
+    if os.path.exists('./剩余未看课程链接.txt'):
         mark = 1
         with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
             urls = f.readlines()
+    else:
+        with open('./战新产品规模发展专区.txt', encoding='utf-8') as f:
+            urls = f.readlines()
 
-    # Load the cookies
-    with open('cookies.json', 'r') as f:
-        cookies = json.loads(f.read())
+    with open('cookies.json', 'r', encoding='utf-8') as f:
+        cookies = json.load(f)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False, args=['--mute-audio'], channel='chrome')
         context = await browser.new_context(viewport={'width': 800, 'height': 600})
         await context.add_cookies(cookies)
+
         for url in urls:
-            page1 = await context.new_page()
+            page = await context.new_page()
             logging.info(f'当前学习板块链接为: {url.strip()}')
-            await page1.goto(url.strip())
+            await page.goto(url.strip())
             try:
-                await block_learning(page1)
+                await block_learning(page)
             except Exception as e:
                 logging.error(f'发生错误: {str(e)}')
                 logging.error(traceback.format_exc())
@@ -207,25 +186,25 @@ async def main():
                 if mark == 1:
                     mark = 0
             finally:
-                await page1.close()
+                await page.close()
 
         if os.path.exists('./URL类型链接.txt'):
-            with open('./URL类型链接.txt', encoding='UTF-8') as f:
+            with open('./URL类型链接.txt', encoding='utf-8') as f:
                 urls = f.readlines()
             with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
                 for url in urls:
-                    page1 = await context.new_page()
-                    await page1.goto(url.strip())
-                    if await isCompleted(page1):
-                        logging.info(f'URL类型链接: {url.strip()}\n学习完成')
+                    page = await context.new_page()
+                    await page.goto(url.strip())
+                    if await is_completed(page):
+                        logging.info(f'URL类型链接: {url.strip()} 学习完成')
                     else:
                         f.write(url)
-                    await page1.close()
+                    await page.close()
             os.remove('./URL类型链接.txt')
 
         await context.close()
         await browser.close()
-        logging.info(f'\n自动挂课完成，当前时间为{time.ctime()}\n')
+        logging.info(f'自动挂课完成，当前时间为{time.ctime()}')
         if mark == 1:
             os.remove('./剩余未看课程链接.txt')
 
