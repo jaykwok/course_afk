@@ -1,8 +1,8 @@
 import asyncio
 import json
 import logging
-import re
 import os
+import re
 import time
 
 from playwright.async_api import async_playwright
