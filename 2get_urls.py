@@ -23,8 +23,8 @@ async def main():
     soup = BeautifulSoup(html_content, 'html.parser')
 
     # 定义要提取的链接类型
-    # link_types = ['产品介绍', '案例分享', '解决方案', '装维交付', '营销工具', '营销指引', '短视频', '更多']
-    link_types = ['产品介绍', '案例分享', '解决方案', '营销工具', '营销指引', '短视频', '更多']
+    link_types = ['产品介绍', '案例分享', '解决方案', '装维交付', '营销工具', '营销指引', '短视频', '更多']
+    # link_types = ['产品介绍', '案例分享', '解决方案', '营销工具', '营销指引', '短视频', '更多']
 
     # 初始化字典存储链接
     links = {link_type: [] for link_type in link_types}

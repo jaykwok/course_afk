@@ -163,6 +163,18 @@ async def course_learning(page2):
         count += 1
 
 
+async def isCompleted(page1):
+    await page1.wait_for_load_state('load')
+    await page1.locator('.item.current-hover').last.wait_for()
+    await page1.locator('.item.current-hover').locator('.section-type').last.wait_for()
+    content = await page1.locator('.item.current-hover', has_not_text='重新学习').filter(has_text='URL').all()
+    if content:
+        logging.info(f'URL类型链接未学习完成: {content}')
+        return False
+    else:
+        return True
+
+
 async def main():
     mark = 0
     if not os.path.exists('./剩余未看课程链接.txt'):
@@ -192,8 +204,24 @@ async def main():
                 logging.error(traceback.format_exc())
                 with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
                     f.write(url)
+                if mark == 1:
+                    mark = 0
             finally:
                 await page1.close()
+
+        if os.path.exists('./URL类型链接.txt'):
+            with open('./URL类型链接.txt', encoding='UTF-8') as f:
+                urls = f.readlines()
+            with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
+                for url in urls:
+                    page1 = await context.new_page()
+                    await page1.goto(url.strip())
+                    if await isCompleted(page1):
+                        logging.info(f'URL类型链接: {url.strip()}\n学习完成')
+                    else:
+                        f.write(url)
+                    await page1.close()
+            os.remove('./URL类型链接.txt')
 
         await context.close()
         await browser.close()
