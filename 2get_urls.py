@@ -30,12 +30,6 @@ async def main():
         if href and 'kc.zhixueyun.com' in href:
             links[link.text.strip()].append(href.strip())
 
-    # link_types = ['产品介绍', '案例分享', '解决方案', '营销工具', '营销指引', '短视频', '更多', '']
-    link_types = ['产品介绍', '案例分享', '解决方案', '装维交付', '营销工具', '营销指引', '短视频', '更多', '']
-    exclude_types = set(links.keys()).difference(set(link_types))
-    for exclude_type in exclude_types:
-        print(f'排除课程类型有: {exclude_type}')
-        links.pop(exclude_type)
     # 打印结果
     with open(f'{file_name}.txt', 'w+', encoding='utf-8') as f:
         for link_type, link_list in links.items():
@@ -43,6 +37,15 @@ async def main():
             for link in link_list:
                 print(link)
                 f.write(link + '\n')
+    # link_types = ['产品介绍', '案例分享', '解决方案', '营销工具', '营销指引', '短视频', '更多', '']
+    link_types = ['产品介绍', '案例分享', '解决方案', '装维交付', '营销工具', '营销指引', '短视频', '更多', '']
+    exclude_types = set(links.keys()).difference(set(link_types))
+    if bool(exclude_types):
+        for exclude_type in exclude_types:
+            print(f'\n排除课程类型有: {exclude_type}')
+            links.pop(exclude_type)
+    else:
+        print('\n课程类型已全部覆盖')
 
 
 if __name__ == '__main__':
