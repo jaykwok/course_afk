@@ -1,3 +1,5 @@
 cookies.json
 .idea
 *.txt
+240605/__pycache__
+!240605/学习链接.txt
