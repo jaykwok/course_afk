@@ -27,7 +27,7 @@ async def main():
         with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
             urls = f.readlines()
     else:
-        with open('./06.05学习链接.txt', encoding='utf-8') as f:
+        with open('./学习链接.txt', encoding='utf-8') as f:
             urls = f.readlines()
 
     with open('../cookies.json', 'r', encoding='utf-8') as f:
