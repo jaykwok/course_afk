@@ -124,6 +124,7 @@ async def course_learning(page_detail):
 async def handle_video(box, page):
     """处理视频类型课程"""
 
+    await box.locator('.item.pointer').click()
     await page.wait_for_timeout(3 * 1000)
     resume_button = await page.locator('.register-mask-layer').all()
     if resume_button:
@@ -145,8 +146,11 @@ async def handle_video(box, page):
 
 async def handle_document(box, page):
     """处理文档类型课程"""
+
     await box.locator('.item.pointer').click()
-    await page.locator('.clearfix').first.wait_for()
+    await page.wait_for_timeout(3 * 1000)
+    # await page.locator('.clearfix').first.wait_for()
+    await page.locator('.textLayer').first.wait_for()
     timer_task = asyncio.create_task(timer(10, 1))
     await page.wait_for_timeout(10 * 1000)
     await timer_task
