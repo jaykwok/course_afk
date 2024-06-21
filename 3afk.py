@@ -34,7 +34,7 @@ async def main():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False, args=['--mute-audio'], channel='chrome')
-        context = await browser.new_context(viewport={'width': 800, 'height': 600})
+        context = await browser.new_context(viewport={'width': 1280, 'height': 720})
         await context.add_cookies(cookies)
         page = await context.new_page()
         await page.goto(urls[0])
