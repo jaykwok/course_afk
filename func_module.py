@@ -97,18 +97,25 @@ async def course_learning(page_detail):
         section_type = await box.get_attribute('data-sectiontype')
         box_text = await box.locator('.text-overflow').inner_text()
         logging.info(f'课程信息: \n{box_text}\n')
-        progress_text = await box.locator('.section-item-wrapper').inner_text()
-        if is_learned(progress_text):
-            logging.info(f'课程{count}已学习，跳过该节\n')
-            continue
 
         if section_type == '6':
+            progress_text = await box.locator('.section-item-wrapper').inner_text()
+            if is_learned(progress_text):
+                logging.info(f'课程{count}已学习，跳过该节\n')
+                continue
             await handle_video(box, page_detail)
+
         elif section_type in ['1', '2']:
             await handle_document(box, page_detail)
+
+        elif section_type == '9':
+            logging.info('考试链接类型，存入文档')
+            with open('./考试链接.txt', 'a+', encoding='utf-8') as wp:
+                wp.write(f'{page_detail.url} \n')
+
         else:
             logging.info('非视频学习和文档学习类型，存入文档单独审查')
-            with open('./考试链接.txt', 'a+', encoding='utf-8') as wp:
+            with open('./未知类型链接.txt', 'a+', encoding='utf-8') as wp:
                 wp.write(f'{page_detail.url} \n')
 
         logging.info(f'课程{count}学习完毕')
