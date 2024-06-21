@@ -89,6 +89,10 @@ async def subject_learning(page):
 
 async def course_learning(page_detail):
     """课程内容学习"""
+    resume_button = await page_detail.locator('.register-mask-layer').all()
+    if resume_button:
+        await resume_button[0].click()
+
     await page_detail.locator('dl.chapter-list-box.required').last.wait_for()
     chapter_boxes = await page_detail.locator('dl.chapter-list-box.required').all()
 

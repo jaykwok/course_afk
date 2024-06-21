@@ -5,8 +5,10 @@ import os
 import re
 import time
 import traceback
-import func_module as fm
+
 from playwright.async_api import async_playwright
+
+import func_module as fm
 
 # 日志基本设置
 logging.basicConfig(
@@ -58,6 +60,7 @@ async def main():
                     await page.close()
             elif 'course' in url:
                 try:
+                    await page.wait_for_load_state('load')
                     await fm.course_learning(page)
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
