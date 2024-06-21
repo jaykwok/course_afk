@@ -15,13 +15,22 @@ logging.basicConfig(
 )
 
 
+def save_to_file(filename, url):
+    """将链接保存到指定文件"""
+
+    with open(filename, 'a+', encoding='utf-8') as wp:
+        wp.write(f'{url}\n')
+
+
 def is_learned(text: str) -> bool:
     """判断课程是否已学习"""
+
     return re.search(r'需学|需再学', text) is None
 
 
 def time_to_seconds(duration: str) -> int:
     """时长转换为秒数"""
+
     pattern = r'(\d+:)?\d{1,2}:\d{1,2}'
     match = re.search(pattern, duration)
     if not match:
@@ -34,17 +43,18 @@ def time_to_seconds(duration: str) -> int:
 
 def calculate_remaining_time(text) -> int:
     """计算当前课程剩余挂课时间"""
+
     pattern = r'(\d+:\d{2})'
     match = re.findall(pattern, text)
-    if match:
-        total_time = time_to_seconds(match[0])
-        remaining_time = time_to_seconds(match[1])
+    total_time = time_to_seconds(match[0])
+    remaining_time = time_to_seconds(match[1])
 
     return min(math.ceil(remaining_time / 60) * 60, total_time)
 
 
 async def timer(duration: int, interval: int = 10):
     """定时器"""
+
     duration = math.ceil(duration)
     logging.info(f'开始时间: {time.ctime()}')
     for elapsed in range(0, duration, interval):
@@ -55,6 +65,7 @@ async def timer(duration: int, interval: int = 10):
 
 async def subject_learning(page):
     """主题内容学习"""
+
     await page.wait_for_load_state('load')
     await page.locator('.item.current-hover').last.wait_for()
     await page.locator('.item.current-hover').locator('.section-type').last.wait_for()
@@ -72,8 +83,7 @@ async def subject_learning(page):
                 await page_detail.close()
             elif section_type == 'URL':
                 logging.info('URL学习类型，存入文档单独审查')
-                with open('./URL类型链接.txt', 'a+', encoding='utf-8') as wp:
-                    wp.write(f'{page.url} \n')
+                save_to_file('URL类型链接.txt', page.url)
                 async with page.expect_popup() as page_pop:
                     await learn_item.click()
                 page_detail = await page_pop.value
@@ -83,8 +93,7 @@ async def subject_learning(page):
                 await page_detail.close()
             else:
                 logging.info('非课程类学习类型，存入文档单独审查')
-                with open('./非课程类学习类型链接.txt', 'a+', encoding='utf-8') as wp:
-                    wp.write(f'{page.url} \n')
+                save_to_file('非课程类学习类型链接.txt', page.url)
 
 
 async def course_learning(page_detail):
@@ -110,14 +119,11 @@ async def course_learning(page_detail):
 
         elif section_type == '9':
             logging.info('考试链接类型，存入文档')
-            with open('./考试链接.txt', 'a+', encoding='utf-8') as wp:
-                wp.write(f'{page_detail.url} \n')
+            save_to_file('考试链接.txt', page_detail.url)
 
         else:
             logging.info('非视频学习和文档学习类型，存入文档单独审查')
-            with open('./未知类型链接.txt', 'a+', encoding='utf-8') as wp:
-                wp.write(f'{page_detail.url} \n')
-
+            save_to_file('未知类型链接.txt', page_detail.url)
         logging.info(f'课程{count}学习完毕')
 
 
@@ -157,6 +163,8 @@ async def handle_document(box, page):
 
 
 async def is_completed(page):
+    """判断Subject是否学习完毕"""
+
     await page.wait_for_load_state('load')
     await page.locator('.item.current-hover').last.wait_for()
     await page.locator('.item.current-hover').locator('.section-type').last.wait_for()

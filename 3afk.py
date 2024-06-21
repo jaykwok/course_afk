@@ -52,8 +52,9 @@ async def main():
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
-                    with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
-                        f.write(url)
+                    # with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
+                    #     f.write(url)
+                    fm.save_to_file('剩余未看课程链接.txt', url.strip())
                     if mark == 1:
                         mark = 0
                 finally:
@@ -65,8 +66,9 @@ async def main():
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
-                    with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
-                        f.write(url)
+                    # with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
+                    #     f.write(url)
+                    fm.save_to_file('剩余未看课程链接.txt', url.strip())
                     if mark == 1:
                         mark = 0
                 finally:
