@@ -116,6 +116,8 @@ async def course_learning(page_detail):
 
 async def handle_video(box, page):
     """处理视频类型课程"""
+
+    await page.wait_for_timeout(3 * 1000)
     resume_button = await page.locator('.register-mask-layer').all()
     if resume_button:
         await resume_button[0].click()
