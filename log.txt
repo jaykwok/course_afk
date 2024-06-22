@@ -1,0 +1,580 @@
+2024-06-22 02:07:55,932 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-06-22 02:08:04,467 [INFO] 3afk.py:47 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/95dfffc7-90ff-4da1-b071-12f747c1bdc4
+2024-06-22 02:08:06,978 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: 统一思想、提高认识——四招教你如何做好云电脑发展（大咖秀第3期）1
+
+2024-06-22 02:08:07,035 [INFO] func_module.py:113 (course_learning) 课程1已学习，跳过该节
+
+2024-06-22 02:08:07,171 [INFO] 3afk.py:47 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/28aac155-2b1f-4ffe-8254-8615f56a57dd
+2024-06-22 02:08:09,204 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: 云电脑&手机卫星直连（大咖来了2023037）
+
+2024-06-22 02:08:09,279 [INFO] func_module.py:113 (course_learning) 课程1已学习，跳过该节
+
+2024-06-22 02:08:09,400 [INFO] 3afk.py:47 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/557ea276-4e32-48eb-9f1e-500d5b186ed7
+2024-06-22 02:08:11,419 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: 创新自研、规模发展的天翼云电脑
+
+2024-06-22 02:08:11,481 [INFO] func_module.py:113 (course_learning) 课程1已学习，跳过该节
+
+2024-06-22 02:08:11,643 [INFO] 3afk.py:47 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/d5753de3-48ce-4989-84e8-bcd09c05777d
+2024-06-22 02:08:13,759 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: TeleDB重点产品介绍（剪辑版本）
+
+2024-06-22 02:08:13,803 [INFO] func_module.py:113 (course_learning) 课程1已学习，跳过该节
+
+2024-06-22 02:08:13,874 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第二章节: 天翼云TeleDB数据库介绍小测试
+
+2024-06-22 02:08:13,874 [INFO] func_module.py:121 (course_learning) 考试链接类型，存入文档
+2024-06-22 02:08:13,875 [INFO] func_module.py:127 (course_learning) 课程2学习完毕
+2024-06-22 02:08:13,995 [INFO] 3afk.py:47 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/2ff96a5c-13f2-4cc4-a202-5d0acde77683
+2024-06-22 02:08:18,158 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: 中能融合能源工业互联网平台中能云案例分享-李浩然
+
+2024-06-22 02:08:21,437 [INFO] func_module.py:143 (handle_video) 课程总时长: 1750秒
+2024-06-22 02:08:21,450 [INFO] func_module.py:146 (handle_video) 还需学习: 540秒
+2024-06-22 02:08:21,459 [INFO] func_module.py:59 (timer) 开始时间: Sat Jun 22 02:08:21 2024
+2024-06-22 02:08:31,466 [INFO] func_module.py:62 (timer) 已学习 10 / 540 (秒)
+2024-06-22 02:08:41,453 [INFO] func_module.py:62 (timer) 已学习 20 / 540 (秒)
+2024-06-22 02:08:51,460 [INFO] func_module.py:62 (timer) 已学习 30 / 540 (秒)
+2024-06-22 02:09:01,457 [INFO] func_module.py:62 (timer) 已学习 40 / 540 (秒)
+2024-06-22 02:09:11,457 [INFO] func_module.py:62 (timer) 已学习 50 / 540 (秒)
+2024-06-22 02:09:21,457 [INFO] func_module.py:62 (timer) 已学习 60 / 540 (秒)
+2024-06-22 02:09:31,458 [INFO] func_module.py:62 (timer) 已学习 70 / 540 (秒)
+2024-06-22 02:09:41,456 [INFO] func_module.py:62 (timer) 已学习 80 / 540 (秒)
+2024-06-22 02:09:51,456 [INFO] func_module.py:62 (timer) 已学习 90 / 540 (秒)
+2024-06-22 02:10:01,460 [INFO] func_module.py:62 (timer) 已学习 100 / 540 (秒)
+2024-06-22 02:10:11,457 [INFO] func_module.py:62 (timer) 已学习 110 / 540 (秒)
+2024-06-22 02:10:21,458 [INFO] func_module.py:62 (timer) 已学习 120 / 540 (秒)
+2024-06-22 02:10:31,457 [INFO] func_module.py:62 (timer) 已学习 130 / 540 (秒)
+2024-06-22 02:10:41,456 [INFO] func_module.py:62 (timer) 已学习 140 / 540 (秒)
+2024-06-22 02:10:51,455 [INFO] func_module.py:62 (timer) 已学习 150 / 540 (秒)
+2024-06-22 02:11:01,453 [INFO] func_module.py:62 (timer) 已学习 160 / 540 (秒)
+2024-06-22 02:11:11,452 [INFO] func_module.py:62 (timer) 已学习 170 / 540 (秒)
+2024-06-22 02:11:21,466 [INFO] func_module.py:62 (timer) 已学习 180 / 540 (秒)
+2024-06-22 02:11:31,466 [INFO] func_module.py:62 (timer) 已学习 190 / 540 (秒)
+2024-06-22 02:11:41,455 [INFO] func_module.py:62 (timer) 已学习 200 / 540 (秒)
+2024-06-22 02:11:51,456 [INFO] func_module.py:62 (timer) 已学习 210 / 540 (秒)
+2024-06-22 02:12:01,456 [INFO] func_module.py:62 (timer) 已学习 220 / 540 (秒)
+2024-06-22 02:12:11,457 [INFO] func_module.py:62 (timer) 已学习 230 / 540 (秒)
+2024-06-22 02:12:21,455 [INFO] func_module.py:62 (timer) 已学习 240 / 540 (秒)
+2024-06-22 02:12:31,457 [INFO] func_module.py:62 (timer) 已学习 250 / 540 (秒)
+2024-06-22 02:12:41,454 [INFO] func_module.py:62 (timer) 已学习 260 / 540 (秒)
+2024-06-22 02:12:51,466 [INFO] func_module.py:62 (timer) 已学习 270 / 540 (秒)
+2024-06-22 02:13:01,465 [INFO] func_module.py:62 (timer) 已学习 280 / 540 (秒)
+2024-06-22 02:13:11,465 [INFO] func_module.py:62 (timer) 已学习 290 / 540 (秒)
+2024-06-22 02:13:21,464 [INFO] func_module.py:62 (timer) 已学习 300 / 540 (秒)
+2024-06-22 02:13:31,463 [INFO] func_module.py:62 (timer) 已学习 310 / 540 (秒)
+2024-06-22 02:13:41,463 [INFO] func_module.py:62 (timer) 已学习 320 / 540 (秒)
+2024-06-22 02:13:51,465 [INFO] func_module.py:62 (timer) 已学习 330 / 540 (秒)
+2024-06-22 02:14:01,465 [INFO] func_module.py:62 (timer) 已学习 340 / 540 (秒)
+2024-06-22 02:14:11,459 [INFO] func_module.py:62 (timer) 已学习 350 / 540 (秒)
+2024-06-22 02:14:21,467 [INFO] func_module.py:62 (timer) 已学习 360 / 540 (秒)
+2024-06-22 02:14:31,470 [INFO] func_module.py:62 (timer) 已学习 370 / 540 (秒)
+2024-06-22 02:14:41,469 [INFO] func_module.py:62 (timer) 已学习 380 / 540 (秒)
+2024-06-22 02:14:51,469 [INFO] func_module.py:62 (timer) 已学习 390 / 540 (秒)
+2024-06-22 02:15:01,468 [INFO] func_module.py:62 (timer) 已学习 400 / 540 (秒)
+2024-06-22 02:15:11,470 [INFO] func_module.py:62 (timer) 已学习 410 / 540 (秒)
+2024-06-22 02:15:21,481 [INFO] func_module.py:62 (timer) 已学习 420 / 540 (秒)
+2024-06-22 02:15:31,477 [INFO] func_module.py:62 (timer) 已学习 430 / 540 (秒)
+2024-06-22 02:15:41,475 [INFO] func_module.py:62 (timer) 已学习 440 / 540 (秒)
+2024-06-22 02:15:51,476 [INFO] func_module.py:62 (timer) 已学习 450 / 540 (秒)
+2024-06-22 02:16:01,473 [INFO] func_module.py:62 (timer) 已学习 460 / 540 (秒)
+2024-06-22 02:16:11,475 [INFO] func_module.py:62 (timer) 已学习 470 / 540 (秒)
+2024-06-22 02:16:21,470 [INFO] func_module.py:62 (timer) 已学习 480 / 540 (秒)
+2024-06-22 02:16:31,469 [INFO] func_module.py:62 (timer) 已学习 490 / 540 (秒)
+2024-06-22 02:16:41,469 [INFO] func_module.py:62 (timer) 已学习 500 / 540 (秒)
+2024-06-22 02:16:51,470 [INFO] func_module.py:62 (timer) 已学习 510 / 540 (秒)
+2024-06-22 02:17:01,479 [INFO] func_module.py:62 (timer) 已学习 520 / 540 (秒)
+2024-06-22 02:17:11,478 [INFO] func_module.py:62 (timer) 已学习 530 / 540 (秒)
+2024-06-22 02:17:21,477 [INFO] func_module.py:62 (timer) 已学习 540 / 540 (秒)
+2024-06-22 02:17:21,477 [INFO] func_module.py:63 (timer) 结束时间: Sat Jun 22 02:17:21 2024
+2024-06-22 02:17:21,478 [INFO] func_module.py:127 (course_learning) 课程1学习完毕
+2024-06-22 02:17:23,873 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: 云电脑产品能力及一体化解决方案介绍-刘驰
+
+2024-06-22 02:17:27,205 [INFO] func_module.py:143 (handle_video) 课程总时长: 3640秒
+2024-06-22 02:17:27,215 [INFO] func_module.py:146 (handle_video) 还需学习: 2940秒
+2024-06-22 02:17:27,219 [INFO] func_module.py:59 (timer) 开始时间: Sat Jun 22 02:17:27 2024
+2024-06-22 02:17:37,219 [INFO] func_module.py:62 (timer) 已学习 10 / 2940 (秒)
+2024-06-22 02:17:47,226 [INFO] func_module.py:62 (timer) 已学习 20 / 2940 (秒)
+2024-06-22 02:17:57,227 [INFO] func_module.py:62 (timer) 已学习 30 / 2940 (秒)
+2024-06-22 02:18:07,224 [INFO] func_module.py:62 (timer) 已学习 40 / 2940 (秒)
+2024-06-22 02:18:17,230 [INFO] func_module.py:62 (timer) 已学习 50 / 2940 (秒)
+2024-06-22 02:18:27,233 [INFO] func_module.py:62 (timer) 已学习 60 / 2940 (秒)
+2024-06-22 02:18:37,238 [INFO] func_module.py:62 (timer) 已学习 70 / 2940 (秒)
+2024-06-22 02:18:47,242 [INFO] func_module.py:62 (timer) 已学习 80 / 2940 (秒)
+2024-06-22 02:18:57,243 [INFO] func_module.py:62 (timer) 已学习 90 / 2940 (秒)
+2024-06-22 02:19:07,233 [INFO] func_module.py:62 (timer) 已学习 100 / 2940 (秒)
+2024-06-22 02:19:17,236 [INFO] func_module.py:62 (timer) 已学习 110 / 2940 (秒)
+2024-06-22 02:19:27,240 [INFO] func_module.py:62 (timer) 已学习 120 / 2940 (秒)
+2024-06-22 02:19:37,248 [INFO] func_module.py:62 (timer) 已学习 130 / 2940 (秒)
+2024-06-22 02:19:47,252 [INFO] func_module.py:62 (timer) 已学习 140 / 2940 (秒)
+2024-06-22 02:19:57,256 [INFO] func_module.py:62 (timer) 已学习 150 / 2940 (秒)
+2024-06-22 02:20:07,262 [INFO] func_module.py:62 (timer) 已学习 160 / 2940 (秒)
+2024-06-22 02:20:17,276 [INFO] func_module.py:62 (timer) 已学习 170 / 2940 (秒)
+2024-06-22 02:20:27,265 [INFO] func_module.py:62 (timer) 已学习 180 / 2940 (秒)
+2024-06-22 02:20:37,271 [INFO] func_module.py:62 (timer) 已学习 190 / 2940 (秒)
+2024-06-22 02:20:47,268 [INFO] func_module.py:62 (timer) 已学习 200 / 2940 (秒)
+2024-06-22 02:20:57,271 [INFO] func_module.py:62 (timer) 已学习 210 / 2940 (秒)
+2024-06-22 02:21:07,276 [INFO] func_module.py:62 (timer) 已学习 220 / 2940 (秒)
+2024-06-22 02:21:17,264 [INFO] func_module.py:62 (timer) 已学习 230 / 2940 (秒)
+2024-06-22 02:21:27,265 [INFO] func_module.py:62 (timer) 已学习 240 / 2940 (秒)
+2024-06-22 02:21:37,268 [INFO] func_module.py:62 (timer) 已学习 250 / 2940 (秒)
+2024-06-22 02:21:47,273 [INFO] func_module.py:62 (timer) 已学习 260 / 2940 (秒)
+2024-06-22 02:21:57,278 [INFO] func_module.py:62 (timer) 已学习 270 / 2940 (秒)
+2024-06-22 02:22:07,279 [INFO] func_module.py:62 (timer) 已学习 280 / 2940 (秒)
+2024-06-22 02:22:17,286 [INFO] func_module.py:62 (timer) 已学习 290 / 2940 (秒)
+2024-06-22 02:22:27,289 [INFO] func_module.py:62 (timer) 已学习 300 / 2940 (秒)
+2024-06-22 02:22:37,294 [INFO] func_module.py:62 (timer) 已学习 310 / 2940 (秒)
+2024-06-22 02:22:47,283 [INFO] func_module.py:62 (timer) 已学习 320 / 2940 (秒)
+2024-06-22 02:22:57,287 [INFO] func_module.py:62 (timer) 已学习 330 / 2940 (秒)
+2024-06-22 02:23:07,294 [INFO] func_module.py:62 (timer) 已学习 340 / 2940 (秒)
+2024-06-22 02:23:17,281 [INFO] func_module.py:62 (timer) 已学习 350 / 2940 (秒)
+2024-06-22 02:23:27,286 [INFO] func_module.py:62 (timer) 已学习 360 / 2940 (秒)
+2024-06-22 02:23:37,289 [INFO] func_module.py:62 (timer) 已学习 370 / 2940 (秒)
+2024-06-22 02:23:47,281 [INFO] func_module.py:62 (timer) 已学习 380 / 2940 (秒)
+2024-06-22 02:23:57,279 [INFO] func_module.py:62 (timer) 已学习 390 / 2940 (秒)
+2024-06-22 02:24:07,284 [INFO] func_module.py:62 (timer) 已学习 400 / 2940 (秒)
+2024-06-22 02:24:17,287 [INFO] func_module.py:62 (timer) 已学习 410 / 2940 (秒)
+2024-06-22 02:24:27,290 [INFO] func_module.py:62 (timer) 已学习 420 / 2940 (秒)
+2024-06-22 02:24:37,279 [INFO] func_module.py:62 (timer) 已学习 430 / 2940 (秒)
+2024-06-22 02:24:47,282 [INFO] func_module.py:62 (timer) 已学习 440 / 2940 (秒)
+2024-06-22 02:24:57,290 [INFO] func_module.py:62 (timer) 已学习 450 / 2940 (秒)
+2024-06-22 02:25:07,292 [INFO] func_module.py:62 (timer) 已学习 460 / 2940 (秒)
+2024-06-22 02:25:17,282 [INFO] func_module.py:62 (timer) 已学习 470 / 2940 (秒)
+2024-06-22 02:25:27,284 [INFO] func_module.py:62 (timer) 已学习 480 / 2940 (秒)
+2024-06-22 02:25:37,291 [INFO] func_module.py:62 (timer) 已学习 490 / 2940 (秒)
+2024-06-22 02:25:47,281 [INFO] func_module.py:62 (timer) 已学习 500 / 2940 (秒)
+2024-06-22 02:25:57,291 [INFO] func_module.py:62 (timer) 已学习 510 / 2940 (秒)
+2024-06-22 02:26:07,281 [INFO] func_module.py:62 (timer) 已学习 520 / 2940 (秒)
+2024-06-22 02:26:17,286 [INFO] func_module.py:62 (timer) 已学习 530 / 2940 (秒)
+2024-06-22 02:26:27,290 [INFO] func_module.py:62 (timer) 已学习 540 / 2940 (秒)
+2024-06-22 02:26:37,280 [INFO] func_module.py:62 (timer) 已学习 550 / 2940 (秒)
+2024-06-22 02:26:47,284 [INFO] func_module.py:62 (timer) 已学习 560 / 2940 (秒)
+2024-06-22 02:26:57,288 [INFO] func_module.py:62 (timer) 已学习 570 / 2940 (秒)
+2024-06-22 02:27:07,280 [INFO] func_module.py:62 (timer) 已学习 580 / 2940 (秒)
+2024-06-22 02:27:17,281 [INFO] func_module.py:62 (timer) 已学习 590 / 2940 (秒)
+2024-06-22 02:27:27,290 [INFO] func_module.py:62 (timer) 已学习 600 / 2940 (秒)
+2024-06-22 02:27:37,292 [INFO] func_module.py:62 (timer) 已学习 610 / 2940 (秒)
+2024-06-22 02:27:47,283 [INFO] func_module.py:62 (timer) 已学习 620 / 2940 (秒)
+2024-06-22 02:27:57,288 [INFO] func_module.py:62 (timer) 已学习 630 / 2940 (秒)
+2024-06-22 02:28:07,291 [INFO] func_module.py:62 (timer) 已学习 640 / 2940 (秒)
+2024-06-22 02:28:17,293 [INFO] func_module.py:62 (timer) 已学习 650 / 2940 (秒)
+2024-06-22 02:28:27,279 [INFO] func_module.py:62 (timer) 已学习 660 / 2940 (秒)
+2024-06-22 02:28:37,292 [INFO] func_module.py:62 (timer) 已学习 670 / 2940 (秒)
+2024-06-22 02:28:47,283 [INFO] func_module.py:62 (timer) 已学习 680 / 2940 (秒)
+2024-06-22 02:28:57,289 [INFO] func_module.py:62 (timer) 已学习 690 / 2940 (秒)
+2024-06-22 02:29:07,291 [INFO] func_module.py:62 (timer) 已学习 700 / 2940 (秒)
+2024-06-22 02:29:17,293 [INFO] func_module.py:62 (timer) 已学习 710 / 2940 (秒)
+2024-06-22 02:29:27,284 [INFO] func_module.py:62 (timer) 已学习 720 / 2940 (秒)
+2024-06-22 02:29:37,289 [INFO] func_module.py:62 (timer) 已学习 730 / 2940 (秒)
+2024-06-22 02:29:47,292 [INFO] func_module.py:62 (timer) 已学习 740 / 2940 (秒)
+2024-06-22 02:29:57,292 [INFO] func_module.py:62 (timer) 已学习 750 / 2940 (秒)
+2024-06-22 02:30:07,294 [INFO] func_module.py:62 (timer) 已学习 760 / 2940 (秒)
+2024-06-22 02:30:17,302 [INFO] func_module.py:62 (timer) 已学习 770 / 2940 (秒)
+2024-06-22 02:30:27,305 [INFO] func_module.py:62 (timer) 已学习 780 / 2940 (秒)
+2024-06-22 02:30:37,301 [INFO] func_module.py:62 (timer) 已学习 790 / 2940 (秒)
+2024-06-22 02:30:47,305 [INFO] func_module.py:62 (timer) 已学习 800 / 2940 (秒)
+2024-06-22 02:30:57,307 [INFO] func_module.py:62 (timer) 已学习 810 / 2940 (秒)
+2024-06-22 02:31:07,298 [INFO] func_module.py:62 (timer) 已学习 820 / 2940 (秒)
+2024-06-22 02:31:17,308 [INFO] func_module.py:62 (timer) 已学习 830 / 2940 (秒)
+2024-06-22 02:31:27,295 [INFO] func_module.py:62 (timer) 已学习 840 / 2940 (秒)
+2024-06-22 02:31:37,300 [INFO] func_module.py:62 (timer) 已学习 850 / 2940 (秒)
+2024-06-22 02:31:47,305 [INFO] func_module.py:62 (timer) 已学习 860 / 2940 (秒)
+2024-06-22 02:31:57,308 [INFO] func_module.py:62 (timer) 已学习 870 / 2940 (秒)
+2024-06-22 02:32:07,295 [INFO] func_module.py:62 (timer) 已学习 880 / 2940 (秒)
+2024-06-22 02:32:17,306 [INFO] func_module.py:62 (timer) 已学习 890 / 2940 (秒)
+2024-06-22 02:32:27,297 [INFO] func_module.py:62 (timer) 已学习 900 / 2940 (秒)
+2024-06-22 02:32:37,300 [INFO] func_module.py:62 (timer) 已学习 910 / 2940 (秒)
+2024-06-22 02:32:47,307 [INFO] func_module.py:62 (timer) 已学习 920 / 2940 (秒)
+2024-06-22 02:32:57,295 [INFO] func_module.py:62 (timer) 已学习 930 / 2940 (秒)
+2024-06-22 02:33:07,300 [INFO] func_module.py:62 (timer) 已学习 940 / 2940 (秒)
+2024-06-22 02:33:17,304 [INFO] func_module.py:62 (timer) 已学习 950 / 2940 (秒)
+2024-06-22 02:33:27,307 [INFO] func_module.py:62 (timer) 已学习 960 / 2940 (秒)
+2024-06-22 02:33:37,297 [INFO] func_module.py:62 (timer) 已学习 970 / 2940 (秒)
+2024-06-22 02:33:47,296 [INFO] func_module.py:62 (timer) 已学习 980 / 2940 (秒)
+2024-06-22 02:33:57,305 [INFO] func_module.py:62 (timer) 已学习 990 / 2940 (秒)
+2024-06-22 02:34:07,310 [INFO] func_module.py:62 (timer) 已学习 1000 / 2940 (秒)
+2024-06-22 02:34:17,311 [INFO] func_module.py:62 (timer) 已学习 1010 / 2940 (秒)
+2024-06-22 02:34:27,317 [INFO] func_module.py:62 (timer) 已学习 1020 / 2940 (秒)
+2024-06-22 02:34:37,320 [INFO] func_module.py:62 (timer) 已学习 1030 / 2940 (秒)
+2024-06-22 02:34:47,322 [INFO] func_module.py:62 (timer) 已学习 1040 / 2940 (秒)
+2024-06-22 02:34:57,315 [INFO] func_module.py:62 (timer) 已学习 1050 / 2940 (秒)
+2024-06-22 02:35:07,317 [INFO] func_module.py:62 (timer) 已学习 1060 / 2940 (秒)
+2024-06-22 02:35:17,323 [INFO] func_module.py:62 (timer) 已学习 1070 / 2940 (秒)
+2024-06-22 02:35:27,316 [INFO] func_module.py:62 (timer) 已学习 1080 / 2940 (秒)
+2024-06-22 02:35:37,309 [INFO] func_module.py:62 (timer) 已学习 1090 / 2940 (秒)
+2024-06-22 02:35:47,315 [INFO] func_module.py:62 (timer) 已学习 1100 / 2940 (秒)
+2024-06-22 02:35:57,317 [INFO] func_module.py:62 (timer) 已学习 1110 / 2940 (秒)
+2024-06-22 02:36:07,320 [INFO] func_module.py:62 (timer) 已学习 1120 / 2940 (秒)
+2024-06-22 02:36:17,322 [INFO] func_module.py:62 (timer) 已学习 1130 / 2940 (秒)
+2024-06-22 02:36:27,298 [INFO] func_module.py:62 (timer) 已学习 1140 / 2940 (秒)
+2024-06-22 02:36:37,295 [INFO] func_module.py:62 (timer) 已学习 1150 / 2940 (秒)
+2024-06-22 02:36:47,299 [INFO] func_module.py:62 (timer) 已学习 1160 / 2940 (秒)
+2024-06-22 02:36:57,306 [INFO] func_module.py:62 (timer) 已学习 1170 / 2940 (秒)
+2024-06-22 02:37:07,303 [INFO] func_module.py:62 (timer) 已学习 1180 / 2940 (秒)
+2024-06-22 02:37:17,309 [INFO] func_module.py:62 (timer) 已学习 1190 / 2940 (秒)
+2024-06-22 02:37:27,310 [INFO] func_module.py:62 (timer) 已学习 1200 / 2940 (秒)
+2024-06-22 02:37:37,318 [INFO] func_module.py:62 (timer) 已学习 1210 / 2940 (秒)
+2024-06-22 02:37:47,324 [INFO] func_module.py:62 (timer) 已学习 1220 / 2940 (秒)
+2024-06-22 02:37:57,330 [INFO] func_module.py:62 (timer) 已学习 1230 / 2940 (秒)
+2024-06-22 02:38:07,335 [INFO] func_module.py:62 (timer) 已学习 1240 / 2940 (秒)
+2024-06-22 02:38:17,324 [INFO] func_module.py:62 (timer) 已学习 1250 / 2940 (秒)
+2024-06-22 02:38:27,328 [INFO] func_module.py:62 (timer) 已学习 1260 / 2940 (秒)
+2024-06-22 02:38:37,329 [INFO] func_module.py:62 (timer) 已学习 1270 / 2940 (秒)
+2024-06-22 02:38:47,336 [INFO] func_module.py:62 (timer) 已学习 1280 / 2940 (秒)
+2024-06-22 02:38:57,339 [INFO] func_module.py:62 (timer) 已学习 1290 / 2940 (秒)
+2024-06-22 02:39:07,335 [INFO] func_module.py:62 (timer) 已学习 1300 / 2940 (秒)
+2024-06-22 02:39:17,336 [INFO] func_module.py:62 (timer) 已学习 1310 / 2940 (秒)
+2024-06-22 02:39:27,325 [INFO] func_module.py:62 (timer) 已学习 1320 / 2940 (秒)
+2024-06-22 02:39:37,327 [INFO] func_module.py:62 (timer) 已学习 1330 / 2940 (秒)
+2024-06-22 02:39:47,334 [INFO] func_module.py:62 (timer) 已学习 1340 / 2940 (秒)
+2024-06-22 02:39:57,325 [INFO] func_module.py:62 (timer) 已学习 1350 / 2940 (秒)
+2024-06-22 02:40:07,329 [INFO] func_module.py:62 (timer) 已学习 1360 / 2940 (秒)
+2024-06-22 02:40:17,333 [INFO] func_module.py:62 (timer) 已学习 1370 / 2940 (秒)
+2024-06-22 02:40:27,337 [INFO] func_module.py:62 (timer) 已学习 1380 / 2940 (秒)
+2024-06-22 02:40:37,338 [INFO] func_module.py:62 (timer) 已学习 1390 / 2940 (秒)
+2024-06-22 02:40:47,329 [INFO] func_module.py:62 (timer) 已学习 1400 / 2940 (秒)
+2024-06-22 02:40:57,337 [INFO] func_module.py:62 (timer) 已学习 1410 / 2940 (秒)
+2024-06-22 02:41:07,328 [INFO] func_module.py:62 (timer) 已学习 1420 / 2940 (秒)
+2024-06-22 02:41:17,332 [INFO] func_module.py:62 (timer) 已学习 1430 / 2940 (秒)
+2024-06-22 02:41:27,326 [INFO] func_module.py:62 (timer) 已学习 1440 / 2940 (秒)
+2024-06-22 02:41:37,334 [INFO] func_module.py:62 (timer) 已学习 1450 / 2940 (秒)
+2024-06-22 02:41:47,330 [INFO] func_module.py:62 (timer) 已学习 1460 / 2940 (秒)
+2024-06-22 02:41:57,334 [INFO] func_module.py:62 (timer) 已学习 1470 / 2940 (秒)
+2024-06-22 02:42:07,337 [INFO] func_module.py:62 (timer) 已学习 1480 / 2940 (秒)
+2024-06-22 02:42:17,339 [INFO] func_module.py:62 (timer) 已学习 1490 / 2940 (秒)
+2024-06-22 02:42:27,344 [INFO] func_module.py:62 (timer) 已学习 1500 / 2940 (秒)
+2024-06-22 02:42:37,347 [INFO] func_module.py:62 (timer) 已学习 1510 / 2940 (秒)
+2024-06-22 02:42:47,350 [INFO] func_module.py:62 (timer) 已学习 1520 / 2940 (秒)
+2024-06-22 02:42:57,346 [INFO] func_module.py:62 (timer) 已学习 1530 / 2940 (秒)
+2024-06-22 02:43:07,352 [INFO] func_module.py:62 (timer) 已学习 1540 / 2940 (秒)
+2024-06-22 02:43:17,342 [INFO] func_module.py:62 (timer) 已学习 1550 / 2940 (秒)
+2024-06-22 02:43:27,356 [INFO] func_module.py:62 (timer) 已学习 1560 / 2940 (秒)
+2024-06-22 02:43:37,359 [INFO] func_module.py:62 (timer) 已学习 1570 / 2940 (秒)
+2024-06-22 02:43:47,361 [INFO] func_module.py:62 (timer) 已学习 1580 / 2940 (秒)
+2024-06-22 02:43:57,363 [INFO] func_module.py:62 (timer) 已学习 1590 / 2940 (秒)
+2024-06-22 02:44:07,365 [INFO] func_module.py:62 (timer) 已学习 1600 / 2940 (秒)
+2024-06-22 02:44:17,369 [INFO] func_module.py:62 (timer) 已学习 1610 / 2940 (秒)
+2024-06-22 02:44:27,367 [INFO] func_module.py:62 (timer) 已学习 1620 / 2940 (秒)
+2024-06-22 02:44:37,359 [INFO] func_module.py:62 (timer) 已学习 1630 / 2940 (秒)
+2024-06-22 02:44:47,361 [INFO] func_module.py:62 (timer) 已学习 1640 / 2940 (秒)
+2024-06-22 02:44:57,366 [INFO] func_module.py:62 (timer) 已学习 1650 / 2940 (秒)
+2024-06-22 02:45:07,355 [INFO] func_module.py:62 (timer) 已学习 1660 / 2940 (秒)
+2024-06-22 02:45:17,356 [INFO] func_module.py:62 (timer) 已学习 1670 / 2940 (秒)
+2024-06-22 02:45:27,368 [INFO] func_module.py:62 (timer) 已学习 1680 / 2940 (秒)
+2024-06-22 02:45:37,358 [INFO] func_module.py:62 (timer) 已学习 1690 / 2940 (秒)
+2024-06-22 02:45:47,363 [INFO] func_module.py:62 (timer) 已学习 1700 / 2940 (秒)
+2024-06-22 02:45:57,366 [INFO] func_module.py:62 (timer) 已学习 1710 / 2940 (秒)
+2024-06-22 02:46:07,362 [INFO] func_module.py:62 (timer) 已学习 1720 / 2940 (秒)
+2024-06-22 02:46:17,366 [INFO] func_module.py:62 (timer) 已学习 1730 / 2940 (秒)
+2024-06-22 02:46:27,359 [INFO] func_module.py:62 (timer) 已学习 1740 / 2940 (秒)
+2024-06-22 02:46:37,370 [INFO] func_module.py:62 (timer) 已学习 1750 / 2940 (秒)
+2024-06-22 02:46:47,375 [INFO] func_module.py:62 (timer) 已学习 1760 / 2940 (秒)
+2024-06-22 02:46:57,385 [INFO] func_module.py:62 (timer) 已学习 1770 / 2940 (秒)
+2024-06-22 02:47:07,386 [INFO] func_module.py:62 (timer) 已学习 1780 / 2940 (秒)
+2024-06-22 02:47:17,394 [INFO] func_module.py:62 (timer) 已学习 1790 / 2940 (秒)
+2024-06-22 02:47:27,396 [INFO] func_module.py:62 (timer) 已学习 1800 / 2940 (秒)
+2024-06-22 02:47:37,386 [INFO] func_module.py:62 (timer) 已学习 1810 / 2940 (秒)
+2024-06-22 02:47:47,391 [INFO] func_module.py:62 (timer) 已学习 1820 / 2940 (秒)
+2024-06-22 02:47:57,394 [INFO] func_module.py:62 (timer) 已学习 1830 / 2940 (秒)
+2024-06-22 02:48:07,387 [INFO] func_module.py:62 (timer) 已学习 1840 / 2940 (秒)
+2024-06-22 02:48:17,392 [INFO] func_module.py:62 (timer) 已学习 1850 / 2940 (秒)
+2024-06-22 02:48:27,402 [INFO] func_module.py:62 (timer) 已学习 1860 / 2940 (秒)
+2024-06-22 02:48:37,413 [INFO] func_module.py:62 (timer) 已学习 1870 / 2940 (秒)
+2024-06-22 02:48:47,417 [INFO] func_module.py:62 (timer) 已学习 1880 / 2940 (秒)
+2024-06-22 02:48:57,427 [INFO] func_module.py:62 (timer) 已学习 1890 / 2940 (秒)
+2024-06-22 02:49:07,430 [INFO] func_module.py:62 (timer) 已学习 1900 / 2940 (秒)
+2024-06-22 02:49:17,418 [INFO] func_module.py:62 (timer) 已学习 1910 / 2940 (秒)
+2024-06-22 02:49:27,422 [INFO] func_module.py:62 (timer) 已学习 1920 / 2940 (秒)
+2024-06-22 02:49:37,423 [INFO] func_module.py:62 (timer) 已学习 1930 / 2940 (秒)
+2024-06-22 02:49:47,426 [INFO] func_module.py:62 (timer) 已学习 1940 / 2940 (秒)
+2024-06-22 02:49:57,434 [INFO] func_module.py:62 (timer) 已学习 1950 / 2940 (秒)
+2024-06-22 02:50:07,444 [INFO] func_module.py:62 (timer) 已学习 1960 / 2940 (秒)
+2024-06-22 02:50:17,448 [INFO] func_module.py:62 (timer) 已学习 1970 / 2940 (秒)
+2024-06-22 02:50:27,452 [INFO] func_module.py:62 (timer) 已学习 1980 / 2940 (秒)
+2024-06-22 02:50:37,456 [INFO] func_module.py:62 (timer) 已学习 1990 / 2940 (秒)
+2024-06-22 02:50:47,458 [INFO] func_module.py:62 (timer) 已学习 2000 / 2940 (秒)
+2024-06-22 02:50:57,462 [INFO] func_module.py:62 (timer) 已学习 2010 / 2940 (秒)
+2024-06-22 02:51:07,450 [INFO] func_module.py:62 (timer) 已学习 2020 / 2940 (秒)
+2024-06-22 02:51:17,455 [INFO] func_module.py:62 (timer) 已学习 2030 / 2940 (秒)
+2024-06-22 02:51:27,457 [INFO] func_module.py:62 (timer) 已学习 2040 / 2940 (秒)
+2024-06-22 02:51:37,453 [INFO] func_module.py:62 (timer) 已学习 2050 / 2940 (秒)
+2024-06-22 02:51:47,454 [INFO] func_module.py:62 (timer) 已学习 2060 / 2940 (秒)
+2024-06-22 02:51:57,459 [INFO] func_module.py:62 (timer) 已学习 2070 / 2940 (秒)
+2024-06-22 02:52:07,462 [INFO] func_module.py:62 (timer) 已学习 2080 / 2940 (秒)
+2024-06-22 02:52:17,453 [INFO] func_module.py:62 (timer) 已学习 2090 / 2940 (秒)
+2024-06-22 02:52:27,456 [INFO] func_module.py:62 (timer) 已学习 2100 / 2940 (秒)
+2024-06-22 02:52:37,459 [INFO] func_module.py:62 (timer) 已学习 2110 / 2940 (秒)
+2024-06-22 02:52:47,455 [INFO] func_module.py:62 (timer) 已学习 2120 / 2940 (秒)
+2024-06-22 02:52:57,457 [INFO] func_module.py:62 (timer) 已学习 2130 / 2940 (秒)
+2024-06-22 02:53:07,463 [INFO] func_module.py:62 (timer) 已学习 2140 / 2940 (秒)
+2024-06-22 02:53:17,475 [INFO] func_module.py:62 (timer) 已学习 2150 / 2940 (秒)
+2024-06-22 02:53:27,479 [INFO] func_module.py:62 (timer) 已学习 2160 / 2940 (秒)
+2024-06-22 02:53:37,488 [INFO] func_module.py:62 (timer) 已学习 2170 / 2940 (秒)
+2024-06-22 02:53:47,492 [INFO] func_module.py:62 (timer) 已学习 2180 / 2940 (秒)
+2024-06-22 02:53:57,494 [INFO] func_module.py:62 (timer) 已学习 2190 / 2940 (秒)
+2024-06-22 02:54:07,482 [INFO] func_module.py:62 (timer) 已学习 2200 / 2940 (秒)
+2024-06-22 02:54:17,493 [INFO] func_module.py:62 (timer) 已学习 2210 / 2940 (秒)
+2024-06-22 02:54:27,481 [INFO] func_module.py:62 (timer) 已学习 2220 / 2940 (秒)
+2024-06-22 02:54:37,489 [INFO] func_module.py:62 (timer) 已学习 2230 / 2940 (秒)
+2024-06-22 02:54:47,492 [INFO] func_module.py:62 (timer) 已学习 2240 / 2940 (秒)
+2024-06-22 02:54:57,484 [INFO] func_module.py:62 (timer) 已学习 2250 / 2940 (秒)
+2024-06-22 02:55:07,485 [INFO] func_module.py:62 (timer) 已学习 2260 / 2940 (秒)
+2024-06-22 02:55:17,486 [INFO] func_module.py:62 (timer) 已学习 2270 / 2940 (秒)
+2024-06-22 02:55:27,493 [INFO] func_module.py:62 (timer) 已学习 2280 / 2940 (秒)
+2024-06-22 02:55:37,483 [INFO] func_module.py:62 (timer) 已学习 2290 / 2940 (秒)
+2024-06-22 02:55:47,487 [INFO] func_module.py:62 (timer) 已学习 2300 / 2940 (秒)
+2024-06-22 02:55:57,493 [INFO] func_module.py:62 (timer) 已学习 2310 / 2940 (秒)
+2024-06-22 02:56:07,482 [INFO] func_module.py:62 (timer) 已学习 2320 / 2940 (秒)
+2024-06-22 02:56:17,490 [INFO] func_module.py:62 (timer) 已学习 2330 / 2940 (秒)
+2024-06-22 02:56:27,478 [INFO] func_module.py:62 (timer) 已学习 2340 / 2940 (秒)
+2024-06-22 02:56:37,483 [INFO] func_module.py:62 (timer) 已学习 2350 / 2940 (秒)
+2024-06-22 02:56:47,487 [INFO] func_module.py:62 (timer) 已学习 2360 / 2940 (秒)
+2024-06-22 02:56:57,485 [INFO] func_module.py:62 (timer) 已学习 2370 / 2940 (秒)
+2024-06-22 02:57:07,488 [INFO] func_module.py:62 (timer) 已学习 2380 / 2940 (秒)
+2024-06-22 02:57:17,490 [INFO] func_module.py:62 (timer) 已学习 2390 / 2940 (秒)
+2024-06-22 02:57:27,469 [INFO] func_module.py:62 (timer) 已学习 2400 / 2940 (秒)
+2024-06-22 02:57:37,475 [INFO] func_module.py:62 (timer) 已学习 2410 / 2940 (秒)
+2024-06-22 02:57:47,464 [INFO] func_module.py:62 (timer) 已学习 2420 / 2940 (秒)
+2024-06-22 02:57:57,466 [INFO] func_module.py:62 (timer) 已学习 2430 / 2940 (秒)
+2024-06-22 02:58:07,476 [INFO] func_module.py:62 (timer) 已学习 2440 / 2940 (秒)
+2024-06-22 02:58:17,480 [INFO] func_module.py:62 (timer) 已学习 2450 / 2940 (秒)
+2024-06-22 02:58:27,492 [INFO] func_module.py:62 (timer) 已学习 2460 / 2940 (秒)
+2024-06-22 02:58:37,485 [INFO] func_module.py:62 (timer) 已学习 2470 / 2940 (秒)
+2024-06-22 02:58:47,491 [INFO] func_module.py:62 (timer) 已学习 2480 / 2940 (秒)
+2024-06-22 02:58:57,487 [INFO] func_module.py:62 (timer) 已学习 2490 / 2940 (秒)
+2024-06-22 02:59:07,493 [INFO] func_module.py:62 (timer) 已学习 2500 / 2940 (秒)
+2024-06-22 02:59:17,482 [INFO] func_module.py:62 (timer) 已学习 2510 / 2940 (秒)
+2024-06-22 02:59:27,493 [INFO] func_module.py:62 (timer) 已学习 2520 / 2940 (秒)
+2024-06-22 02:59:37,496 [INFO] func_module.py:62 (timer) 已学习 2530 / 2940 (秒)
+2024-06-22 02:59:47,503 [INFO] func_module.py:62 (timer) 已学习 2540 / 2940 (秒)
+2024-06-22 02:59:57,496 [INFO] func_module.py:62 (timer) 已学习 2550 / 2940 (秒)
+2024-06-22 03:00:07,507 [INFO] func_module.py:62 (timer) 已学习 2560 / 2940 (秒)
+2024-06-22 03:00:17,495 [INFO] func_module.py:62 (timer) 已学习 2570 / 2940 (秒)
+2024-06-22 03:00:27,500 [INFO] func_module.py:62 (timer) 已学习 2580 / 2940 (秒)
+2024-06-22 03:00:37,507 [INFO] func_module.py:62 (timer) 已学习 2590 / 2940 (秒)
+2024-06-22 03:00:47,511 [INFO] func_module.py:62 (timer) 已学习 2600 / 2940 (秒)
+2024-06-22 03:00:57,514 [INFO] func_module.py:62 (timer) 已学习 2610 / 2940 (秒)
+2024-06-22 03:01:07,511 [INFO] func_module.py:62 (timer) 已学习 2620 / 2940 (秒)
+2024-06-22 03:01:17,517 [INFO] func_module.py:62 (timer) 已学习 2630 / 2940 (秒)
+2024-06-22 03:01:27,517 [INFO] func_module.py:62 (timer) 已学习 2640 / 2940 (秒)
+2024-06-22 03:01:37,519 [INFO] func_module.py:62 (timer) 已学习 2650 / 2940 (秒)
+2024-06-22 03:01:47,522 [INFO] func_module.py:62 (timer) 已学习 2660 / 2940 (秒)
+2024-06-22 03:01:57,514 [INFO] func_module.py:62 (timer) 已学习 2670 / 2940 (秒)
+2024-06-22 03:02:07,517 [INFO] func_module.py:62 (timer) 已学习 2680 / 2940 (秒)
+2024-06-22 03:02:17,519 [INFO] func_module.py:62 (timer) 已学习 2690 / 2940 (秒)
+2024-06-22 03:02:27,523 [INFO] func_module.py:62 (timer) 已学习 2700 / 2940 (秒)
+2024-06-22 03:02:37,516 [INFO] func_module.py:62 (timer) 已学习 2710 / 2940 (秒)
+2024-06-22 03:02:47,520 [INFO] func_module.py:62 (timer) 已学习 2720 / 2940 (秒)
+2024-06-22 03:02:57,523 [INFO] func_module.py:62 (timer) 已学习 2730 / 2940 (秒)
+2024-06-22 03:03:07,515 [INFO] func_module.py:62 (timer) 已学习 2740 / 2940 (秒)
+2024-06-22 03:03:17,521 [INFO] func_module.py:62 (timer) 已学习 2750 / 2940 (秒)
+2024-06-22 03:03:27,523 [INFO] func_module.py:62 (timer) 已学习 2760 / 2940 (秒)
+2024-06-22 03:03:37,514 [INFO] func_module.py:62 (timer) 已学习 2770 / 2940 (秒)
+2024-06-22 03:03:47,513 [INFO] func_module.py:62 (timer) 已学习 2780 / 2940 (秒)
+2024-06-22 03:03:57,517 [INFO] func_module.py:62 (timer) 已学习 2790 / 2940 (秒)
+2024-06-22 03:04:07,516 [INFO] func_module.py:62 (timer) 已学习 2800 / 2940 (秒)
+2024-06-22 03:04:17,525 [INFO] func_module.py:62 (timer) 已学习 2810 / 2940 (秒)
+2024-06-22 03:04:27,536 [INFO] func_module.py:62 (timer) 已学习 2820 / 2940 (秒)
+2024-06-22 03:04:37,528 [INFO] func_module.py:62 (timer) 已学习 2830 / 2940 (秒)
+2024-06-22 03:04:47,534 [INFO] func_module.py:62 (timer) 已学习 2840 / 2940 (秒)
+2024-06-22 03:04:57,541 [INFO] func_module.py:62 (timer) 已学习 2850 / 2940 (秒)
+2024-06-22 03:05:07,555 [INFO] func_module.py:62 (timer) 已学习 2860 / 2940 (秒)
+2024-06-22 03:05:17,552 [INFO] func_module.py:62 (timer) 已学习 2870 / 2940 (秒)
+2024-06-22 03:05:27,556 [INFO] func_module.py:62 (timer) 已学习 2880 / 2940 (秒)
+2024-06-22 03:05:37,551 [INFO] func_module.py:62 (timer) 已学习 2890 / 2940 (秒)
+2024-06-22 03:05:47,554 [INFO] func_module.py:62 (timer) 已学习 2900 / 2940 (秒)
+2024-06-22 03:05:57,544 [INFO] func_module.py:62 (timer) 已学习 2910 / 2940 (秒)
+2024-06-22 03:06:07,550 [INFO] func_module.py:62 (timer) 已学习 2920 / 2940 (秒)
+2024-06-22 03:06:17,544 [INFO] func_module.py:62 (timer) 已学习 2930 / 2940 (秒)
+2024-06-22 03:06:27,546 [INFO] func_module.py:62 (timer) 已学习 2940 / 2940 (秒)
+2024-06-22 03:06:27,548 [INFO] func_module.py:63 (timer) 结束时间: Sat Jun 22 03:06:27 2024
+2024-06-22 03:06:27,548 [INFO] func_module.py:127 (course_learning) 课程1学习完毕
+2024-06-22 03:06:30,668 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: 陕西：云电脑规模发展实践与思考
+
+2024-06-22 03:06:30,688 [INFO] func_module.py:113 (course_learning) 课程1已学习，跳过该节
+
+2024-06-22 03:06:30,712 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第二章节: 陕西云电脑宣传片
+
+2024-06-22 03:06:33,861 [INFO] func_module.py:143 (handle_video) 课程总时长: 110秒
+2024-06-22 03:06:33,871 [INFO] func_module.py:146 (handle_video) 还需学习: 110秒
+2024-06-22 03:06:33,880 [INFO] func_module.py:59 (timer) 开始时间: Sat Jun 22 03:06:33 2024
+2024-06-22 03:06:43,880 [INFO] func_module.py:62 (timer) 已学习 10 / 110 (秒)
+2024-06-22 03:06:53,881 [INFO] func_module.py:62 (timer) 已学习 20 / 110 (秒)
+2024-06-22 03:07:03,882 [INFO] func_module.py:62 (timer) 已学习 30 / 110 (秒)
+2024-06-22 03:07:13,883 [INFO] func_module.py:62 (timer) 已学习 40 / 110 (秒)
+2024-06-22 03:07:23,883 [INFO] func_module.py:62 (timer) 已学习 50 / 110 (秒)
+2024-06-22 03:07:33,884 [INFO] func_module.py:62 (timer) 已学习 60 / 110 (秒)
+2024-06-22 03:07:43,885 [INFO] func_module.py:62 (timer) 已学习 70 / 110 (秒)
+2024-06-22 03:07:53,885 [INFO] func_module.py:62 (timer) 已学习 80 / 110 (秒)
+2024-06-22 03:08:03,887 [INFO] func_module.py:62 (timer) 已学习 90 / 110 (秒)
+2024-06-22 03:08:13,888 [INFO] func_module.py:62 (timer) 已学习 100 / 110 (秒)
+2024-06-22 03:08:23,882 [INFO] func_module.py:62 (timer) 已学习 110 / 110 (秒)
+2024-06-22 03:08:23,882 [INFO] func_module.py:63 (timer) 结束时间: Sat Jun 22 03:08:23 2024
+2024-06-22 03:08:23,883 [INFO] func_module.py:127 (course_learning) 课程2学习完毕
+2024-06-22 03:08:26,280 [INFO] func_module.py:108 (course_learning) 课程信息: 
+第一章节: 服务器安全卫士、WEB应用防火墙（边缘云版）安全产品
+
+2024-06-22 03:08:59,576 [ERROR] 3afk.py:53 (main) 发生错误: Locator.wait_for: Timeout 30000ms exceeded.
+Call log:
+waiting for locator(".vjs-progress-control").first to be visible
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+
+2024-06-22 03:08:59,585 [ERROR] 3afk.py:54 (main) Traceback (most recent call last):
+  File "C:\Users\Administrator\Desktop\智慧学习自动挂课\course_afk\3afk.py", line 51, in main
+    await fm.subject_learning(page)
+  File "C:\Users\Administrator\Desktop\智慧学习自动挂课\course_afk\func_module.py", line 82, in subject_learning
+    await course_learning(page_detail)
+  File "C:\Users\Administrator\Desktop\智慧学习自动挂课\course_afk\func_module.py", line 115, in course_learning
+    await handle_video(box, page_detail)
+  File "C:\Users\Administrator\Desktop\智慧学习自动挂课\course_afk\func_module.py", line 138, in handle_video
+    await page.locator('.vjs-progress-control').first.wait_for()
+  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\async_api\_generated.py", line 17086, in wait_for
+    await self._impl_obj.wait_for(timeout=timeout, state=state)
+  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_locator.py", line 667, in wait_for
+    await self._frame.wait_for_selector(
+  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_frame.py", line 323, in wait_for_selector
+    await self._channel.send("waitForSelector", locals_to_params(locals()))
+  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_connection.py", line 59, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_connection.py", line 513, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+Call log:
+waiting for locator(".vjs-progress-control").first to be visible
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+  -   locator resolved to hidden <div class="vjs-progress-control vjs-control">…</div>
+
+
+2024-06-22 03:09:00,075 [INFO] 3afk.py:93 (main) 自动挂课完成，当前时间为Sat Jun 22 03:09:00 2024
