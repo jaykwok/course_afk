@@ -67,6 +67,7 @@ async def subject_learning(page):
     """主题内容学习"""
 
     await page.wait_for_load_state('load')
+    await page.wait_for_timeout(3000)
     await page.locator('.item.current-hover').last.wait_for()
     await page.locator('.item.current-hover').locator('.section-type').last.wait_for()
 
@@ -78,7 +79,6 @@ async def subject_learning(page):
                 async with page.expect_popup() as page_pop:
                     await learn_item.click()
                 page_detail = await page_pop.value
-                await page_detail.wait_for_load_state('load')
                 await course_learning(page_detail)
                 await page_detail.close()
             elif section_type == 'URL':
@@ -99,6 +99,8 @@ async def subject_learning(page):
 async def course_learning(page_detail):
     """课程内容学习"""
 
+    await page_detail.wait_for_load_state('load')
+    await page_detail.wait_for_timeout(3000)
     await page_detail.locator('dl.chapter-list-box.required').last.wait_for()
     chapter_boxes = await page_detail.locator('dl.chapter-list-box.required').all()
 

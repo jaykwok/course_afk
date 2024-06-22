@@ -61,7 +61,6 @@ async def main():
                     await page.close()
             elif 'course' in url:
                 try:
-                    await page.wait_for_load_state('load')
                     await fm.course_learning(page)
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
