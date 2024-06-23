@@ -3,6 +3,7 @@ import logging
 import math
 import re
 import time
+import traceback
 
 # 日志基本设置
 logging.basicConfig(
@@ -63,6 +64,32 @@ async def timer(duration: int, interval: int = 10):
     logging.info(f'结束时间: {time.ctime()}')
 
 
+async def check_for_pass_grade(page):
+    # 首先定位到包含表格的div
+    table_container = page.locator('div.tab-container table')
+
+    # 在表格中查找包含"及格"文本的单元格
+    pass_cell = await table_container.locator('td:has-text("及格")').all()
+
+    # 检查是否找到了"及格"
+    if pass_cell:
+        return True
+    else:
+        return False
+
+
+async def is_course_completed(page):
+    # 定位到包含进度信息的元素
+    progress_element = page.locator('div.course-progress div.progress')
+
+    # 获取元素的文本内容
+    progress_text = await progress_element.inner_text()
+    if '100%' in progress_text:
+        return True
+    else:
+        return False
+
+
 async def subject_learning(page):
     """主题内容学习"""
 
@@ -79,8 +106,14 @@ async def subject_learning(page):
                 async with page.expect_popup() as page_pop:
                     await learn_item.click()
                 page_detail = await page_pop.value
-                await course_learning(page_detail)
-                await page_detail.close()
+                try:
+                    await course_learning(page_detail)
+                except Exception as e:
+                    logging.error(f'发生错误: {str(e)}')
+                    logging.error(traceback.format_exc())
+                    save_to_file('剩余未看课程链接.txt', page_detail.url)
+                finally:
+                    await page_detail.close()
             elif section_type == 'URL':
                 logging.info('URL学习类型，存入文档单独审查')
                 save_to_file('URL类型链接.txt', page.url)
@@ -100,6 +133,10 @@ async def course_learning(page_detail):
     """课程内容学习"""
 
     await page_detail.wait_for_load_state('load')
+    if await is_course_completed(page_detail):
+        title = await page_detail.locator('span.course-title-text').inner_text()
+        logging.info(f'{title}已学习完毕，跳过该课程\n')
+        return
     await page_detail.wait_for_timeout(3000)
     await page_detail.locator('dl.chapter-list-box.required').last.wait_for()
     chapter_boxes = await page_detail.locator('dl.chapter-list-box.required').all()
@@ -120,8 +157,14 @@ async def course_learning(page_detail):
             await handle_document(box, page_detail)
 
         elif section_type == '9':
-            logging.info('考试链接类型，存入文档')
-            save_to_file('考试链接.txt', page_detail.url)
+            # 处理考试类型课程
+            await box.locator('.section-item-wrapper').click()
+            await page_detail.wait_for_timeout(3 * 1000)
+            if not await check_for_pass_grade(page_detail):
+                logging.info('考试链接类型，存入文档')
+                save_to_file('考试链接.txt', page_detail.url)
+            else:
+                logging.info(f'课程{count}已学习，跳过该节\n')
 
         else:
             logging.info('非视频学习和文档学习类型，存入文档单独审查')
@@ -164,7 +207,7 @@ async def handle_document(box, page):
     await timer_task
 
 
-async def is_completed(page):
+async def is_subject_completed(page):
     """判断Subject是否学习完毕"""
 
     await page.wait_for_load_state('load')
