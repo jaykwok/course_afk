@@ -20,6 +20,7 @@ def save_to_file(filename, url):
     """将链接保存到指定文件"""
 
     with open(filename, 'a+', encoding='utf-8') as wp:
+        logging.info(f'写入{filename}完毕\n')
         wp.write(f'{url}\n')
 
 
