@@ -10,6 +10,8 @@ from playwright.async_api import async_playwright
 
 import func_module as fm
 
+learning_file = './学习链接.txt'
+
 # 日志基本设置
 logging.basicConfig(
     level=logging.DEBUG,
@@ -28,7 +30,7 @@ async def main():
         with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
             urls = f.readlines()
     else:
-        with open('./学习链接.txt', encoding='utf-8') as f:
+        with open(learning_file, encoding='utf-8') as f:
             urls = f.readlines()
 
     with open('cookies.json', 'r', encoding='utf-8') as f:
@@ -59,7 +61,7 @@ async def main():
                         mark = 0
                 finally:
                     await page.close()
-                    
+
             elif 'course' in url:
                 try:
                     await fm.course_learning(page)
