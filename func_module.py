@@ -51,7 +51,7 @@ def calculate_remaining_time(text) -> int:
     total_time = time_to_seconds(match[0])
     remaining_time = time_to_seconds(match[1])
 
-    return min(math.ceil(remaining_time / 60) * 60, total_time)
+    return min(math.ceil(remaining_time / 60) * 60, total_time), total_time
 
 
 async def timer(duration: int, interval: int = 10):
@@ -184,11 +184,8 @@ async def handle_video(box, page):
     await page.locator('.vjs-progress-control').first.wait_for()
     await page.locator('.vjs-duration-display').wait_for()
 
-    duration_element = page.locator('.vjs-duration-display')
-    duration = time_to_seconds(await duration_element.inner_text())
+    remaining, duration = calculate_remaining_time(await box.locator('.section-item-wrapper').inner_text())
     logging.info(f'课程总时长: {duration}秒')
-
-    remaining = calculate_remaining_time(await box.locator('.section-item-wrapper').inner_text())
     logging.info(f'还需学习: {remaining}秒')
 
     timer_task = asyncio.create_task(timer(remaining))
