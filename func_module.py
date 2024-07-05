@@ -33,7 +33,7 @@ def is_learned(text: str) -> bool:
 def time_to_seconds(duration: str) -> int:
     """时长转换为秒数"""
 
-    pattern = r'(\d+:)?\d{1,2}:\d{1,2}'
+    pattern = r'(\d+)?:\d{1,2}'
     match = re.search(pattern, duration)
     if not match:
         return 0
@@ -46,7 +46,7 @@ def time_to_seconds(duration: str) -> int:
 def calculate_remaining_time(text) -> int:
     """计算当前课程剩余挂课时间"""
 
-    pattern = r'(\d+:\d{2})'
+    pattern = r'(\d+:\d{1,2})'
     match = re.findall(pattern, text)
     total_time = time_to_seconds(match[0])
     remaining_time = time_to_seconds(match[1])
