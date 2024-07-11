@@ -10,7 +10,7 @@ from playwright.async_api import async_playwright
 
 import func_module as fm
 
-learning_file = './学习链接.txt'
+learning_file = './数字生活学堂专区.txt'
 
 # 日志基本设置
 logging.basicConfig(

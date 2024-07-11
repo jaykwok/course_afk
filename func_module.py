@@ -105,7 +105,7 @@ async def subject_learning(page):
             section_type = await learn_item.locator('.section-type').inner_text()
             if section_type == '课程':
                 async with page.expect_popup() as page_pop:
-                    await learn_item.click()
+                    await learn_item.locator('.inline-block.operation').click()
                 page_detail = await page_pop.value
                 try:
                     await course_learning(page_detail)
@@ -119,7 +119,7 @@ async def subject_learning(page):
                 logging.info('URL学习类型，存入文档单独审查')
                 save_to_file('URL类型链接.txt', page.url)
                 async with page.expect_popup() as page_pop:
-                    await learn_item.click()
+                    await learn_item.locator('.inline-block.operation').click()
                 page_detail = await page_pop.value
                 timer_task = asyncio.create_task(timer(10, 1))
                 await page_detail.wait_for_timeout(10 * 1000)  # For safety
