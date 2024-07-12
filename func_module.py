@@ -43,7 +43,7 @@ def time_to_seconds(duration: str) -> int:
     return math.ceil(total_seconds / 10) * 10
 
 
-def calculate_remaining_time(text) -> int:
+def calculate_remaining_time(text) -> tuple[int, int]:
     """计算当前课程剩余挂课时间"""
 
     pattern = r'(\d+:\d{1,2})'
@@ -95,7 +95,7 @@ async def subject_learning(page):
     """主题内容学习"""
 
     await page.wait_for_load_state('load')
-    await page.wait_for_timeout(3000)
+    # await page.wait_for_timeout(3000)
     await page.locator('.item.current-hover').last.wait_for()
     await page.locator('.item.current-hover').locator('.section-type').last.wait_for()
 
@@ -138,7 +138,7 @@ async def course_learning(page_detail):
         title = await page_detail.locator('span.course-title-text').inner_text()
         logging.info(f'{title}已学习完毕，跳过该课程\n')
         return
-    await page_detail.wait_for_timeout(3000)
+    # await page_detail.wait_for_timeout(3000)
     await page_detail.locator('dl.chapter-list-box.required').last.wait_for()
     chapter_boxes = await page_detail.locator('dl.chapter-list-box.required').all()
 
@@ -160,7 +160,7 @@ async def course_learning(page_detail):
         elif section_type == '9':
             # 处理考试类型课程
             await box.locator('.section-item-wrapper').click()
-            await page_detail.wait_for_timeout(3 * 1000)
+            # await page_detail.wait_for_timeout(3 * 1000)
             if not await check_for_pass_grade(page_detail):
                 logging.info('考试链接类型，存入文档')
                 save_to_file('考试链接.txt', page_detail.url)
@@ -177,7 +177,7 @@ async def handle_video(box, page):
     """处理视频类型课程"""
 
     await box.locator('.section-item-wrapper').click()
-    await page.wait_for_timeout(3 * 1000)
+    # await page.wait_for_timeout(3 * 1000)
     resume_button = await page.locator('.register-mask-layer').all()
     if resume_button:
         await resume_button[0].click()
@@ -197,7 +197,7 @@ async def handle_document(box, page):
     """处理文档类型课程"""
 
     await box.locator('.section-item-wrapper').click()
-    await page.wait_for_timeout(3 * 1000)
+    # await page.wait_for_timeout(3 * 1000)
     # await page.locator('.clearfix').first.wait_for()
     await page.locator('.textLayer').first.wait_for()
     timer_task = asyncio.create_task(timer(10, 1))

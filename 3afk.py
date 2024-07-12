@@ -37,7 +37,7 @@ async def main():
         cookies = json.load(f)
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, args=['--mute-audio'], channel='chrome')
+        browser = await p.chromium.launch(headless=False, args=['--mute-audio'], channel='chrome', slow_mo=3000)
         context = await browser.new_context(viewport={'width': 1280, 'height': 720})
         await context.add_cookies(cookies)
         page = await context.new_page()
