@@ -64,7 +64,7 @@ async def main():
         context = await browser.new_context()
         await context.add_cookies(cookies)
         page = await context.new_page()
-        await page.goto(urls[0])
+        await page.goto('https://kc.zhixueyun.com/')
         await page.wait_for_url(re.compile(r'https://kc\.zhixueyun\.com/#/home-v\?id=\d+'), timeout=0)
         await page.close()
         for url in urls:
