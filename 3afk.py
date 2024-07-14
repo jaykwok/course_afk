@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 import traceback
@@ -28,16 +29,13 @@ logging.basicConfig(
 
 async def main():
     global mark
-    # if os.path.exists('./剩余未看课程链接.txt'):
-    #     mark = 1
-    #     with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
-    #         urls = f.readlines()
-    # else:
-    #     with open(learning_file, encoding='utf-8') as f:
-    #         urls = f.readlines()
-
-    with open(learning_file, encoding='utf-8') as f:
-        urls = f.readlines()
+    if os.path.exists('./剩余未看课程链接.txt'):
+        with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
+            urls = f.readlines()
+            os.remove('./剩余未看课程链接.txt')
+    else:
+        with open(learning_file, encoding='utf-8') as f:
+            urls = f.readlines()
 
     with open('cookies.json', 'r', encoding='utf-8') as f:
         cookies = json.load(f)
@@ -60,7 +58,7 @@ async def main():
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
-                    # fm.save_to_file('剩余未看课程链接.txt', url.strip())
+                    fm.save_to_file('剩余未看课程链接.txt', url.strip())
                     if mark == 0:
                         mark = 1
                 finally:
@@ -72,25 +70,29 @@ async def main():
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
-                    # fm.save_to_file('剩余未看课程链接.txt', url.strip())
+                    fm.save_to_file('剩余未看课程链接.txt', url.strip())
                     if mark == 0:
                         mark = 1
                 finally:
                     await page.close()
 
-        # if os.path.exists('./URL类型链接.txt'):
-        #     with open('./URL类型链接.txt', encoding='utf-8') as f:
-        #         urls = f.readlines()
-        # with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
-        #     for url in urls:
-        #         page = await context.new_page()
-        #         await page.goto(url.strip())
-        #         if await fm.is_subject_completed(page):
-        #             logging.info(f'URL类型链接: {url.strip()} 学习完成')
-        #         else:
-        #             f.write(url)
-        #         await page.close()
-        # os.remove('./URL类型链接.txt')
+        if os.path.exists('./URL类型链接.txt'):
+            with open('./URL类型链接.txt', encoding='utf-8') as f:
+                urls = f.readlines()
+        with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
+            for url in urls:
+                page = await context.new_page()
+                await page.goto(url.strip())
+                if await fm.is_subject_completed(page):
+                    logging.info(f'URL类型链接: {url.strip()} 学习完成')
+                else:
+                    f.write(url)
+                await page.close()
+        os.remove('./URL类型链接.txt')
+
+        # 如果未出现错误且文本文档存在，则删除文本文档
+        if os.path.exists('./剩余未看课程链接.txt') and mark == 0:
+            os.remove('./剩余未看课程链接.txt')
 
         await context.close()
         await browser.close()

@@ -20,26 +20,20 @@ logging.basicConfig(
 
 # 获取考试是否通过
 async def check_exam_passed(page):
-    # 获取最新的考试记录（表格的第一行）
-    # 获取所有考试记录
-    exam_rows = await page.locator(".table.tbody.tr").all()
-
-    if not exam_rows:
-        logging.warning("未找到考试记录")
+    # 获取最高分
+    highest_score_text = await page.locator('.neer-status').inner_text()
+    # 判断是否在考试中状态：如果是，那就重新考试
+    if '考试中' in highest_score_text:
         return False
-
-    # 获取最新的考试记录（表格的第一行）
-    latest_exam = exam_rows[0]
-
-    # 获取状态
-    status_element = latest_exam.locator("td").nth(3)
-    await status_element.wait_for(state="visible", timeout=5000)
-    status = await status_element.inner_text()
-
-    logging.info(f"考试状态: {status}")
-
-    # 判断是否通过
-    return status.strip() == "及格"
+    # 获取最高分数值
+    highest_score = int(highest_score_text.split('：')[1].replace('分', ''))
+    # 判断最高成绩是否大于等于60分
+    if highest_score >= 60:
+        logging.info(f"考试状态: 通过")
+        return True
+    else:
+        logging.info(f"考试状态: 未通过")
+        return False
 
 
 # 等待完成考试
@@ -68,24 +62,29 @@ async def main():
         await page.wait_for_url(re.compile(r'https://kc\.zhixueyun\.com/#/home-v\?id=\d+'), timeout=0)
         await page.close()
         for url in urls:
+            page1 = await context.new_page()
+            logging.info(f'当前考试链接为: {url.strip()}')
+            await page1.goto(url.strip())
+            await page1.wait_for_load_state('load')
             while True:
-                page1 = await context.new_page()
-                logging.info(f'当前考试链接为: {url.strip()}')
-                await page1.goto(url.strip())
-                await page1.wait_for_load_state('load')
                 await page1.locator(".top").first.click()
                 await page1.locator('dl.chapter-list-box[data-sectiontype="9"]').click()
                 await page1.locator('.tab-container').wait_for()
                 await page1.wait_for_timeout(3000)
-                if await check_exam_passed(page1):
-                    logging.info('当前考试通过')
-                    await page1.close()
-                    break
+
+                if await page1.locator('.neer-status').all():
+                    if await check_exam_passed(page1):
+                        await page1.close()
+                        break
+                    else:
+                        logging.info('重新考试')
+                        await wait_for_finish_test(page1)
+                        await page1.reload(wait_until='load')
+                        continue
                 else:
-                    logging.info('考试未通过，重新考试')
+                    logging.info('开始考试')
                     await wait_for_finish_test(page1)
-                    await page1.wait_for_timeout(3000)
-                    await page1.close()
+                    await page1.reload(wait_until='load')
                     continue
 
         await context.close()
