@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import os
 import re
 import time
 import traceback
@@ -10,7 +9,11 @@ from playwright.async_api import async_playwright
 
 import func_module as fm
 
+# 设置学习文件路径
 learning_file = './数字生活学堂专区.txt'
+
+# 设置是否学习过程中存在未知错误的标识：0为未发生错误，1为发生了错误
+mark = 0
 
 # 日志基本设置
 logging.basicConfig(
@@ -24,14 +27,17 @@ logging.basicConfig(
 
 
 async def main():
-    mark = 0
-    if os.path.exists('./剩余未看课程链接.txt'):
-        mark = 1
-        with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
-            urls = f.readlines()
-    else:
-        with open(learning_file, encoding='utf-8') as f:
-            urls = f.readlines()
+    global mark
+    # if os.path.exists('./剩余未看课程链接.txt'):
+    #     mark = 1
+    #     with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
+    #         urls = f.readlines()
+    # else:
+    #     with open(learning_file, encoding='utf-8') as f:
+    #         urls = f.readlines()
+
+    with open(learning_file, encoding='utf-8') as f:
+        urls = f.readlines()
 
     with open('cookies.json', 'r', encoding='utf-8') as f:
         cookies = json.load(f)
@@ -50,15 +56,13 @@ async def main():
             await page.goto(url.strip())
             if 'subject' in url:
                 try:
-                    await fm.subject_learning(page)
+                    mark = await fm.subject_learning(page, mark)
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
-                    # with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
-                    #     f.write(url)
-                    fm.save_to_file('剩余未看课程链接.txt', url.strip())
-                    if mark == 1:
-                        mark = 0
+                    # fm.save_to_file('剩余未看课程链接.txt', url.strip())
+                    if mark == 0:
+                        mark = 1
                 finally:
                     await page.close()
 
@@ -68,34 +72,33 @@ async def main():
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
-                    # with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
-                    #     f.write(url)
-                    fm.save_to_file('剩余未看课程链接.txt', url.strip())
-                    if mark == 1:
-                        mark = 0
+                    # fm.save_to_file('剩余未看课程链接.txt', url.strip())
+                    if mark == 0:
+                        mark = 1
                 finally:
                     await page.close()
 
-        if os.path.exists('./URL类型链接.txt'):
-            with open('./URL类型链接.txt', encoding='utf-8') as f:
-                urls = f.readlines()
-            with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
-                for url in urls:
-                    page = await context.new_page()
-                    await page.goto(url.strip())
-                    if await fm.is_subject_completed(page):
-                        logging.info(f'URL类型链接: {url.strip()} 学习完成')
-                    else:
-                        f.write(url)
-                    await page.close()
-            os.remove('./URL类型链接.txt')
+        # if os.path.exists('./URL类型链接.txt'):
+        #     with open('./URL类型链接.txt', encoding='utf-8') as f:
+        #         urls = f.readlines()
+        # with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
+        #     for url in urls:
+        #         page = await context.new_page()
+        #         await page.goto(url.strip())
+        #         if await fm.is_subject_completed(page):
+        #             logging.info(f'URL类型链接: {url.strip()} 学习完成')
+        #         else:
+        #             f.write(url)
+        #         await page.close()
+        # os.remove('./URL类型链接.txt')
 
         await context.close()
         await browser.close()
         logging.info(f'自动挂课完成，当前时间为{time.ctime()}')
-        if mark == 1:
-            os.remove('./剩余未看课程链接.txt')
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    while True:
+        asyncio.run(main())
+        if mark == 0:
+            break

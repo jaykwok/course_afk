@@ -22,7 +22,7 @@ logging.basicConfig(
 async def check_exam_passed(page):
     # 获取最新的考试记录（表格的第一行）
     # 获取所有考试记录
-    exam_rows = await page.locator(".table tbody tr").all()
+    exam_rows = await page.locator(".table.tbody.tr").all()
 
     if not exam_rows:
         logging.warning("未找到考试记录")

@@ -91,7 +91,7 @@ async def is_course_completed(page):
         return False
 
 
-async def subject_learning(page):
+async def subject_learning(page, mark):
     """主题内容学习"""
 
     await page.wait_for_load_state('load')
@@ -112,7 +112,8 @@ async def subject_learning(page):
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
-                    save_to_file('剩余未看课程链接.txt', page_detail.url)
+                    mark = 1
+                    # save_to_file('剩余未看课程链接.txt', page_detail.url)
                 finally:
                     await page_detail.close()
             elif section_type == 'URL':
@@ -128,6 +129,7 @@ async def subject_learning(page):
             else:
                 logging.info('非课程类学习类型，存入文档单独审查')
                 save_to_file('非课程类学习类型链接.txt', page.url)
+    return mark
 
 
 async def course_learning(page_detail):
@@ -146,8 +148,12 @@ async def course_learning(page_detail):
         section_type = await box.get_attribute('data-sectiontype')
         box_text = await box.locator('.text-overflow').inner_text()
         logging.info(f'课程信息: \n{box_text}\n')
+        await box.locator('.section-item-wrapper').wait_for()
+        await box.locator('.section-item-wrapper').click()
 
         if section_type == '6':
+            # 处理视频类型课程
+            logging.info('该课程为视频类型')
             progress_text = await box.locator('.section-item-wrapper').inner_text()
             if is_learned(progress_text):
                 logging.info(f'课程{count}已学习，跳过该节\n')
@@ -155,28 +161,30 @@ async def course_learning(page_detail):
             await handle_video(box, page_detail)
 
         elif section_type in ['1', '2']:
+            # 处理文档类型课程
+            logging.info('该课程为文档类型')
+            progress_text = await box.locator('.section-item-wrapper').inner_text()
+            if is_learned(progress_text):
+                logging.info(f'课程{count}已学习，跳过该节\n')
+                continue
             await handle_document(box, page_detail)
 
         elif section_type == '9':
             # 处理考试类型课程
-            await box.locator('.section-item-wrapper').click()
-            # await page_detail.wait_for_timeout(3 * 1000)
-            if not await check_for_pass_grade(page_detail):
-                logging.info('考试链接类型，存入文档')
-                save_to_file('考试链接.txt', page_detail.url)
-            else:
-                logging.info(f'课程{count}已学习，跳过该节\n')
+            logging.info('该课程为考试类型')
+            await handle_examination(box, page_detail)
+            continue
 
         else:
             logging.info('非视频学习和文档学习类型，存入文档单独审查')
             save_to_file('未知类型链接.txt', page_detail.url)
+            continue
         logging.info(f'课程{count}学习完毕')
 
 
 async def handle_video(box, page):
     """处理视频类型课程"""
 
-    await box.locator('.section-item-wrapper').click()
     # await page.wait_for_timeout(3 * 1000)
     resume_button = await page.locator('.register-mask-layer').all()
     if resume_button:
@@ -196,13 +204,23 @@ async def handle_video(box, page):
 async def handle_document(box, page):
     """处理文档类型课程"""
 
-    await box.locator('.section-item-wrapper').click()
     # await page.wait_for_timeout(3 * 1000)
     # await page.locator('.clearfix').first.wait_for()
     await page.locator('.textLayer').first.wait_for()
     timer_task = asyncio.create_task(timer(10, 1))
     await page.wait_for_timeout(10 * 1000)
     await timer_task
+
+
+async def handle_examination(box, page):
+    """处理考试类型课程"""
+
+    # await page_detail.wait_for_timeout(3 * 1000)
+    if not await check_for_pass_grade(page):
+        logging.info('考试链接类型，存入文档')
+        save_to_file('考试链接.txt', page.url)
+    else:
+        logging.info('考试已通过，跳过该节')
 
 
 async def is_subject_completed(page):
