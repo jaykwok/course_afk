@@ -91,9 +91,13 @@ async def is_course_completed(page):
         return False
 
 
-async def get_course_url(learn_item):
+async def get_course_url(learn_item, section_type='course'):
     course_id = await learn_item.get_attribute('data-resource-id')
-    prefix = 'https://kc.zhixueyun.com/#/study/course/detail/'
+    if section_type == 'exam':
+        prefix = 'https://kc.zhixueyun.com/#/exam/exam/answer-paper/'
+    else:
+        prefix = 'https://kc.zhixueyun.com/#/study/course/detail/'
+
     return str(prefix + course_id)
 
 
@@ -122,6 +126,7 @@ async def subject_learning(page, mark):
                     save_to_file('剩余未看课程链接.txt', await get_course_url(learn_item))
                 finally:
                     await page_detail.close()
+
             elif section_type == 'URL':
                 logging.info('URL学习类型，存入文档单独审查')
                 save_to_file('URL类型链接.txt', await get_course_url(learn_item))
@@ -129,12 +134,24 @@ async def subject_learning(page, mark):
                     await learn_item.locator('.inline-block.operation').click()
                 page_detail = await page_pop.value
                 timer_task = asyncio.create_task(timer(10, 1))
-                await page_detail.wait_for_timeout(10 * 1000)  # For safety
+                await page_detail.wait_for_timeout(10 * 1000)
                 await timer_task
                 await page_detail.close()
+
+            elif section_type == '考试':
+                # 获取所有匹配元素的文本内容
+                status_texts = await page.locator(
+                    "div.text-overflow.inline-block.m-left span.finished-status").all_inner_texts()
+                # 查找并返回"已完成"状态
+                completion_status = next((status for status in status_texts if "已完成" in status), None)
+                if completion_status == '已完成':
+                    continue
+                else:
+                    logging.info('学习主题考试类型，存入文档')
+                    save_to_file('学习主题考试链接.txt', await get_course_url(learn_item, section_type='exam'))
             else:
-                logging.info('非课程类学习类型，存入文档单独审查')
-                save_to_file('非课程类学习类型链接.txt', await get_course_url(learn_item))
+                logging.info('非课程及考试类学习类型，存入文档单独审查')
+                save_to_file('非课程及考试类学习类型链接.txt', await get_course_url(learn_item))
     return mark
 
 
@@ -226,8 +243,8 @@ async def handle_examination(learn_item, page):
 
     # await page_detail.wait_for_timeout(3 * 1000)
     if not await check_for_pass_grade(page):
-        logging.info('考试链接类型，存入文档')
-        save_to_file('考试链接.txt', await get_course_url(learn_item))
+        logging.info('学习课程考试类型，存入文档')
+        save_to_file('学习课程考试链接.txt', await get_course_url(learn_item))
     else:
         logging.info('考试已通过，跳过该节')
 

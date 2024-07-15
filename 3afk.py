@@ -29,10 +29,13 @@ logging.basicConfig(
 
 async def main():
     global mark
+    # 每一次运行main函数的时候，重置标识为0
+    mark = 0
     if os.path.exists('./剩余未看课程链接.txt'):
         with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
             urls = f.readlines()
-            os.remove('./剩余未看课程链接.txt')
+        # 读取文件中保存的链接后，便删除文件，便于后续重写并追加新的未学习的链接
+        os.remove('./剩余未看课程链接.txt')
     else:
         with open(learning_file, encoding='utf-8') as f:
             urls = f.readlines()

@@ -1,16 +1,4 @@
-2024-07-15 10:12:26,333 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-07-15 10:12:47,745 [INFO] 3afk.py:53 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/22713406-e675-454d-84d2-eb8c5c93ecac
-2024-07-15 10:12:51,315 [INFO] 3afk.py:53 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/4eabb219-4102-456d-8421-c499d3508f9a
-2024-07-15 10:12:54,814 [INFO] 3afk.py:53 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/3ff59e20-ecea-4933-9f82-5373dcd24f08
-2024-07-15 10:12:58,365 [INFO] 3afk.py:53 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/37fecb3e-becb-4925-9772-22f739f609a7
-2024-07-15 10:13:01,900 [INFO] 3afk.py:53 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/f1ad5fd5-029f-45b2-a205-c002b68dc6b6
-2024-07-15 10:13:05,378 [INFO] 3afk.py:53 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/c52d7997-d1bb-4899-83bf-8f6e9c1d83a9
-2024-07-15 10:13:08,858 [INFO] 3afk.py:53 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/3f1b631b-3be0-4905-8c1b-aa3b78889fbe
-2024-07-15 10:13:15,360 [INFO] func_module.py:156 (course_learning) 课程信息: 
-第一章节: 数字生活原子能力质差标签及消除与AI排障能力专题培训（1）
-
-2024-07-15 10:13:18,508 [INFO] func_module.py:162 (course_learning) 该课程为视频类型
-2024-07-15 10:13:18,533 [INFO] func_module.py:205 (handle_video) 课程总时长: 5680秒
-2024-07-15 10:13:18,533 [INFO] func_module.py:206 (handle_video) 还需学习: 4560秒
-2024-07-15 10:13:18,536 [INFO] func_module.py:61 (timer) 开始时间: Mon Jul 15 10:13:18 2024
-2024-07-15 10:13:28,544 [INFO] func_module.py:64 (timer) 已学习 10 / 4560 (秒)
+2024-07-16 00:03:03,642 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-07-16 00:03:10,223 [INFO] 3afk.py:56 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/f1ad5fd5-029f-45b2-a205-c002b68dc6b6
+2024-07-16 00:03:13,640 [INFO] 3afk.py:56 (main) 当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/caa1387e-e9aa-4be9-b03a-48c2f461d4e0
+2024-07-16 00:03:17,022 [INFO] 3afk.py:102 (main) 自动挂课完成，当前时间为Tue Jul 16 00:03:17 2024
