@@ -40,14 +40,6 @@ async def main():
                 f.write(link + '\n')
                 count += 1
     print(f'需要学习的链接总数为: {count}条')
-    # link_types = ['产品介绍', '案例分享', '解决方案', '装维交付', '营销工具', '营销指引', '短视频', '更多', '']
-    # exclude_types = set(links.keys()).difference(set(link_types))
-    # if bool(exclude_types):
-    #     for exclude_type in exclude_types:
-    #         print(f'\n排除课程类型有: {exclude_type}')
-    #         links.pop(exclude_type)
-    # else:
-    #     print('\n课程类型已全部覆盖')
 
 
 if __name__ == '__main__':
