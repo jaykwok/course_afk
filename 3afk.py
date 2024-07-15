@@ -79,16 +79,16 @@ async def main():
         if os.path.exists('./URL类型链接.txt'):
             with open('./URL类型链接.txt', encoding='utf-8') as f:
                 urls = f.readlines()
-        with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
-            for url in urls:
-                page = await context.new_page()
-                await page.goto(url.strip())
-                if await fm.is_subject_completed(page):
-                    logging.info(f'URL类型链接: {url.strip()} 学习完成')
-                else:
-                    f.write(url)
-                await page.close()
-        os.remove('./URL类型链接.txt')
+            with open('./剩余未看课程链接.txt', 'a+', encoding='utf-8') as f:
+                for url in urls:
+                    page = await context.new_page()
+                    await page.goto(url.strip())
+                    if await fm.is_subject_completed(page):
+                        logging.info(f'URL类型链接: {url.strip()} 学习完成')
+                    else:
+                        f.write(url)
+                    await page.close()
+            os.remove('./URL类型链接.txt')
 
         # 如果未出现错误且文本文档存在，则删除文本文档
         if os.path.exists('./剩余未看课程链接.txt') and mark == 0:
