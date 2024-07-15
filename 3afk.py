@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright
 import func_module as fm
 
 # 设置学习文件路径
-learning_file = './学习链接.txt'
+learning_file = './数字生活学堂专区.txt'
 
 # 设置是否学习过程中存在未知错误的标识：0为未发生错误，1为发生了错误
 mark = 0
@@ -51,9 +51,9 @@ async def main():
         await page.goto('https://kc.zhixueyun.com/')
         await page.wait_for_url(re.compile(r'https://kc\.zhixueyun\.com/#/home-v\?id=\d+'), timeout=0)
         await page.close()
-        for url in urls:
+        for count, url in enumerate(urls, start=1):
             page = await context.new_page()
-            logging.info(f'当前学习链接为: {url.strip()}')
+            logging.info(f'({count}/{len(urls)})当前学习链接为: {url.strip()}')
             await page.goto(url.strip())
             if 'subject' in url:
                 try:

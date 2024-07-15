@@ -118,7 +118,7 @@ async def subject_learning(page, mark):
                     await learn_item.locator('.inline-block.operation').click()
                 page_detail = await page_pop.value
                 try:
-                    await course_learning(learn_item, page_detail)
+                    await course_learning(page_detail, learn_item)
                 except Exception as e:
                     logging.error(f'发生错误: {str(e)}')
                     logging.error(traceback.format_exc())
@@ -155,7 +155,7 @@ async def subject_learning(page, mark):
     return mark
 
 
-async def course_learning(learn_item, page_detail):
+async def course_learning(page_detail, learn_item=None):
     """课程内容学习"""
 
     await page_detail.wait_for_load_state('load')
@@ -192,6 +192,7 @@ async def course_learning(learn_item, page_detail):
                 continue
             await handle_document(page_detail)
 
+        # 如果不是从学习主题页面进来的课程链接，则对文档和考试类型的处理会有些许变动
         elif section_type == '9':
             # 处理考试类型课程
             logging.info('该课程为考试类型')
@@ -199,11 +200,16 @@ async def course_learning(learn_item, page_detail):
                 logging.info('考试已通过，跳过该节')
                 continue
             else:
-                await handle_examination(learn_item, page_detail)
-
+                if learn_item:
+                    await handle_examination(page_detail, learn_item)
+                else:
+                    await handle_examination(page_detail)
         else:
-            logging.info('非视频学习和文档学习类型，存入文档单独审查')
-            save_to_file('未知类型链接.txt', await get_course_url(learn_item))
+            logging.info('非视频、文档及考试学习类型，存入文档单独审查')
+            if learn_item:
+                save_to_file('未知类型链接.txt', await get_course_url(learn_item))
+            else:
+                save_to_file('未知类型链接.txt', page_detail.url)
             continue
         logging.info(f'课程{count}学习完毕')
 
@@ -238,15 +244,20 @@ async def handle_document(page):
     await timer_task
 
 
-async def handle_examination(learn_item, page):
+async def handle_examination(page, learn_item=None):
     """处理考试类型课程"""
 
     # await page_detail.wait_for_timeout(3 * 1000)
-    if not await check_for_pass_grade(page):
-        logging.info('学习课程考试类型，存入文档')
-        save_to_file('学习课程考试链接.txt', await get_course_url(learn_item))
-    else:
+    if await check_for_pass_grade(page):
         logging.info('考试已通过，跳过该节')
+
+    else:
+        if learn_item:
+            logging.info('学习课程考试类型，存入文档')
+            save_to_file('学习课程考试链接.txt', await get_course_url(learn_item))
+        else:
+            logging.info('学习课程考试类型，存入文档')
+            save_to_file('学习课程考试链接.txt', page.url)
 
 
 async def is_subject_completed(page):
