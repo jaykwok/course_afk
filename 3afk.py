@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright
 import func_module as fm
 
 # 设置学习文件路径
-learning_file = './数字生活学堂专区.txt'
+learning_file = './学习链接.txt'
 
 # 设置是否学习过程中存在未知错误的标识：0为未发生错误，1为发生了错误
 mark = 0
@@ -33,7 +33,7 @@ async def main():
     mark = 0
     if os.path.exists('./剩余未看课程链接.txt'):
         with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
-            urls = f.readlines()
+            urls = set(f.readlines())
         # 读取文件中保存的链接后，便删除文件，便于后续重写并追加新的未学习的链接
         os.remove('./剩余未看课程链接.txt')
     else:
