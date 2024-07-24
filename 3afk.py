@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright
 import func_module as fm
 
 # 设置学习文件路径
-learning_file = './学习链接.txt'
+learning_file = './保密培训.txt'
 
 # 设置是否学习过程中存在未知错误的标识：0为未发生错误，1为发生了错误
 mark = 0
@@ -31,6 +31,14 @@ async def main():
     global mark
     # 每一次运行main函数的时候，重置标识为0
     mark = 0
+
+    # 删除考试链接和调研链接等手动操作的文件
+
+    files = ['./学习主题考试链接.txt', './调研类型链接.txt', 'URL类型链接.txt', '非课程及考试类学习类型链接.txt',
+             '未知类型链接.txt']
+    for file in files:
+        fm.del_file(file)
+
     if os.path.exists('./剩余未看课程链接.txt'):
         with open('./剩余未看课程链接.txt', encoding='utf-8') as f:
             urls = set(f.readlines())

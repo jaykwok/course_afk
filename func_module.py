@@ -2,6 +2,7 @@ import asyncio
 import logging
 import math
 import re
+import os
 import time
 import traceback
 
@@ -14,6 +15,11 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+
+def del_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
 
 
 def save_to_file(filename, url):
@@ -109,10 +115,13 @@ async def subject_learning(page, mark):
     await page.locator('.item.current-hover').last.wait_for()
     await page.locator('.item.current-hover').locator('.section-type').last.wait_for()
 
-    learn_list = await page.locator('.item.current-hover', has_not_text='重新学习').all()
+    # learn_list = await page.locator('.item.current-hover', has_not_text='重新学习').all()
+    learn_list = await page.locator('.item.current-hover', has_not=page.locator('.iconfont.m-right.icon-reload')).all()
+
     if learn_list:
         for learn_item in learn_list:
             section_type = await learn_item.locator('.section-type').inner_text()
+
             if section_type == '课程':
                 async with page.expect_popup() as page_pop:
                     await learn_item.locator('.inline-block.operation').click()
@@ -149,6 +158,11 @@ async def subject_learning(page, mark):
                 else:
                     logging.info('学习主题考试类型，存入文档')
                     save_to_file('学习主题考试链接.txt', await get_course_url(learn_item, section_type='exam'))
+
+            elif section_type == '调研':
+                logging.info('调研学习类型，存入文档单独审查')
+                save_to_file('调研类型链接.txt', await get_course_url(learn_item))
+
             else:
                 logging.info('非课程及考试类学习类型，存入文档单独审查')
                 save_to_file('非课程及考试类学习类型链接.txt', await get_course_url(learn_item))
