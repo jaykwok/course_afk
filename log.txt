@@ -1,3 +1,31 @@
-2024-07-24 15:59:24,545 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-07-24 15:59:34,078 [INFO] 3afk.py:64 (main) (1/1)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/32cb3022-9a6d-43b9-8c3d-692980f7d0c0
-2024-07-24 15:59:37,748 [INFO] 3afk.py:110 (main) 自动挂课完成，当前时间为Wed Jul 24 15:59:37 2024
+2024-07-26 09:12:36,894 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-07-26 09:12:45,513 [INFO] 3afk.py:64 (main) (1/2)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/f1ad5fd5-029f-45b2-a205-c002b68dc6b6
+2024-07-26 09:12:52,166 [INFO] func_module.py:187 (course_learning) 课程信息: 
+第一章节: 附件1：天翼智慧社区街道云产品介绍
+
+2024-07-26 09:12:55,226 [INFO] func_module.py:202 (course_learning) 该课程为文档类型
+2024-07-26 09:12:55,240 [INFO] func_module.py:67 (timer) 开始时间: Fri Jul 26 09:12:55 2024
+2024-07-26 09:12:56,247 [INFO] func_module.py:70 (timer) 已学习 1 / 10 (秒)
+2024-07-26 09:12:57,258 [INFO] func_module.py:70 (timer) 已学习 2 / 10 (秒)
+2024-07-26 09:12:58,271 [INFO] func_module.py:70 (timer) 已学习 3 / 10 (秒)
+2024-07-26 09:12:59,280 [INFO] func_module.py:70 (timer) 已学习 4 / 10 (秒)
+2024-07-26 09:13:00,293 [INFO] func_module.py:70 (timer) 已学习 5 / 10 (秒)
+2024-07-26 09:13:01,295 [INFO] func_module.py:70 (timer) 已学习 6 / 10 (秒)
+2024-07-26 09:13:02,300 [INFO] func_module.py:70 (timer) 已学习 7 / 10 (秒)
+2024-07-26 09:13:03,308 [INFO] func_module.py:70 (timer) 已学习 8 / 10 (秒)
+2024-07-26 09:13:04,313 [INFO] func_module.py:70 (timer) 已学习 9 / 10 (秒)
+2024-07-26 09:13:05,323 [INFO] func_module.py:70 (timer) 已学习 10 / 10 (秒)
+2024-07-26 09:13:05,323 [INFO] func_module.py:71 (timer) 结束时间: Fri Jul 26 09:13:05 2024
+2024-07-26 09:13:05,323 [INFO] func_module.py:228 (course_learning) 课程1学习完毕
+2024-07-26 09:13:08,516 [INFO] func_module.py:187 (course_learning) 课程信息: 
+第一章节: 街道云-小区慧眼操作指导视频
+
+2024-07-26 09:13:11,642 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
+2024-07-26 09:13:11,670 [INFO] func_module.py:242 (handle_video) 课程总时长: 250秒
+2024-07-26 09:13:11,670 [INFO] func_module.py:243 (handle_video) 还需学习: 240秒
+2024-07-26 09:13:11,672 [INFO] func_module.py:67 (timer) 开始时间: Fri Jul 26 09:13:11 2024
+2024-07-26 09:13:21,674 [INFO] func_module.py:70 (timer) 已学习 10 / 240 (秒)
+2024-07-26 09:13:31,689 [INFO] func_module.py:70 (timer) 已学习 20 / 240 (秒)
+2024-07-26 09:13:41,704 [INFO] func_module.py:70 (timer) 已学习 30 / 240 (秒)
+2024-07-26 09:13:51,716 [INFO] func_module.py:70 (timer) 已学习 40 / 240 (秒)
+2024-07-26 09:14:01,735 [INFO] func_module.py:70 (timer) 已学习 50 / 240 (秒)
