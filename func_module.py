@@ -188,7 +188,7 @@ async def course_learning(page_detail, learn_item=None):
         await box.locator('.section-item-wrapper').wait_for()
         await box.locator('.section-item-wrapper').click()
 
-        if section_type == '6':
+        if section_type in ['5', '6']:
             # 处理视频类型课程
             logging.info('该课程为视频类型')
             progress_text = await box.locator('.section-item-wrapper').inner_text()
@@ -205,6 +205,11 @@ async def course_learning(page_detail, learn_item=None):
                 logging.info(f'课程{count}已学习，跳过该节\n')
                 continue
             await handle_document(page_detail)
+
+        elif section_type == '4':
+            # 处理h5类型课程
+            logging.info('该课程为h5类型')
+            await handle_h5(page_detail, learn_item)
 
         # 如果不是从学习主题页面进来的课程链接，则对文档和考试类型的处理会有些许变动
         elif section_type == '9':
@@ -256,6 +261,13 @@ async def handle_document(page):
     timer_task = asyncio.create_task(timer(10, 1))
     await page.wait_for_timeout(10 * 1000)
     await timer_task
+
+
+async def handle_h5(page, learn_item):
+    """处理h5类型课程"""
+
+    logging.info('h5课程类型，存入文档')
+    save_to_file('h5课程类型链接.txt', await get_course_url(learn_item))
 
 
 async def handle_examination(page, learn_item=None):

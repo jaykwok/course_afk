@@ -34,8 +34,9 @@ async def main():
 
     # 删除考试链接和调研链接等手动操作的文件
 
-    files = ['./学习主题考试链接.txt', './调研类型链接.txt', 'URL类型链接.txt', '非课程及考试类学习类型链接.txt',
-             '未知类型链接.txt']
+    files = ['./学习主题考试链接.txt', './调研类型链接.txt', './URL类型链接.txt', './h5课程类型链接.txt',
+             './非课程及考试类学习类型链接.txt',
+             './未知类型链接.txt']
     for file in files:
         fm.del_file(file)
 

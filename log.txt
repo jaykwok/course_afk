@@ -1,31 +1,32 @@
-2024-07-26 09:12:36,894 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-07-26 09:12:45,513 [INFO] 3afk.py:64 (main) (1/2)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/f1ad5fd5-029f-45b2-a205-c002b68dc6b6
-2024-07-26 09:12:52,166 [INFO] func_module.py:187 (course_learning) 课程信息: 
-第一章节: 附件1：天翼智慧社区街道云产品介绍
+2024-08-05 21:15:33,757 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-08-05 21:15:40,317 [INFO] 3afk.py:64 (main) (1/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/e3786f47-a6a4-4ac8-a9c3-a748e0fee3be
+2024-08-05 21:15:43,717 [INFO] 3afk.py:64 (main) (2/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/45c8d101-8e64-4ff2-ba99-133a2da0f615
+2024-08-05 21:15:50,052 [INFO] func_module.py:187 (course_learning) 课程信息: 
+第一章节: 认识项目管理的基本流程
 
-2024-07-26 09:12:55,226 [INFO] func_module.py:202 (course_learning) 该课程为文档类型
-2024-07-26 09:12:55,240 [INFO] func_module.py:67 (timer) 开始时间: Fri Jul 26 09:12:55 2024
-2024-07-26 09:12:56,247 [INFO] func_module.py:70 (timer) 已学习 1 / 10 (秒)
-2024-07-26 09:12:57,258 [INFO] func_module.py:70 (timer) 已学习 2 / 10 (秒)
-2024-07-26 09:12:58,271 [INFO] func_module.py:70 (timer) 已学习 3 / 10 (秒)
-2024-07-26 09:12:59,280 [INFO] func_module.py:70 (timer) 已学习 4 / 10 (秒)
-2024-07-26 09:13:00,293 [INFO] func_module.py:70 (timer) 已学习 5 / 10 (秒)
-2024-07-26 09:13:01,295 [INFO] func_module.py:70 (timer) 已学习 6 / 10 (秒)
-2024-07-26 09:13:02,300 [INFO] func_module.py:70 (timer) 已学习 7 / 10 (秒)
-2024-07-26 09:13:03,308 [INFO] func_module.py:70 (timer) 已学习 8 / 10 (秒)
-2024-07-26 09:13:04,313 [INFO] func_module.py:70 (timer) 已学习 9 / 10 (秒)
-2024-07-26 09:13:05,323 [INFO] func_module.py:70 (timer) 已学习 10 / 10 (秒)
-2024-07-26 09:13:05,323 [INFO] func_module.py:71 (timer) 结束时间: Fri Jul 26 09:13:05 2024
-2024-07-26 09:13:05,323 [INFO] func_module.py:228 (course_learning) 课程1学习完毕
-2024-07-26 09:13:08,516 [INFO] func_module.py:187 (course_learning) 课程信息: 
-第一章节: 街道云-小区慧眼操作指导视频
+2024-08-05 21:15:53,096 [INFO] func_module.py:211 (course_learning) 该课程为h5类型
+2024-08-05 21:15:53,096 [INFO] func_module.py:269 (handle_h5) h5课程类型，存入文档
+2024-08-05 21:15:53,101 [INFO] func_module.py:29 (save_to_file) 写入h5课程链接.txt完毕
 
-2024-07-26 09:13:11,642 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
-2024-07-26 09:13:11,670 [INFO] func_module.py:242 (handle_video) 课程总时长: 250秒
-2024-07-26 09:13:11,670 [INFO] func_module.py:243 (handle_video) 还需学习: 240秒
-2024-07-26 09:13:11,672 [INFO] func_module.py:67 (timer) 开始时间: Fri Jul 26 09:13:11 2024
-2024-07-26 09:13:21,674 [INFO] func_module.py:70 (timer) 已学习 10 / 240 (秒)
-2024-07-26 09:13:31,689 [INFO] func_module.py:70 (timer) 已学习 20 / 240 (秒)
-2024-07-26 09:13:41,704 [INFO] func_module.py:70 (timer) 已学习 30 / 240 (秒)
-2024-07-26 09:13:51,716 [INFO] func_module.py:70 (timer) 已学习 40 / 240 (秒)
-2024-07-26 09:14:01,735 [INFO] func_module.py:70 (timer) 已学习 50 / 240 (秒)
+2024-08-05 21:15:53,101 [INFO] func_module.py:233 (course_learning) 课程1学习完毕
+2024-08-05 21:15:56,200 [INFO] func_module.py:187 (course_learning) 课程信息: 
+第一章节: 如何做好采购需求管理.1（视频版）
+
+2024-08-05 21:15:59,254 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
+2024-08-05 21:15:59,261 [INFO] func_module.py:196 (course_learning) 课程1已学习，跳过该节
+
+2024-08-05 21:15:59,273 [INFO] func_module.py:187 (course_learning) 课程信息: 
+第二章节: 如何做好采购需求管理.2（视频版）
+
+2024-08-05 21:16:02,425 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
+2024-08-05 21:16:02,430 [INFO] func_module.py:196 (course_learning) 课程2已学习，跳过该节
+
+2024-08-05 21:16:02,438 [INFO] func_module.py:187 (course_learning) 课程信息: 
+第三章节: 如何做好采购需求管理（音频版）
+
+2024-08-05 21:16:05,571 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
+2024-08-05 21:16:05,595 [INFO] func_module.py:247 (handle_video) 课程总时长: 13150秒
+2024-08-05 21:16:05,595 [INFO] func_module.py:248 (handle_video) 还需学习: 10020秒
+2024-08-05 21:16:05,598 [INFO] func_module.py:67 (timer) 开始时间: Mon Aug  5 21:16:05 2024
+2024-08-05 21:16:15,604 [INFO] func_module.py:70 (timer) 已学习 10 / 10020 (秒)
+2024-08-05 21:16:25,599 [INFO] func_module.py:70 (timer) 已学习 20 / 10020 (秒)
