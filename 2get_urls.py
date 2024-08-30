@@ -4,10 +4,11 @@ from collections import defaultdict
 
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+from urllib.parse import urlparse, parse_qs
 
 
 async def main():
-    url = 'https://cms.mylearning.cn/safe/topic/resource/2022/csgcspyrz/jjfajl.html'
+    url = 'https://cms.mylearning.cn/safe/topic/resource/2024/zxzq/pc.html'
     with open('./cookies.json', 'r') as f:
         cookies = json.load(f)
     async with async_playwright() as p:
@@ -28,7 +29,16 @@ async def main():
     for link in soup.find_all('a'):
         href = link.get('href')
         if href and 'kc.zhixueyun.com' in href:
-            links[link.text.strip()].append(href.strip())
+            if '/app/' in href:
+                parsed_url = urlparse(href.strip())
+                # 解析查询参数
+                query_params = parse_qs(parsed_url.fragment)
+
+                # 获取 businessId
+                business_id = query_params.get("businessId", [None])[0]
+                links[link.text.strip()].append('https://kc.zhixueyun.com/#/study/subject/detail/'+business_id)
+            else:
+                links[link.text.strip()].append(href.strip())
 
     # 打印结果
     count = 0

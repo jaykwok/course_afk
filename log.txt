@@ -1,44 +1,9 @@
-<<<<<<< HEAD
-2024-08-14 11:27:51,932 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-08-14 11:28:05,538 [INFO] 3afk.py:64 (main) (1/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/e3786f47-a6a4-4ac8-a9c3-a748e0fee3be
-2024-08-14 11:28:10,028 [INFO] 3afk.py:64 (main) (2/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/45c8d101-8e64-4ff2-ba99-133a2da0f615
-2024-08-14 11:28:13,493 [INFO] 3afk.py:64 (main) (3/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/dded7afa-2254-4703-b2de-4df235140da6
-2024-08-14 11:28:16,889 [INFO] 3afk.py:64 (main) (4/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/fb06143a-c425-49e4-be62-115765f65ebc
-2024-08-14 11:28:20,301 [INFO] 3afk.py:64 (main) (5/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/bab4f9bd-2ac8-47b6-84e3-9b40e18c9656
-2024-08-14 11:28:23,697 [INFO] 3afk.py:64 (main) (6/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/be222842-5fd2-4da9-8eb6-558c8f559375
-2024-08-14 11:28:27,092 [INFO] 3afk.py:64 (main) (7/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/0548fae9-a47d-4815-a464-0ceacff4abe5
-2024-08-14 11:28:30,556 [INFO] 3afk.py:110 (main) 自动挂课完成，当前时间为Wed Aug 14 11:28:30 2024
-=======
-2024-08-05 21:15:33,757 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-08-05 21:15:40,317 [INFO] 3afk.py:64 (main) (1/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/e3786f47-a6a4-4ac8-a9c3-a748e0fee3be
-2024-08-05 21:15:43,717 [INFO] 3afk.py:64 (main) (2/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/45c8d101-8e64-4ff2-ba99-133a2da0f615
-2024-08-05 21:15:50,052 [INFO] func_module.py:187 (course_learning) 课程信息: 
-第一章节: 认识项目管理的基本流程
-
-2024-08-05 21:15:53,096 [INFO] func_module.py:211 (course_learning) 该课程为h5类型
-2024-08-05 21:15:53,096 [INFO] func_module.py:269 (handle_h5) h5课程类型，存入文档
-2024-08-05 21:15:53,101 [INFO] func_module.py:29 (save_to_file) 写入h5课程链接.txt完毕
-
-2024-08-05 21:15:53,101 [INFO] func_module.py:233 (course_learning) 课程1学习完毕
-2024-08-05 21:15:56,200 [INFO] func_module.py:187 (course_learning) 课程信息: 
-第一章节: 如何做好采购需求管理.1（视频版）
-
-2024-08-05 21:15:59,254 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
-2024-08-05 21:15:59,261 [INFO] func_module.py:196 (course_learning) 课程1已学习，跳过该节
-
-2024-08-05 21:15:59,273 [INFO] func_module.py:187 (course_learning) 课程信息: 
-第二章节: 如何做好采购需求管理.2（视频版）
-
-2024-08-05 21:16:02,425 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
-2024-08-05 21:16:02,430 [INFO] func_module.py:196 (course_learning) 课程2已学习，跳过该节
-
-2024-08-05 21:16:02,438 [INFO] func_module.py:187 (course_learning) 课程信息: 
-第三章节: 如何做好采购需求管理（音频版）
-
-2024-08-05 21:16:05,571 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
-2024-08-05 21:16:05,595 [INFO] func_module.py:247 (handle_video) 课程总时长: 13150秒
-2024-08-05 21:16:05,595 [INFO] func_module.py:248 (handle_video) 还需学习: 10020秒
-2024-08-05 21:16:05,598 [INFO] func_module.py:67 (timer) 开始时间: Mon Aug  5 21:16:05 2024
-2024-08-05 21:16:15,604 [INFO] func_module.py:70 (timer) 已学习 10 / 10020 (秒)
-2024-08-05 21:16:25,599 [INFO] func_module.py:70 (timer) 已学习 20 / 10020 (秒)
->>>>>>> 6273aca6be21ae7e3d68f0a6b8991c59ad9a5ad1
+2024-08-15 11:04:09,723 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-08-15 11:04:18,695 [INFO] 3afk.py:65 (main) (1/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/e3786f47-a6a4-4ac8-a9c3-a748e0fee3be
+2024-08-15 11:04:22,167 [INFO] 3afk.py:65 (main) (2/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/45c8d101-8e64-4ff2-ba99-133a2da0f615
+2024-08-15 11:04:25,554 [INFO] 3afk.py:65 (main) (3/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/dded7afa-2254-4703-b2de-4df235140da6
+2024-08-15 11:04:28,962 [INFO] 3afk.py:65 (main) (4/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/fb06143a-c425-49e4-be62-115765f65ebc
+2024-08-15 11:04:32,368 [INFO] 3afk.py:65 (main) (5/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/bab4f9bd-2ac8-47b6-84e3-9b40e18c9656
+2024-08-15 11:04:35,764 [INFO] 3afk.py:65 (main) (6/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/be222842-5fd2-4da9-8eb6-558c8f559375
+2024-08-15 11:04:39,168 [INFO] 3afk.py:65 (main) (7/7)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/0548fae9-a47d-4815-a464-0ceacff4abe5
+2024-08-15 11:04:42,662 [INFO] 3afk.py:111 (main) 自动挂课完成，当前时间为Thu Aug 15 11:04:42 2024
