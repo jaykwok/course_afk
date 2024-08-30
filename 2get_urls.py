@@ -1,10 +1,10 @@
 import asyncio
 import json
 from collections import defaultdict
+from urllib.parse import urlparse, parse_qs
 
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
-from urllib.parse import urlparse, parse_qs
 
 
 async def main():
@@ -35,8 +35,8 @@ async def main():
                 query_params = parse_qs(parsed_url.fragment)
 
                 # 获取 businessId
-                business_id = query_params.get("businessId", [None])[0]
-                links[link.text.strip()].append('https://kc.zhixueyun.com/#/study/subject/detail/'+business_id)
+                business_id = query_params.get('businessId', [None])[0]
+                links[link.text.strip()].append('https://kc.zhixueyun.com/#/study/subject/detail/' + business_id)
             else:
                 links[link.text.strip()].append(href.strip())
 
