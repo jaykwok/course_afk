@@ -1,77 +1,72 @@
-2024-11-15 08:45:23,810 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-11-15 08:45:33,071 [INFO] 3afk.py:65 (main) (1/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/d54cf790-ffe1-4ad7-bcf9-55fe5f5c2fe3
-2024-11-15 08:45:39,617 [INFO] 3afk.py:65 (main) (2/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/5bb39fc3-5ce2-4896-bd4e-377ac49cbb86
-2024-11-15 08:45:43,426 [INFO] 3afk.py:65 (main) (3/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/caa1387e-e9aa-4be9-b03a-48c2f461d4e0
-2024-11-15 08:45:47,239 [INFO] 3afk.py:65 (main) (4/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/0078c6c7-af79-4a4a-bf83-8d855395c5b0
-2024-11-15 08:45:51,047 [INFO] 3afk.py:65 (main) (5/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/7466c1ec-a3c1-42e7-bf96-939dff8fc0a9
-2024-11-15 08:45:54,905 [INFO] 3afk.py:65 (main) (6/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/ed0810dc-8cbc-4103-885f-97e309b868e0
-2024-11-15 08:45:58,728 [INFO] 3afk.py:65 (main) (7/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/deb7a148-85de-41db-b782-e188a0326275
-2024-11-15 08:46:02,521 [INFO] 3afk.py:65 (main) (8/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/cee1d008-44b6-4d17-9146-be63f79823b6
-2024-11-15 08:46:06,371 [INFO] 3afk.py:65 (main) (9/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/38c19d9f-b9d1-4150-9dcf-dd497e7f7d71
-2024-11-15 08:46:10,373 [INFO] 3afk.py:65 (main) (10/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/d527e235-0d38-4391-9642-673a04fc75de
-2024-11-15 08:46:14,368 [INFO] 3afk.py:65 (main) (11/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/35bfca0c-bb43-41da-afd0-dfecb56d7df6
-2024-11-15 08:46:21,058 [ERROR] 3afk.py:71 (main) 发生错误: Locator.wait_for: Target page, context or browser has been closed
-Call log:
-waiting for locator(".item.current-hover").last to be visible
+2024-11-15 14:53:04,733 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-11-15 14:53:12,764 [INFO] 3afk.py:65 (main) (1/1)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/35be21c2-56ea-444f-a4e9-b6a6da0a5bab
+2024-11-15 14:53:16,179 [INFO] func_module.py:201 (course_learning) 课程信息: 
+第一章节: 1. 云脉SASE产品介绍及运营
 
-2024-11-15 08:46:21,061 [ERROR] 3afk.py:72 (main) Traceback (most recent call last):
-  File "C:\Users\Administrator\Desktop\course_afk\3afk.py", line 69, in main
-    mark = await fm.subject_learning(page, mark)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Administrator\Desktop\course_afk\func_module.py", line 115, in subject_learning
-    await page.locator('.item.current-hover').last.wait_for()
-  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\async_api\_generated.py", line 17330, in wait_for
-    await self._impl_obj.wait_for(timeout=timeout, state=state)
-  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_locator.py", line 670, in wait_for
-    await self._frame.wait_for_selector(
-  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_frame.py", line 323, in wait_for_selector
-    await self._channel.send("waitForSelector", locals_to_params(locals()))
-  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_connection.py", line 59, in send
-    return await self._connection.wrap_api_call(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\ProgramData\miniconda3\Lib\site-packages\playwright\_impl\_connection.py", line 514, in wrap_api_call
-    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-playwright._impl._errors.TargetClosedError: Locator.wait_for: Target page, context or browser has been closed
-Call log:
-waiting for locator(".item.current-hover").last to be visible
+2024-11-15 14:53:19,261 [INFO] func_module.py:216 (course_learning) 该课程为文档类型
+2024-11-15 14:53:19,267 [INFO] func_module.py:219 (course_learning) 课程1已学习，跳过该节
 
+2024-11-15 14:53:19,276 [INFO] func_module.py:201 (course_learning) 课程信息: 
+第二章节: 1-1.云脉接入拓扑
 
-2024-11-15 08:46:21,063 [INFO] func_module.py:29 (save_to_file) 写入剩余未看课程链接.txt完毕
+2024-11-15 14:53:23,464 [INFO] func_module.py:216 (course_learning) 该课程为文档类型
+2024-11-15 14:53:23,469 [INFO] func_module.py:219 (course_learning) 课程2已学习，跳过该节
 
-2024-11-15 08:46:21,191 [INFO] 3afk.py:65 (main) (12/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/c9e99beb-2d29-4490-9a33-5ed1348912b0
-2024-11-15 08:46:25,061 [INFO] 3afk.py:65 (main) (13/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/e72445cb-77cc-462d-a581-d97e7988051f
-2024-11-15 08:46:28,868 [INFO] 3afk.py:65 (main) (14/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/5606a6a9-805b-41f3-a49b-614ddd1bd254
-2024-11-15 08:46:32,770 [INFO] 3afk.py:65 (main) (15/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/0340b61a-c939-4787-a591-8f6b69947898
-2024-11-15 08:46:36,629 [INFO] 3afk.py:65 (main) (16/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/0c8c12b5-de5c-4ddd-9bc6-1cc16bff7271
-2024-11-15 08:46:40,465 [INFO] 3afk.py:65 (main) (17/20)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/3cbfaefa-0456-4a30-bdf2-81f9fc4534c3
-2024-11-15 08:46:47,394 [INFO] func_module.py:187 (course_learning) 课程信息: 
-第一章节: 6.6.1 密码安全
+2024-11-15 14:53:23,479 [INFO] func_module.py:201 (course_learning) 课程信息: 
+第三章节: 2. 电信云脉-部署资源准备
 
-2024-11-15 08:46:50,519 [INFO] func_module.py:193 (course_learning) 该课程为视频类型
-2024-11-15 08:46:50,634 [INFO] func_module.py:247 (handle_video) 课程总时长: 3150秒
-2024-11-15 08:46:50,634 [INFO] func_module.py:248 (handle_video) 还需学习: 2520秒
-2024-11-15 08:46:50,643 [INFO] func_module.py:67 (timer) 开始时间: Fri Nov 15 08:46:50 2024
-2024-11-15 08:47:00,648 [INFO] func_module.py:70 (timer) 已学习 10 / 2520 (秒)
-2024-11-15 08:47:10,649 [INFO] func_module.py:70 (timer) 已学习 20 / 2520 (秒)
-2024-11-15 08:47:20,642 [INFO] func_module.py:70 (timer) 已学习 30 / 2520 (秒)
-2024-11-15 08:47:30,654 [INFO] func_module.py:70 (timer) 已学习 40 / 2520 (秒)
-2024-11-15 08:47:40,652 [INFO] func_module.py:70 (timer) 已学习 50 / 2520 (秒)
-2024-11-15 08:47:50,650 [INFO] func_module.py:70 (timer) 已学习 60 / 2520 (秒)
-2024-11-15 08:48:00,654 [INFO] func_module.py:70 (timer) 已学习 70 / 2520 (秒)
-2024-11-15 08:48:10,654 [INFO] func_module.py:70 (timer) 已学习 80 / 2520 (秒)
-2024-11-15 08:48:20,653 [INFO] func_module.py:70 (timer) 已学习 90 / 2520 (秒)
-2024-11-15 08:48:30,656 [INFO] func_module.py:70 (timer) 已学习 100 / 2520 (秒)
-2024-11-15 08:48:40,664 [INFO] func_module.py:70 (timer) 已学习 110 / 2520 (秒)
-2024-11-15 08:48:50,659 [INFO] func_module.py:70 (timer) 已学习 120 / 2520 (秒)
-2024-11-15 08:49:00,659 [INFO] func_module.py:70 (timer) 已学习 130 / 2520 (秒)
-2024-11-15 08:49:10,665 [INFO] func_module.py:70 (timer) 已学习 140 / 2520 (秒)
-2024-11-15 08:49:20,667 [INFO] func_module.py:70 (timer) 已学习 150 / 2520 (秒)
-2024-11-15 08:49:30,667 [INFO] func_module.py:70 (timer) 已学习 160 / 2520 (秒)
-2024-11-15 08:49:40,658 [INFO] func_module.py:70 (timer) 已学习 170 / 2520 (秒)
-2024-11-15 08:49:50,663 [INFO] func_module.py:70 (timer) 已学习 180 / 2520 (秒)
-2024-11-15 08:50:00,661 [INFO] func_module.py:70 (timer) 已学习 190 / 2520 (秒)
-2024-11-15 08:50:10,667 [INFO] func_module.py:70 (timer) 已学习 200 / 2520 (秒)
-2024-11-15 08:50:20,661 [INFO] func_module.py:70 (timer) 已学习 210 / 2520 (秒)
-2024-11-15 08:50:30,670 [INFO] func_module.py:70 (timer) 已学习 220 / 2520 (秒)
-2024-11-15 08:50:40,666 [INFO] func_module.py:70 (timer) 已学习 230 / 2520 (秒)
-2024-11-15 08:50:50,669 [INFO] func_module.py:70 (timer) 已学习 240 / 2520 (秒)
+2024-11-15 14:53:26,631 [INFO] func_module.py:216 (course_learning) 该课程为文档类型
+2024-11-15 14:53:26,637 [INFO] func_module.py:219 (course_learning) 课程3已学习，跳过该节
+
+2024-11-15 14:53:26,646 [INFO] func_module.py:201 (course_learning) 课程信息: 
+第四章节: 3. 【云脉】客户端运营手册
+
+2024-11-15 14:53:29,810 [INFO] func_module.py:216 (course_learning) 该课程为文档类型
+2024-11-15 14:53:29,828 [INFO] func_module.py:69 (timer) 开始时间: Fri Nov 15 14:53:29 2024
+2024-11-15 14:53:30,842 [INFO] func_module.py:72 (timer) 已学习 1 / 10 (秒)
+2024-11-15 14:53:31,847 [INFO] func_module.py:72 (timer) 已学习 2 / 10 (秒)
+2024-11-15 14:53:32,862 [INFO] func_module.py:72 (timer) 已学习 3 / 10 (秒)
+2024-11-15 14:53:33,865 [INFO] func_module.py:72 (timer) 已学习 4 / 10 (秒)
+2024-11-15 14:53:34,867 [INFO] func_module.py:72 (timer) 已学习 5 / 10 (秒)
+2024-11-15 14:53:35,873 [INFO] func_module.py:72 (timer) 已学习 6 / 10 (秒)
+2024-11-15 14:53:36,886 [INFO] func_module.py:72 (timer) 已学习 7 / 10 (秒)
+2024-11-15 14:53:37,905 [INFO] func_module.py:72 (timer) 已学习 8 / 10 (秒)
+2024-11-15 14:53:38,917 [INFO] func_module.py:72 (timer) 已学习 9 / 10 (秒)
+2024-11-15 14:53:39,918 [INFO] func_module.py:72 (timer) 已学习 10 / 10 (秒)
+2024-11-15 14:53:39,918 [INFO] func_module.py:73 (timer) 结束时间: Fri Nov 15 14:53:39 2024
+2024-11-15 14:53:39,918 [INFO] func_module.py:247 (course_learning) 课程4学习完毕
+2024-11-15 14:53:39,932 [INFO] func_module.py:201 (course_learning) 课程信息: 
+第五章节: 4. 【云脉】客户端流量代理
+
+2024-11-15 14:53:43,108 [INFO] func_module.py:216 (course_learning) 该课程为文档类型
+2024-11-15 14:53:43,123 [INFO] func_module.py:69 (timer) 开始时间: Fri Nov 15 14:53:43 2024
+2024-11-15 14:53:44,138 [INFO] func_module.py:72 (timer) 已学习 1 / 10 (秒)
+2024-11-15 14:53:45,151 [INFO] func_module.py:72 (timer) 已学习 2 / 10 (秒)
+2024-11-15 14:53:46,166 [INFO] func_module.py:72 (timer) 已学习 3 / 10 (秒)
+2024-11-15 14:53:47,169 [INFO] func_module.py:72 (timer) 已学习 4 / 10 (秒)
+2024-11-15 14:53:48,187 [INFO] func_module.py:72 (timer) 已学习 5 / 10 (秒)
+2024-11-15 14:53:49,201 [INFO] func_module.py:72 (timer) 已学习 6 / 10 (秒)
+2024-11-15 14:53:50,189 [INFO] func_module.py:72 (timer) 已学习 7 / 10 (秒)
+2024-11-15 14:53:51,201 [INFO] func_module.py:72 (timer) 已学习 8 / 10 (秒)
+2024-11-15 14:53:52,215 [INFO] func_module.py:72 (timer) 已学习 9 / 10 (秒)
+2024-11-15 14:53:53,228 [INFO] func_module.py:72 (timer) 已学习 10 / 10 (秒)
+2024-11-15 14:53:53,228 [INFO] func_module.py:73 (timer) 结束时间: Fri Nov 15 14:53:53 2024
+2024-11-15 14:53:53,228 [INFO] func_module.py:247 (course_learning) 课程5学习完毕
+2024-11-15 14:53:53,240 [INFO] func_module.py:201 (course_learning) 课程信息: 
+第六章节: 5. 云脉SASE测试报告
+
+2024-11-15 14:53:56,397 [INFO] func_module.py:216 (course_learning) 该课程为文档类型
+2024-11-15 14:53:56,411 [INFO] func_module.py:69 (timer) 开始时间: Fri Nov 15 14:53:56 2024
+2024-11-15 14:53:57,411 [INFO] func_module.py:72 (timer) 已学习 1 / 10 (秒)
+2024-11-15 14:53:58,412 [INFO] func_module.py:72 (timer) 已学习 2 / 10 (秒)
+2024-11-15 14:53:59,414 [INFO] func_module.py:72 (timer) 已学习 3 / 10 (秒)
+2024-11-15 14:54:00,426 [INFO] func_module.py:72 (timer) 已学习 4 / 10 (秒)
+2024-11-15 14:54:01,422 [INFO] func_module.py:72 (timer) 已学习 5 / 10 (秒)
+2024-11-15 14:54:02,437 [INFO] func_module.py:72 (timer) 已学习 6 / 10 (秒)
+2024-11-15 14:54:03,451 [INFO] func_module.py:72 (timer) 已学习 7 / 10 (秒)
+2024-11-15 14:54:04,467 [INFO] func_module.py:72 (timer) 已学习 8 / 10 (秒)
+2024-11-15 14:54:05,482 [INFO] func_module.py:72 (timer) 已学习 9 / 10 (秒)
+2024-11-15 14:54:06,498 [INFO] func_module.py:72 (timer) 已学习 10 / 10 (秒)
+2024-11-15 14:54:06,498 [INFO] func_module.py:73 (timer) 结束时间: Fri Nov 15 14:54:06 2024
+2024-11-15 14:54:06,498 [INFO] func_module.py:247 (course_learning) 课程6学习完毕
+2024-11-15 14:54:06,735 [INFO] 3afk.py:111 (main) 自动挂课完成，当前时间为Fri Nov 15 14:54:06 2024
