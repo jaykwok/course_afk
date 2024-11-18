@@ -1,72 +1,44 @@
-2024-11-15 14:53:04,733 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-11-15 14:53:12,764 [INFO] 3afk.py:65 (main) (1/1)å½“å‰å­¦ä¹ é“¾æ¥ä¸º: https://kc.zhixueyun.com/#/study/course/detail/35be21c2-56ea-444f-a4e9-b6a6da0a5bab
-2024-11-15 14:53:16,179 [INFO] func_module.py:201 (course_learning) è¯¾ç¨‹ä¿¡æ¯: 
-ç¬¬ä¸€ç« èŠ‚: 1. äº‘è„‰SASEäº§å“ä»‹ç»åŠè¿è¥
+2024-11-18 14:46:32,575 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-11-18 14:46:40,393 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/817cdd13-b646-4f3c-925e-6f8a8e502d5f
+2024-11-18 14:46:46,309 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:46:46,433 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/6d468811-893c-4efa-94f2-6fb028bb9f48
+2024-11-18 14:46:51,366 [INFO] 4examination.py:86 (main) ¿ªÊ¼¿¼ÊÔ
+2024-11-18 14:46:51,599 [INFO] 4examination.py:41 (wait_for_finish_test) µÈ´ı×÷´ğÍê±Ï²¢¹Ø±ÕÒ³Ãæ
+2024-11-18 14:48:06,248 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:48:06,366 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/aa71458d-2374-4088-a58a-9123f9a0f25b
+2024-11-18 14:48:11,479 [INFO] 4examination.py:86 (main) ¿ªÊ¼¿¼ÊÔ
+2024-11-18 14:48:11,660 [INFO] 4examination.py:41 (wait_for_finish_test) µÈ´ı×÷´ğÍê±Ï²¢¹Ø±ÕÒ³Ãæ
+2024-11-18 14:49:27,827 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:49:27,941 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/0b4f2908-3d85-4b8b-b9e0-3105fb3b9abb
+2024-11-18 14:49:32,906 [INFO] 4examination.py:86 (main) ¿ªÊ¼¿¼ÊÔ
+2024-11-18 14:49:33,116 [INFO] 4examination.py:41 (wait_for_finish_test) µÈ´ı×÷´ğÍê±Ï²¢¹Ø±ÕÒ³Ãæ
+2024-11-18 14:50:52,482 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:50:52,598 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/cee20c3d-b383-4bd0-bf31-e29a1924213b
+2024-11-18 14:50:57,674 [INFO] 4examination.py:86 (main) ¿ªÊ¼¿¼ÊÔ
+2024-11-18 14:50:57,892 [INFO] 4examination.py:41 (wait_for_finish_test) µÈ´ı×÷´ğÍê±Ï²¢¹Ø±ÕÒ³Ãæ
+2024-11-18 14:52:23,866 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:52:23,976 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/9055cb3f-a600-4690-9d30-ca79ad609919
+2024-11-18 14:52:29,093 [INFO] 4examination.py:86 (main) ¿ªÊ¼¿¼ÊÔ
+2024-11-18 14:52:29,334 [INFO] 4examination.py:41 (wait_for_finish_test) µÈ´ı×÷´ğÍê±Ï²¢¹Ø±ÕÒ³Ãæ
+2024-11-18 14:53:37,346 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:53:37,461 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/f8580675-cf97-48b7-a381-47d4d25c51d0
+2024-11-18 14:53:42,572 [INFO] 4examination.py:86 (main) ¿ªÊ¼¿¼ÊÔ
+2024-11-18 14:53:42,794 [INFO] 4examination.py:41 (wait_for_finish_test) µÈ´ı×÷´ğÍê±Ï²¢¹Ø±ÕÒ³Ãæ
+2024-11-18 14:54:51,187 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:54:51,289 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/817cdd13-b646-4f3c-925e-6f8a8e502d5f
+2024-11-18 14:54:56,390 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:54:56,502 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/6d468811-893c-4efa-94f2-6fb028bb9f48
+2024-11-18 14:55:01,530 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:55:01,633 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/aa71458d-2374-4088-a58a-9123f9a0f25b
+2024-11-18 14:55:06,713 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:55:06,833 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/0b4f2908-3d85-4b8b-b9e0-3105fb3b9abb
+2024-11-18 14:55:11,930 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:55:12,039 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/cee20c3d-b383-4bd0-bf31-e29a1924213b
+2024-11-18 14:55:16,974 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:55:17,075 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/9055cb3f-a600-4690-9d30-ca79ad609919
+2024-11-18 14:55:22,143 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:55:22,259 [INFO] 4examination.py:67 (main) µ±Ç°¿¼ÊÔÁ´½ÓÎª: https://kc.zhixueyun.com/#/study/course/detail/f8580675-cf97-48b7-a381-47d4d25c51d0
+2024-11-18 14:55:27,236 [INFO] 4examination.py:29 (check_exam_passed) ¿¼ÊÔ×´Ì¬: Í¨¹ı
+2024-11-18 14:55:27,496 [INFO] 4examination.py:93 (main) 
+¿¼ÊÔÍê³É£¬µ±Ç°Ê±¼äÎªMon Nov 18 14:55:27 2024
 
-2024-11-15 14:53:19,261 [INFO] func_module.py:216 (course_learning) è¯¥è¯¾ç¨‹ä¸ºæ–‡æ¡£ç±»å‹
-2024-11-15 14:53:19,267 [INFO] func_module.py:219 (course_learning) è¯¾ç¨‹1å·²å­¦ä¹ ï¼Œè·³è¿‡è¯¥èŠ‚
-
-2024-11-15 14:53:19,276 [INFO] func_module.py:201 (course_learning) è¯¾ç¨‹ä¿¡æ¯: 
-ç¬¬äºŒç« èŠ‚: 1-1.äº‘è„‰æ¥å…¥æ‹“æ‰‘
-
-2024-11-15 14:53:23,464 [INFO] func_module.py:216 (course_learning) è¯¥è¯¾ç¨‹ä¸ºæ–‡æ¡£ç±»å‹
-2024-11-15 14:53:23,469 [INFO] func_module.py:219 (course_learning) è¯¾ç¨‹2å·²å­¦ä¹ ï¼Œè·³è¿‡è¯¥èŠ‚
-
-2024-11-15 14:53:23,479 [INFO] func_module.py:201 (course_learning) è¯¾ç¨‹ä¿¡æ¯: 
-ç¬¬ä¸‰ç« èŠ‚: 2. ç”µä¿¡äº‘è„‰-éƒ¨ç½²èµ„æºå‡†å¤‡
-
-2024-11-15 14:53:26,631 [INFO] func_module.py:216 (course_learning) è¯¥è¯¾ç¨‹ä¸ºæ–‡æ¡£ç±»å‹
-2024-11-15 14:53:26,637 [INFO] func_module.py:219 (course_learning) è¯¾ç¨‹3å·²å­¦ä¹ ï¼Œè·³è¿‡è¯¥èŠ‚
-
-2024-11-15 14:53:26,646 [INFO] func_module.py:201 (course_learning) è¯¾ç¨‹ä¿¡æ¯: 
-ç¬¬å››ç« èŠ‚: 3. ã€äº‘è„‰ã€‘å®¢æˆ·ç«¯è¿è¥æ‰‹å†Œ
-
-2024-11-15 14:53:29,810 [INFO] func_module.py:216 (course_learning) è¯¥è¯¾ç¨‹ä¸ºæ–‡æ¡£ç±»å‹
-2024-11-15 14:53:29,828 [INFO] func_module.py:69 (timer) å¼€å§‹æ—¶é—´: Fri Nov 15 14:53:29 2024
-2024-11-15 14:53:30,842 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  1 / 10 (ç§’)
-2024-11-15 14:53:31,847 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  2 / 10 (ç§’)
-2024-11-15 14:53:32,862 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  3 / 10 (ç§’)
-2024-11-15 14:53:33,865 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  4 / 10 (ç§’)
-2024-11-15 14:53:34,867 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  5 / 10 (ç§’)
-2024-11-15 14:53:35,873 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  6 / 10 (ç§’)
-2024-11-15 14:53:36,886 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  7 / 10 (ç§’)
-2024-11-15 14:53:37,905 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  8 / 10 (ç§’)
-2024-11-15 14:53:38,917 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  9 / 10 (ç§’)
-2024-11-15 14:53:39,918 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  10 / 10 (ç§’)
-2024-11-15 14:53:39,918 [INFO] func_module.py:73 (timer) ç»“æŸæ—¶é—´: Fri Nov 15 14:53:39 2024
-2024-11-15 14:53:39,918 [INFO] func_module.py:247 (course_learning) è¯¾ç¨‹4å­¦ä¹ å®Œæ¯•
-2024-11-15 14:53:39,932 [INFO] func_module.py:201 (course_learning) è¯¾ç¨‹ä¿¡æ¯: 
-ç¬¬äº”ç« èŠ‚: 4. ã€äº‘è„‰ã€‘å®¢æˆ·ç«¯æµé‡ä»£ç†
-
-2024-11-15 14:53:43,108 [INFO] func_module.py:216 (course_learning) è¯¥è¯¾ç¨‹ä¸ºæ–‡æ¡£ç±»å‹
-2024-11-15 14:53:43,123 [INFO] func_module.py:69 (timer) å¼€å§‹æ—¶é—´: Fri Nov 15 14:53:43 2024
-2024-11-15 14:53:44,138 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  1 / 10 (ç§’)
-2024-11-15 14:53:45,151 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  2 / 10 (ç§’)
-2024-11-15 14:53:46,166 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  3 / 10 (ç§’)
-2024-11-15 14:53:47,169 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  4 / 10 (ç§’)
-2024-11-15 14:53:48,187 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  5 / 10 (ç§’)
-2024-11-15 14:53:49,201 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  6 / 10 (ç§’)
-2024-11-15 14:53:50,189 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  7 / 10 (ç§’)
-2024-11-15 14:53:51,201 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  8 / 10 (ç§’)
-2024-11-15 14:53:52,215 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  9 / 10 (ç§’)
-2024-11-15 14:53:53,228 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  10 / 10 (ç§’)
-2024-11-15 14:53:53,228 [INFO] func_module.py:73 (timer) ç»“æŸæ—¶é—´: Fri Nov 15 14:53:53 2024
-2024-11-15 14:53:53,228 [INFO] func_module.py:247 (course_learning) è¯¾ç¨‹5å­¦ä¹ å®Œæ¯•
-2024-11-15 14:53:53,240 [INFO] func_module.py:201 (course_learning) è¯¾ç¨‹ä¿¡æ¯: 
-ç¬¬å…­ç« èŠ‚: 5. äº‘è„‰SASEæµ‹è¯•æŠ¥å‘Š
-
-2024-11-15 14:53:56,397 [INFO] func_module.py:216 (course_learning) è¯¥è¯¾ç¨‹ä¸ºæ–‡æ¡£ç±»å‹
-2024-11-15 14:53:56,411 [INFO] func_module.py:69 (timer) å¼€å§‹æ—¶é—´: Fri Nov 15 14:53:56 2024
-2024-11-15 14:53:57,411 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  1 / 10 (ç§’)
-2024-11-15 14:53:58,412 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  2 / 10 (ç§’)
-2024-11-15 14:53:59,414 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  3 / 10 (ç§’)
-2024-11-15 14:54:00,426 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  4 / 10 (ç§’)
-2024-11-15 14:54:01,422 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  5 / 10 (ç§’)
-2024-11-15 14:54:02,437 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  6 / 10 (ç§’)
-2024-11-15 14:54:03,451 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  7 / 10 (ç§’)
-2024-11-15 14:54:04,467 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  8 / 10 (ç§’)
-2024-11-15 14:54:05,482 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  9 / 10 (ç§’)
-2024-11-15 14:54:06,498 [INFO] func_module.py:72 (timer) å·²å­¦ä¹  10 / 10 (ç§’)
-2024-11-15 14:54:06,498 [INFO] func_module.py:73 (timer) ç»“æŸæ—¶é—´: Fri Nov 15 14:54:06 2024
-2024-11-15 14:54:06,498 [INFO] func_module.py:247 (course_learning) è¯¾ç¨‹6å­¦ä¹ å®Œæ¯•
-2024-11-15 14:54:06,735 [INFO] 3afk.py:111 (main) è‡ªåŠ¨æŒ‚è¯¾å®Œæˆï¼Œå½“å‰æ—¶é—´ä¸ºFri Nov 15 14:54:06 2024

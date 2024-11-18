@@ -54,7 +54,7 @@ async def main():
         browser = await p.chromium.launch(
             headless=False, args=["--mute-audio"], channel="chrome"
         )
-        context = await browser.new_context()
+        context = await browser.new_context(viewport={"width": 1920, "height": 1080})
         await context.add_cookies(cookies)
         page = await context.new_page()
         await page.goto("https://kc.zhixueyun.com/")
@@ -91,7 +91,7 @@ async def main():
         await context.close()
         await browser.close()
         logging.info(f"\n考试完成，当前时间为{time.ctime()}\n")
-        os.remove("./考试链接.txt")
+        os.remove("./学习课程考试链接.txt")
 
 
 if __name__ == "__main__":
