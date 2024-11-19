@@ -297,9 +297,11 @@ async def handle_examination(page, learn_item=None):
         if learn_item:
             logging.info("学习课程考试类型，存入文档")
             save_to_file("学习课程考试链接.txt", await get_course_url(learn_item))
+            logging.info(f"链接: {await get_course_url(learn_item)}\n")
         else:
             logging.info("学习课程考试类型，存入文档")
             save_to_file("学习课程考试链接.txt", page.url)
+            logging.info(f"链接: {page.url}\n")
 
 
 async def is_subject_completed(page):
