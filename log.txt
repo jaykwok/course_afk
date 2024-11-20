@@ -1,3 +1,0 @@
-2024-11-18 15:10:39,592 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-11-18 15:10:46,613 [INFO] 3afk.py:74 (main) (1/1)当前学习链接为: https://kc.zhixueyun.com/#/study/subject/detail/0af6aaf5-a361-47f3-9fc7-f9acc68bdb76
-2024-11-18 15:10:50,235 [INFO] 3afk.py:120 (main) 自动挂课完成，当前时间为Mon Nov 18 15:10:50 2024
