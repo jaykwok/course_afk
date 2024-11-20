@@ -1,0 +1,9 @@
+2024-11-20 15:47:02,167 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-11-20 15:47:10,804 [INFO] 3afk.py:74 (main) (1/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&4b54b224-4ac3-47d6-9fe4-330721d05931&0/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
+2024-11-20 15:47:14,199 [INFO] func_module.py:201 (course_learning) 课程信息: 
+第一章节: 陈利明
+
+2024-11-20 15:47:17,311 [INFO] func_module.py:207 (course_learning) 该课程为视频类型
+2024-11-20 15:47:17,347 [INFO] func_module.py:263 (handle_video) 课程总时长: 3010秒
+2024-11-20 15:47:17,347 [INFO] func_module.py:264 (handle_video) 还需学习: 2340秒
+2024-11-20 15:47:17,350 [INFO] func_module.py:69 (timer) 开始时间: Wed Nov 20 15:47:17 2024

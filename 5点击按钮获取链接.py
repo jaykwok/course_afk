@@ -43,7 +43,7 @@ def collect_urls(start_url, cookie_path):
         context = browser.new_context()
 
         # 创建存储URL的文件
-        output_file = f"按钮链接复制.txt"
+        output_file = f"点击按钮弹出网页链接获取.txt"
         # 存储已收集的URL
         collected_urls = set()
 
@@ -78,9 +78,9 @@ def collect_urls(start_url, cookie_path):
             # 等待iframe加载
             iframe_locator = page.frame_locator("#paasIframe")
 
-            print('输入"1"以继续获取链接')
-            flag = input()
             while True:
+                print('输入"1"以继续获取链接')
+                flag = input()
                 if flag == "1":
                     break
 
