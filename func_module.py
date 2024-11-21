@@ -30,6 +30,26 @@ def save_to_file(filename, url):
         wp.write(f"{url}\n")
 
 
+async def check_permisson(frame):
+    try:
+        # 在当前frame中查找文本
+        text_content = await frame.content()
+        if "您没有权限查看该资源" in text_content:
+            return False
+
+        # 获取所有子iframe
+        child_frames = frame.child_frames
+        # 递归检查所有子iframe
+        for child_frame in child_frames:
+            if await check_permisson(child_frame):
+                return False
+
+        return True
+    except Exception as e:
+        print(f"检查frame时出错: {e}")
+        return False
+
+
 def is_learned(text: str) -> bool:
     """判断课程是否已学习"""
 
@@ -114,6 +134,13 @@ async def subject_learning(page, mark):
 
     await page.wait_for_load_state("load")
     # await page.wait_for_timeout(3000)
+
+    # 检查是否有权限访问该资源
+    if await check_permisson(page.main_frame):
+        pass
+    else:
+        raise Exception(f"无权限查看该资源")
+
     await page.locator(".item.current-hover").last.wait_for()
     await page.locator(".item.current-hover").locator(".section-type").last.wait_for()
 
@@ -187,6 +214,13 @@ async def course_learning(page_detail, learn_item=None):
     """课程内容学习"""
 
     await page_detail.wait_for_load_state("load")
+
+    # 检查是否有权限访问该资源
+    if await check_permisson(page_detail.main_frame):
+        pass
+    else:
+        raise Exception(f"无权限查看该资源")
+
     if await is_course_completed(page_detail):
         title = await page_detail.locator("span.course-title-text").inner_text()
         logging.info(f"{title}已学习完毕，跳过该课程\n")

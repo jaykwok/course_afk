@@ -1,81 +1,24 @@
-2024-11-21 08:50:10,758 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
-2024-11-21 08:50:19,526 [INFO] 3afk.py:74 (main) (1/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&4b54b224-4ac3-47d6-9fe4-330721d05931&0/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:22,980 [INFO] func_module.py:192 (course_learning) AI大模型赋能产数业务智能化升级已学习完毕，跳过该课程
+2024-11-21 09:27:46,044 [DEBUG] proactor_events.py:634 (__init__) Using proactor: IocpProactor
+2024-11-21 09:27:54,688 [INFO] 3afk.py:74 (main) (1/2)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/a64006e7-4a39-479c-af1d-5cc76a515f73
+2024-11-21 09:27:58,148 [ERROR] 3afk.py:95 (main) 发生错误: 无权限查看该资源
+2024-11-21 09:27:58,149 [ERROR] 3afk.py:96 (main) Traceback (most recent call last):
+  File "d:\ChinaTelecom\智慧学习自动挂课\course_afk\3afk.py", line 93, in main
+    await fm.course_learning(page)
+  File "d:\ChinaTelecom\智慧学习自动挂课\course_afk\func_module.py", line 222, in course_learning
+    raise Exception(f"无权限查看该资源")
+Exception: 无权限查看该资源
 
-2024-11-21 08:50:23,154 [INFO] 3afk.py:74 (main) (2/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&057affeb-7017-4e81-87d7-1d5f2e8d6aeb&0/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:26,536 [INFO] func_module.py:192 (course_learning) 中国电信网管专家产品细分场景服务介绍已学习完毕，跳过该课程
+2024-11-21 09:27:58,149 [INFO] func_module.py:29 (save_to_file) 写入无权限资源链接.txt完毕
 
-2024-11-21 08:50:26,661 [INFO] 3afk.py:74 (main) (3/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&6551cdfc-d8ea-427b-a229-34d281421b00/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:30,026 [INFO] func_module.py:192 (course_learning) 工业互联网发展的新趋势——边云协同及应用:工业动设备预测性维护已学习完毕，跳过该课程
+2024-11-21 09:27:58,262 [INFO] 3afk.py:74 (main) (2/2)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/0fdf15df-603e-4e00-a53b-fa1aae50e2b3
+2024-11-21 09:28:01,706 [ERROR] 3afk.py:95 (main) 发生错误: 无权限查看该资源
+2024-11-21 09:28:01,708 [ERROR] 3afk.py:96 (main) Traceback (most recent call last):
+  File "d:\ChinaTelecom\智慧学习自动挂课\course_afk\3afk.py", line 93, in main
+    await fm.course_learning(page)
+  File "d:\ChinaTelecom\智慧学习自动挂课\course_afk\func_module.py", line 222, in course_learning
+    raise Exception(f"无权限查看该资源")
+Exception: 无权限查看该资源
 
-2024-11-21 08:50:30,150 [INFO] 3afk.py:74 (main) (4/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&a5eeba71-96d4-4043-9dbd-36c326a48d25/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:33,543 [INFO] func_module.py:192 (course_learning) 中国电信IPv6+政务云网建设解决方案已学习完毕，跳过该课程
+2024-11-21 09:28:01,708 [INFO] func_module.py:29 (save_to_file) 写入无权限资源链接.txt完毕
 
-2024-11-21 08:50:33,667 [INFO] 3afk.py:74 (main) (5/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&9a6a8446-c402-4e12-8685-c82c83fff41f/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:37,032 [INFO] func_module.py:192 (course_learning) 云磐分布式存储一体机已学习完毕，跳过该课程
-
-2024-11-21 08:50:37,154 [INFO] 3afk.py:74 (main) (6/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&6de9eee4-87e6-4520-94aa-e061cbaa29e6/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:40,517 [INFO] func_module.py:192 (course_learning) 云聚+ 应用场景解析及营销指引已学习完毕，跳过该课程
-
-2024-11-21 08:50:40,637 [INFO] 3afk.py:74 (main) (7/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&d5603dbe-b428-4339-b4ab-52cb7640dd39/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:44,025 [INFO] func_module.py:192 (course_learning) 原子能力助力七融业务高质量发展已学习完毕，跳过该课程
-
-2024-11-21 08:50:44,170 [INFO] 3afk.py:74 (main) (8/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&b8518dc8-9d30-49db-b32b-155e45984a3a/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:47,545 [INFO] func_module.py:192 (course_learning) 智慧运维平台产品能力介绍已学习完毕，跳过该课程
-
-2024-11-21 08:50:47,702 [INFO] 3afk.py:74 (main) (9/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&d74f436a-dd56-407d-951a-10d43c7a5152/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:51,089 [INFO] func_module.py:192 (course_learning) 网络安全风险评估工作流程方法介绍已学习完毕，跳过该课程
-
-2024-11-21 08:50:51,213 [INFO] 3afk.py:74 (main) (10/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&97614faf-315e-4bcd-8f1e-c548bf2811a9/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:54,636 [INFO] func_module.py:192 (course_learning) 立体巡防产品介绍已学习完毕，跳过该课程
-
-2024-11-21 08:50:54,769 [INFO] 3afk.py:74 (main) (11/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&25e89caa-de9f-48d0-9035-6f05ed54621a/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:50:58,132 [INFO] func_module.py:192 (course_learning) 云凌容器云平台产品架构与能力已学习完毕，跳过该课程
-
-2024-11-21 08:50:58,246 [INFO] 3afk.py:74 (main) (12/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&20847a0b-4b83-4901-a82f-b392a5c960e1/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:01,615 [INFO] func_module.py:192 (course_learning) 央企上云IaaS+PaaS一体化解决方案及典型案例剖析已学习完毕，跳过该课程
-
-2024-11-21 08:51:01,727 [INFO] 3afk.py:74 (main) (13/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&18711db7-baaf-46ca-a4e0-3b8b0811f72a/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:05,104 [INFO] func_module.py:192 (course_learning) 基于行业场景的大模型典型应用方案已学习完毕，跳过该课程
-
-2024-11-21 08:51:05,221 [INFO] 3afk.py:74 (main) (14/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&fbc7223f-4fa0-4327-a2cc-6369e35bffab/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:08,589 [INFO] func_module.py:192 (course_learning) 信创行业发展路径及典型案例分析已学习完毕，跳过该课程
-
-2024-11-21 08:51:08,713 [INFO] 3afk.py:74 (main) (15/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&ce1b13de-bc34-481f-ab5e-66c76b1e39e0/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:12,071 [INFO] func_module.py:192 (course_learning) 中国电信一体化综合网管产品群已学习完毕，跳过该课程
-
-2024-11-21 08:51:12,205 [INFO] 3afk.py:74 (main) (16/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&941215cf-150c-4bd3-8752-b4f2c6dea6f4/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:15,624 [INFO] func_module.py:192 (course_learning) 中国电信行业aPaaS平台：助力二次开发能力已学习完毕，跳过该课程
-
-2024-11-21 08:51:15,768 [INFO] 3afk.py:74 (main) (17/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&71667a24-df71-458b-9b11-677a7bdd36ee/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:19,162 [INFO] func_module.py:192 (course_learning) 中国邮政集团多云管理平台项目落地经验分享已学习完毕，跳过该课程
-
-2024-11-21 08:51:19,303 [INFO] 3afk.py:74 (main) (18/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&f9ef38de-9d78-489b-9ec6-47449960a775/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:22,683 [INFO] func_module.py:192 (course_learning) 智能运维平台建设之路经验分享已学习完毕，跳过该课程
-
-2024-11-21 08:51:22,821 [INFO] 3afk.py:74 (main) (19/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&98cd437c-f383-4806-8c15-5c8966d05a69/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:26,257 [INFO] func_module.py:192 (course_learning) 科技成果推广已学习完毕，跳过该课程
-
-2024-11-21 08:51:26,389 [INFO] 3afk.py:74 (main) (20/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&ef8e88b1-2173-414f-92b5-82e4559f002a/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:29,796 [INFO] func_module.py:192 (course_learning) 数智公司2023~2025战略性新兴产业发展规划已学习完毕，跳过该课程
-
-2024-11-21 08:51:29,955 [INFO] 3afk.py:74 (main) (21/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&1a8aa201-37e9-4f87-a4b8-7e7d2fd9fae7/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:33,307 [INFO] func_module.py:192 (course_learning) 2024年数智科技专利培训已学习完毕，跳过该课程
-
-2024-11-21 08:51:33,434 [INFO] 3afk.py:74 (main) (22/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&9f7d80d4-7dfa-4506-ac31-8d1ed7342bf9/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:36,799 [INFO] func_module.py:192 (course_learning) 软件研发过程质量管理已学习完毕，跳过该课程
-
-2024-11-21 08:51:36,933 [INFO] 3afk.py:74 (main) (23/48)当前学习链接为: https://kc.zhixueyun.com/#/study/course/detail/11&aa181c1a-590e-4dbc-a028-1e20a26c8aac/5/1/482f1894-4926-40e1-9dae-6f204b32bad9
-2024-11-21 08:51:40,367 [INFO] func_module.py:201 (course_learning) 课程信息: 
-第一章节: 涉密业务保密培训-数智保密办-202402
-
-2024-11-21 08:51:43,479 [INFO] func_module.py:207 (course_learning) 该课程为视频类型
-2024-11-21 08:51:43,542 [INFO] func_module.py:263 (handle_video) 课程总时长: 1940秒
-2024-11-21 08:51:43,543 [INFO] func_module.py:264 (handle_video) 还需学习: 1560秒
-2024-11-21 08:51:43,547 [INFO] func_module.py:69 (timer) 开始时间: Thu Nov 21 08:51:43 2024
-2024-11-21 08:51:53,560 [INFO] func_module.py:72 (timer) 已学习 10 / 1560 (秒)
-2024-11-21 08:52:03,582 [INFO] func_module.py:72 (timer) 已学习 20 / 1560 (秒)
-2024-11-21 08:52:13,594 [INFO] func_module.py:72 (timer) 已学习 30 / 1560 (秒)
-2024-11-21 08:52:23,602 [INFO] func_module.py:72 (timer) 已学习 40 / 1560 (秒)
-2024-11-21 08:52:33,606 [INFO] func_module.py:72 (timer) 已学习 50 / 1560 (秒)
-2024-11-21 08:52:43,618 [INFO] func_module.py:72 (timer) 已学习 60 / 1560 (秒)
+2024-11-21 09:28:02,019 [INFO] 3afk.py:126 (main) 自动挂课完成，当前时间为Thu Nov 21 09:28:02 2024

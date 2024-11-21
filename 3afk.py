@@ -79,9 +79,12 @@ async def main():
                 except Exception as e:
                     logging.error(f"发生错误: {str(e)}")
                     logging.error(traceback.format_exc())
-                    fm.save_to_file("剩余未看课程链接.txt", url.strip())
-                    if mark == 0:
-                        mark = 1
+                    if str(e) == "无权限查看该资源":
+                        fm.save_to_file("无权限资源链接.txt", url.strip())
+                    else:
+                        fm.save_to_file("剩余未看课程链接.txt", url.strip())
+                        if mark == 0:
+                            mark = 1
                 finally:
                     await page.close()
 
@@ -91,9 +94,12 @@ async def main():
                 except Exception as e:
                     logging.error(f"发生错误: {str(e)}")
                     logging.error(traceback.format_exc())
-                    fm.save_to_file("剩余未看课程链接.txt", url.strip())
-                    if mark == 0:
-                        mark = 1
+                    if str(e) == "无权限查看该资源":
+                        fm.save_to_file("无权限资源链接.txt", url.strip())
+                    else:
+                        fm.save_to_file("剩余未看课程链接.txt", url.strip())
+                        if mark == 0:
+                            mark = 1
                 finally:
                     await page.close()
 
