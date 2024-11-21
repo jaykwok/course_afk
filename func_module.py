@@ -36,15 +36,8 @@ async def check_permisson(frame):
         text_content = await frame.content()
         if "您没有权限查看该资源" in text_content:
             return False
-
-        # 获取所有子iframe
-        child_frames = frame.child_frames
-        # 递归检查所有子iframe
-        for child_frame in child_frames:
-            if await check_permisson(child_frame):
-                return False
-
-        return True
+        else:
+            return True
     except Exception as e:
         print(f"检查frame时出错: {e}")
         return False
