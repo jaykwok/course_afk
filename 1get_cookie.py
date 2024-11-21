@@ -21,6 +21,7 @@ def main():
         )
         with open("cookies.json", "w") as f:
             f.write(json.dumps(context.cookies()))
+            print("已保存cookies")
         page.close()
         context.close()
         browser.close()
