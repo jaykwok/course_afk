@@ -216,7 +216,7 @@ async def course_learning(page_detail, learn_item=None):
 
     if await is_course_completed(page_detail):
         title = await page_detail.locator("span.course-title-text").inner_text()
-        logging.info(f"{title}已学习完毕，跳过该课程\n")
+        logging.info(f"<{title}>已学习完毕，跳过该课程\n")
         return
     # await page_detail.wait_for_timeout(3000)
     await page_detail.locator("dl.chapter-list-box.required").last.wait_for()
