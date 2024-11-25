@@ -2,5 +2,4 @@
 .idea
 *.txt
 __pycache__/
-!log.txt
 !学习链接.txt
