@@ -110,11 +110,18 @@ async def main():
                 for url in urls:
                     page = await context.new_page()
                     await page.goto(url.strip())
-                    if await fm.is_subject_completed(page):
-                        logging.info(f"URL类型链接: {url.strip()} 学习完成")
-                    else:
+                    try:
+                        is_subject_completed = await fm.is_subject_completed(page)
+                        if await is_subject_completed:
+                            logging.info(f"URL类型链接: {url.strip()} 学习完成")
+                        else:
+                            f.write(url)
+                    except Exception as e:
+                        logging.error(f"发生错误: {str(e)}")
+                        logging.error(traceback.format_exc())
                         f.write(url)
-                    await page.close()
+                    finally:
+                        await page.close()
             os.remove("./URL类型链接.txt")
 
         # 如果未出现错误且文本文档存在，则删除文本文档
