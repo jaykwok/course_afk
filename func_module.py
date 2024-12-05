@@ -69,8 +69,11 @@ def calculate_remaining_time(text) -> tuple[int, int]:
 
     pattern = r"(\d+:\d{1,2})"
     match = re.findall(pattern, text)
-    total_time = time_to_seconds(match[0])
-    remaining_time = time_to_seconds(match[1])
+    if len(match) == 1:
+        total_time = remaining_time = time_to_seconds(match[0])
+    elif len(match) == 2:
+        total_time = time_to_seconds(match[0])
+        remaining_time = time_to_seconds(match[1])
 
     return min(math.ceil(remaining_time / 60) * 60, total_time), total_time
 
