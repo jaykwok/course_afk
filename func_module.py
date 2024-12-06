@@ -34,7 +34,7 @@ async def check_permisson(frame):
     try:
         # 在当前frame中查找文本
         text_content = await frame.content()
-        if "您没有权限查看该资源" in text_content:
+        if "您没有权限查看该资源" in text_content or "该资源已不存在" in text_content:
             return False
         else:
             return True
