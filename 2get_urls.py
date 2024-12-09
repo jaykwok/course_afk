@@ -8,7 +8,7 @@ from playwright.async_api import async_playwright
 
 
 async def main():
-    url = "https://cms.mylearning.cn/safe/topic/resource/2022/wxaq/pc.html"
+    url = "https://cms.mylearning.cn/safe/topic/resource/2024/zxzq/pc.html"
     with open("./cookies.json", "r") as f:
         cookies = json.load(f)
     async with async_playwright() as p:
