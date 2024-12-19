@@ -20,11 +20,13 @@ def load_cookies(context, cookie_path):
 
 def wait_for_zhixueyun_redirect(page, timeout=30000):
     """等待知学云页面重定向完成"""
+    url = page.url
+    uuid = url.split("/")[-1]
     try:
         # 等待URL包含特定前缀
         page.wait_for_url(
             re.compile(
-                r"^https://kc\.zhixueyun\.com/#/paas-container\?paasurl=website.*482f1894-4926-40e1-9dae-6f204b32bad9$"
+                rf"^https://kc\.zhixueyun\.com/#/paas-container\?paasurl=website.*{uuid}"
             ),
             timeout=0,
         )
@@ -73,7 +75,6 @@ def collect_urls(start_url, cookie_path):
             # 等待页面完全加载
             print("等待页面完全加载...")
             page.wait_for_load_state("networkidle")
-            time.sleep(5)  # 确保页面完全加载
 
             # 等待iframe加载
             iframe_locator = page.frame_locator("#paasIframe")
@@ -142,6 +143,6 @@ def collect_urls(start_url, cookie_path):
 
 if __name__ == "__main__":
     # 设置起始页面URL和cookie文件路径
-    start_url = "https://kc.zhixueyun.com/#/train-new/class-detail/482f1894-4926-40e1-9dae-6f204b32bad9"  # 替换为实际的起始URL
+    start_url = "https://kc.zhixueyun.com/#/train-new/class-detail/db0f911c-7214-499b-a006-02ad9b803e8f"  # 替换为实际的起始URL
     cookie_path = "cookies.json"  # 替换为实际的cookie文件路径
     collect_urls(start_url, cookie_path)
