@@ -74,7 +74,7 @@ def collect_urls(start_url, cookie_path):
 
             # 等待页面完全加载
             print("等待页面完全加载...")
-            page.wait_for_load_state("networkidle")
+            page.wait_for_load_state("load")
 
             # 等待iframe加载
             iframe_locator = page.frame_locator("#paasIframe")
