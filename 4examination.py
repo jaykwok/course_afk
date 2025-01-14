@@ -55,9 +55,9 @@ async def main():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False, args=["--mute-audio"], channel="chrome"
+            headless=False, args=["--mute-audio", "--start-maximized"], channel="chrome"
         )
-        context = await browser.new_context(viewport={"width": 1920, "height": 1080})
+        context = await browser.new_context(no_viewport=True)
         await context.add_cookies(cookies)
         page = await context.new_page()
         await page.goto("https://kc.zhixueyun.com/")
