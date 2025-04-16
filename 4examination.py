@@ -27,8 +27,8 @@ async def check_exam_passed(page):
         return False
     # 获取最高分数值
     highest_score = int(highest_score_text.split("：")[1].replace("分", ""))
-    # 判断最高成绩是否大于等于60分
-    if highest_score >= 60:
+    # 判断最高成绩是否大于等于80分
+    if highest_score >= 80:
         logging.info(f"考试状态: 通过")
         return True
     else:
