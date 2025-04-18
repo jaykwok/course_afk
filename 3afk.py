@@ -28,12 +28,24 @@ logging.basicConfig(
 
 
 async def main():
+
+    # 定义全局变量便于赋值
     global mark
-    # 每一次运行main函数的时候，重置标识为0
-    mark = 0
+
+    if os.path.exists("./剩余未看课程链接.txt"):
+        with open("./剩余未看课程链接.txt", encoding="utf-8") as f:
+            urls = set(f.readlines())
+        # 读取文件中保存的链接后，便删除文件，便于后续重写并追加新的未学习的链接
+        os.remove("./剩余未看课程链接.txt")
+    else:
+        # 每一次运行main函数的时候，重置标识为0
+        mark = 0
+        # 移除旧的考试链接文件
+        os.remove("./学习课程考试链接.txt")
+        with open(learning_file, encoding="utf-8") as f:
+            urls = f.readlines()
 
     # 删除考试链接和调研链接等手动操作的文件
-
     files = [
         "./学习主题考试链接.txt",
         "./调研类型链接.txt",
@@ -44,15 +56,6 @@ async def main():
     ]
     for file in files:
         fm.del_file(file)
-
-    if os.path.exists("./剩余未看课程链接.txt"):
-        with open("./剩余未看课程链接.txt", encoding="utf-8") as f:
-            urls = set(f.readlines())
-        # 读取文件中保存的链接后，便删除文件，便于后续重写并追加新的未学习的链接
-        os.remove("./剩余未看课程链接.txt")
-    else:
-        with open(learning_file, encoding="utf-8") as f:
-            urls = f.readlines()
 
     with open("cookies.json", "r", encoding="utf-8") as f:
         cookies = json.load(f)
