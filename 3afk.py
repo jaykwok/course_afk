@@ -33,6 +33,7 @@ async def main():
     global mark
 
     if os.path.exists("./剩余未看课程链接.txt"):
+        mark = 1
         with open("./剩余未看课程链接.txt", encoding="utf-8") as f:
             urls = set(f.readlines())
         # 读取文件中保存的链接后，便删除文件，便于后续重写并追加新的未学习的链接

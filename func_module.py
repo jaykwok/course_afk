@@ -277,6 +277,49 @@ async def course_learning(page_detail, learn_item=None):
         logging.info(f"课程{count}学习完毕")
 
 
+async def check_and_handle_rating_popup(page):
+    """检查并处理课程质量评价弹窗"""
+    try:
+        # 使用快速超时检查弹窗是否存在，避免长时间等待
+        popup_exists = (
+            await page.locator(
+                "div.split-section-detail-header--interact:has-text('互动练习')"
+            ).count()
+            > 0
+        )
+
+        if popup_exists:
+            logging.info("检测到课程质量评价弹窗")
+            # 点击"跳过"按钮
+            skip_button = page.locator("button:has-text('跳 过')")
+            if await skip_button.count() > 0:
+                await skip_button.click()
+                logging.info("已点击'跳过'按钮")
+                # 短暂等待让界面响应
+                await page.wait_for_timeout(1000)
+                return True
+    except Exception as e:
+        logging.warning(f"处理评价弹窗时出错: {str(e)}")
+
+    return False
+
+
+async def check_rating_popup_periodically(page, duration, interval=30):
+    """定期检查评价弹窗，持续指定时间"""
+
+    elapsed = 0
+    while elapsed < duration:
+        # 等待指定时间
+        wait_time = min(interval, duration - elapsed)
+        await asyncio.sleep(wait_time)
+
+        # 检查并处理评价弹窗
+        await check_and_handle_rating_popup(page)
+
+        # 更新已经过的时间
+        elapsed += wait_time
+
+
 async def handle_video(box, page):
     """处理视频类型课程"""
 
@@ -287,16 +330,23 @@ async def handle_video(box, page):
     await page.locator(".vjs-progress-control").first.wait_for()
     await page.locator(".vjs-duration-display").wait_for()
 
+    # 初次检查评价弹窗
+    await check_and_handle_rating_popup(page)
+
     remaining, duration = calculate_remaining_time(
         await box.locator(".section-item-wrapper").inner_text()
     )
     logging.info(f"课程总时长: {duration} 秒")
     logging.info(f"还需学习: {remaining} 秒")
 
-    # 等待计算的剩余时间
+    # 等待计算的剩余时间，同时定期检查评价弹窗
     timer_task = asyncio.create_task(timer(remaining))
+    popup_check_task = asyncio.create_task(
+        check_rating_popup_periodically(page, remaining)
+    )
     await page.wait_for_timeout(remaining * 1000)
     await timer_task
+    await popup_check_task
 
     # 确认课程进度是否已同步到服务器
     logging.info("课程学习完毕，确认课程进度同步状态...")
@@ -310,6 +360,9 @@ async def handle_video(box, page):
     check_interval = 10  # 每10秒检查一次
 
     for i in range(0, extra_wait_time, check_interval):
+        # 每次检查前先检查评价弹窗
+        await check_and_handle_rating_popup(page)
+
         # 检查是否还有"需再学"字样
         current_text = await box.locator(".section-item-wrapper").inner_text()
         if is_learned(current_text):
@@ -317,14 +370,14 @@ async def handle_video(box, page):
             return
 
         logging.info(
-            f"课程进度仍未同步完成，已额外等待 {i + check_interval} 秒，继续等待中..."
+            f"课程进度仍未同步完成，已额外等待 {i + check_interval} 秒，继续等待..."
         )
         await page.wait_for_timeout(check_interval * 1000)
 
     # 如果5分钟后仍未完成，抛出异常
     current_text = await box.locator(".section-item-wrapper").inner_text()
     if not is_learned(current_text):
-        logging.info(f"额外等待5分钟后，课程进度仍未同步，视为超时未完成")
+        logging.info(f"超时: 已额外等待5分钟，课程进度仍未同步")
         raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
