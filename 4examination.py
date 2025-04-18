@@ -86,7 +86,7 @@ async def handle_rating_popup(page):
         await page.get_by_role("radio", name="图标: star 图标: star").nth(4).click()
         print("已选择五星评价")
 
-        await page.wait_for_timeout(1000)
+        await page.wait_for_timeout(500)
         # 点击确定按钮
         await page.get_by_role("button", name="确 定").click()
         print("已提交五星评价")
