@@ -85,8 +85,7 @@ async def handle_rating_popup(page):
         # 点击第五颗星星(最后一颗)
         await page.get_by_role("radio", name="图标: star 图标: star").nth(4).click()
         print("已选择五星评价")
-
-        await page.wait_for_timeout(500)
+        await page.wait_for_timeout(1000)
         # 点击确定按钮
         await page.get_by_role("button", name="确 定").click()
         print("已提交五星评价")
@@ -129,9 +128,6 @@ async def main():
                 await page1.locator(".tab-container").wait_for()
                 await page1.wait_for_timeout(1000)
 
-                # 如果存在评价窗口，则点击评价按钮
-                if await handle_rating_popup(page1):
-                    print("五星评价完成")
                 if await page1.locator(".neer-status").all():
                     if await check_exam_passed(page1):
                         await page1.close()
@@ -140,11 +136,17 @@ async def main():
                         logging.info("重新考试")
                         await wait_for_finish_test(page1)
                         await page1.reload(wait_until="load")
+                        # 如果存在评价窗口，则点击评价按钮
+                        if await handle_rating_popup(page1):
+                            print("五星评价完成")
                         continue
                 else:
                     logging.info("开始考试")
                     await wait_for_finish_test(page1)
                     await page1.reload(wait_until="load")
+                    # 如果存在评价窗口，则点击评价按钮
+                    if await handle_rating_popup(page1):
+                        print("五星评价完成")
                     continue
 
         await context.close()
