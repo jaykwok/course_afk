@@ -41,7 +41,9 @@ async def main():
         # 每一次运行main函数的时候，重置标识为0
         mark = 0
         # 移除旧的考试链接文件
-        os.remove("./学习课程考试链接.txt")
+        if os.path.exists("./学习课程考试链接.txt"):
+            os.remove("./学习课程考试链接.txt")
+        # 读取学习链接文件
         with open(learning_file, encoding="utf-8") as f:
             urls = f.readlines()
 
