@@ -280,7 +280,7 @@ async def course_learning(page_detail, learn_item=None):
 async def handle_video(box, page):
     """处理视频类型课程"""
 
-    # await page.wait_for_timeout(3 * 1000)
+    # 点击可能出现的继续播放按钮
     resume_button = await page.locator(".register-mask-layer").all()
     if resume_button:
         await resume_button[0].click()
@@ -290,12 +290,36 @@ async def handle_video(box, page):
     remaining, duration = calculate_remaining_time(
         await box.locator(".section-item-wrapper").inner_text()
     )
-    logging.info(f"课程总时长: {duration}秒")
-    logging.info(f"还需学习: {remaining}秒")
+    logging.info(f"课程总时长: {duration} 秒")
+    logging.info(f"还需学习: {remaining} 秒")
 
+    # 等待计算的剩余时间
     timer_task = asyncio.create_task(timer(remaining))
     await page.wait_for_timeout(remaining * 1000)
     await timer_task
+
+    # 额外等待最多5分钟，检查是否学习完成
+    logging.info("需再学所需的时间等待完成，确认同步状态...")
+    extra_wait_time = 5 * 60  # 额外等待5分钟同步状态
+    check_interval = 10  # 每10秒检查一次
+
+    for i in range(0, extra_wait_time, check_interval):
+        # 检查是否还有"需再学"字样
+        current_text = await box.locator(".section-item-wrapper").inner_text()
+        if is_learned(current_text):
+            logging.info(f"课程进度已同步到服务器，额外等待 {i} 秒)")
+            return
+
+        logging.info(
+            f"课程进度仍未同步完成，已额外等待 {i + check_interval} 秒，继续等待中..."
+        )
+        await page.wait_for_timeout(check_interval * 1000)
+
+    # 如果5分钟后仍未完成，抛出异常
+    current_text = await box.locator(".section-item-wrapper").inner_text()
+    if not is_learned(current_text):
+        logging.info(f"额外等待5分钟后，课程进度仍未同步，视为超时未完成")
+        raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
 async def handle_document(page):
