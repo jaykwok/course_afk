@@ -298,8 +298,14 @@ async def handle_video(box, page):
     await page.wait_for_timeout(remaining * 1000)
     await timer_task
 
-    # 额外等待最多5分钟，检查是否学习完成
-    logging.info("需再学所需的时间等待完成，确认同步状态...")
+    # 确认课程进度是否已同步到服务器
+    logging.info("课程学习完毕，确认课程进度同步状态...")
+    current_text = await box.locator(".section-item-wrapper").inner_text()
+    if is_learned(current_text):
+        logging.info(f"课程进度已同步到服务器")
+        return
+
+    # 额外等待最多5分钟，以便同步课程进度
     extra_wait_time = 5 * 60  # 额外等待5分钟同步状态
     check_interval = 10  # 每10秒检查一次
 
