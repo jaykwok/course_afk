@@ -71,6 +71,33 @@ async def wait_for_finish_test(page1):
     await page2.wait_for_event("close", timeout=0)
 
 
+async def handle_rating_popup(page):
+    """监测评分弹窗，选择五星并提交"""
+    try:
+        # 等待弹窗出现，设置超时时间为5秒
+        dialog_selector = "div[role='dialog']"
+
+        # 检查弹窗是否可见
+        is_visible = await page.is_visible(dialog_selector, timeout=5000)
+        if not is_visible:
+            return False  # 弹窗未出现
+        print("检测到评分弹窗，准备评五星...")
+        # 点击第五颗星星(最后一颗)
+        await page.get_by_role("radio", name="图标: star 图标: star").nth(4).click()
+        print("已选择五星评价")
+
+        await page.wait_for_timeout(1000)
+        # 点击确定按钮
+        await page.get_by_role("button", name="确 定").click()
+        print("已提交五星评价")
+
+        return True
+
+    except Exception as e:
+        print(f"处理评分弹窗时出错: {e}")
+        return False
+
+
 async def main():
     with open("./学习课程考试链接.txt", encoding="utf-8") as f:
         urls = list(f.readlines())
@@ -100,8 +127,11 @@ async def main():
                 await page1.locator(".top").first.click()
                 await page1.locator('dl.chapter-list-box[data-sectiontype="9"]').click()
                 await page1.locator(".tab-container").wait_for()
-                await page1.wait_for_timeout(3000)
+                await page1.wait_for_timeout(1000)
 
+                # 如果存在评价窗口，则点击评价按钮
+                if await handle_rating_popup(page1):
+                    print("五星评价完成")
                 if await page1.locator(".neer-status").all():
                     if await check_exam_passed(page1):
                         await page1.close()
