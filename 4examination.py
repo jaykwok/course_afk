@@ -74,7 +74,7 @@ async def wait_for_finish_test(page1):
 
 async def main():
     with open("./学习课程考试链接.txt", encoding="utf-8") as f:
-        urls = set(list(f.readlines()))
+        urls = set(f.readlines())
 
     # Load the cookies
     with open("cookies.json", "r") as f:

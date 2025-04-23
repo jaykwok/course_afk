@@ -45,7 +45,7 @@ async def main():
             os.remove("./学习课程考试链接.txt")
         # 读取学习链接文件
         with open(learning_file, encoding="utf-8") as f:
-            urls = f.readlines()
+            urls = set(f.readlines())
 
     # 删除考试链接和调研链接等手动操作的文件
     files = [
