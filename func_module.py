@@ -78,7 +78,7 @@ def calculate_remaining_time(text) -> tuple[int, int]:
     return min(math.ceil(remaining_time / 60) * 60, total_time), total_time
 
 
-async def timer(duration: int, interval: int = 10):
+async def timer(duration: int, interval: int = 30):
     """定时器"""
 
     duration = math.ceil(duration)
