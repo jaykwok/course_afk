@@ -366,7 +366,7 @@ async def handle_video(box, page):
         # 检查是否还有"需再学"字样
         current_text = await box.locator(".section-item-wrapper").inner_text()
         if is_learned(current_text):
-            logging.info(f"课程进度已同步到服务器，额外等待 {i} 秒)")
+            logging.info(f"课程进度已同步到服务器，额外等待 {i} 秒")
             return
 
         logging.info(
