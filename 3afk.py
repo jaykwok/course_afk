@@ -1,3 +1,4 @@
+import func_module as fm
 import asyncio
 import json
 import logging
@@ -7,8 +8,6 @@ import time
 import traceback
 
 from playwright.async_api import async_playwright
-
-import func_module as fm
 
 # 设置学习文件路径
 learning_file = "./学习链接.txt"

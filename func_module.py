@@ -103,6 +103,58 @@ async def check_for_pass_grade(page):
         return False
 
 
+async def handle_rating_popup(page):
+    """监测评分弹窗，选择五星并提交"""
+    try:
+        # 等待弹窗出现，使用更长的超时时间
+        dialog = page.locator(".ant-modal-content")
+        try:
+            await dialog.wait_for(state="visible", timeout=3000)
+            logging.info("检测到评分弹窗")
+        except Exception as e:
+            logging.debug(f"未检测到评分弹窗: {e}")
+            return False
+
+        # 确保星星容器已加载
+        stars_container = dialog.locator("ul.ant-rate")
+        await stars_container.wait_for(state="visible", timeout=3000)
+
+        try:
+            fifth_star = dialog.locator("ul.ant-rate li:nth-child(5) div[role='radio']")
+            await fifth_star.wait_for(state="visible", timeout=3000)
+
+            # 确保星星在视图中
+            await page.evaluate(
+                "document.querySelector('ul.ant-rate').scrollIntoView({block: 'center'})"
+            )
+
+            # 使用 Locator 的 click 方法而不是 page.click
+            await fifth_star.click(force=True)
+            logging.info("已点击第五颗星星")
+
+        except Exception as e:
+            logging.warning(f"点击星星失败: {e}")
+
+        # 等待足够时间让按钮变为可用状态
+        await page.wait_for_timeout(500)
+
+        # 检查按钮状态并点击
+        try:
+            # 点击确定按钮
+            confirm_button = page.get_by_role("button", name="确 定")
+            await confirm_button.click()
+            logging.info("已点击确定按钮")
+            return True
+
+        except Exception as e:
+            logging.error(f"点击确定按钮时出错: {e}")
+            return False
+
+    except Exception as e:
+        logging.error(f"处理评分弹窗时出错: {e}")
+        return False
+
+
 async def is_course_completed(page):
     # 定位到包含进度信息的元素
     progress_element = page.locator("div.course-progress div.progress")
@@ -213,7 +265,9 @@ async def course_learning(page_detail, learn_item=None):
 
     # 检查是否有权限访问该资源
     if await check_permisson(page_detail.main_frame):
-        pass
+        # 如果存在课程五星评价窗口，则点击评价按钮
+        if await handle_rating_popup(page_detail):
+            logging.info("五星评价完成")
     else:
         raise Exception(f"无权限查看该资源")
 
@@ -221,41 +275,61 @@ async def course_learning(page_detail, learn_item=None):
         title = await page_detail.locator("span.course-title-text").inner_text()
         logging.info(f"<{title}>已学习完毕，跳过该课程\n")
         return
-    # await page_detail.wait_for_timeout(3000)
+
     await page_detail.locator("dl.chapter-list-box.required").last.wait_for()
     chapter_boxes = await page_detail.locator("dl.chapter-list-box.required").all()
 
+    # 预先检查所有章节是否已学习
+    all_learned = True
+    has_non_detectable_types = False
+
+    for box in chapter_boxes:
+        section_type = await box.get_attribute("data-sectiontype")
+        # 只检查可以预先判断的类型（视频和文档）
+        if section_type in ["1", "2", "5", "6"]:
+            progress_text = await box.locator(".section-item-wrapper").inner_text()
+            if not is_learned(progress_text):
+                all_learned = False
+                break
+        else:
+            # 其他类型无法预先检测，标记需要处理
+            has_non_detectable_types = True
+
+    # 如果所有可检测章节已学习，且没有不可检测类型，则可跳过整个课程
+    if all_learned and not has_non_detectable_types:
+        logging.info("所有章节已学习完毕，跳过该课程")
+        return
+
+    # 处理各个章节
     for count, box in enumerate(chapter_boxes, start=1):
         section_type = await box.get_attribute("data-sectiontype")
         box_text = await box.locator(".text-overflow").inner_text()
         logging.info(f"课程信息: \n{box_text}\n")
+
+        # 预先检查是否已学习(针对可检测的类型)
+        if section_type in ["1", "2", "5", "6"]:
+            progress_text = await box.locator(".section-item-wrapper").inner_text()
+            if is_learned(progress_text):
+                logging.info(f"课程{count}已学习，跳过该节\n")
+                continue
+
+        # 点击章节
         await box.locator(".section-item-wrapper").wait_for()
         await box.locator(".section-item-wrapper").click()
 
+        # 根据章节类型处理
         if section_type in ["5", "6"]:
             # 处理视频类型课程
             logging.info("该课程为视频类型")
-            progress_text = await box.locator(".section-item-wrapper").inner_text()
-            if is_learned(progress_text):
-                logging.info(f"课程{count}已学习，跳过该节\n")
-                continue
             await handle_video(box, page_detail)
-
         elif section_type in ["1", "2"]:
             # 处理文档类型课程
             logging.info("该课程为文档类型")
-            progress_text = await box.locator(".section-item-wrapper").inner_text()
-            if is_learned(progress_text):
-                logging.info(f"课程{count}已学习，跳过该节\n")
-                continue
             await handle_document(page_detail)
-
         elif section_type == "4":
             # 处理h5类型课程
             logging.info("该课程为h5类型")
             await handle_h5(page_detail, learn_item)
-
-        # 如果不是从学习主题页面进来的课程链接，则对文档和考试类型的处理会有些许变动
         elif section_type == "9":
             # 处理考试类型课程
             logging.info("该课程为考试类型")
@@ -268,7 +342,7 @@ async def course_learning(page_detail, learn_item=None):
                 else:
                     await handle_examination(page_detail)
         else:
-            logging.info("非视频、文档及考试学习类型，存入文档单独审查")
+            logging.info("未知课程学习类型，存入文档单独审查")
             if learn_item:
                 save_to_file("未知类型链接.txt", await get_course_url(learn_item))
             else:
@@ -278,7 +352,7 @@ async def course_learning(page_detail, learn_item=None):
 
 
 async def check_and_handle_rating_popup(page):
-    """检查并处理课程质量评价弹窗"""
+    """检查并处理视频内课程质量评价弹窗"""
     try:
         # 使用快速超时检查弹窗是否存在，避免长时间等待
         popup_exists = (
@@ -305,7 +379,7 @@ async def check_and_handle_rating_popup(page):
 
 
 async def check_rating_popup_periodically(page, duration, interval=30):
-    """定期检查评价弹窗，持续指定时间"""
+    """定期检查视频内评价弹窗，持续指定时间"""
 
     elapsed = 0
     while elapsed < duration:
@@ -367,6 +441,11 @@ async def handle_video(box, page):
         current_text = await box.locator(".section-item-wrapper").inner_text()
         if is_learned(current_text):
             logging.info(f"课程进度已同步到服务器，额外等待 {i} 秒")
+
+            # 如果存在课程五星评价窗口，则点击评价按钮
+            if await handle_rating_popup(page):
+                logging.info("五星评价完成")
+
             return
 
         logging.info(
@@ -390,6 +469,9 @@ async def handle_document(page):
     timer_task = asyncio.create_task(timer(10, 1))
     await page.wait_for_timeout(10 * 1000)
     await timer_task
+    # 如果存在课程五星评价窗口，则点击评价按钮
+    if await handle_rating_popup(page):
+        logging.info("五星评价完成")
 
 
 async def handle_h5(page, learn_item):

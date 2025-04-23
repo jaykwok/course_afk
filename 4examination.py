@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import time
+import func_module as fm
 
 from playwright.async_api import async_playwright
 
@@ -71,62 +72,9 @@ async def wait_for_finish_test(page1):
     await page2.wait_for_event("close", timeout=0)
 
 
-async def handle_rating_popup(page):
-    """监测评分弹窗，选择五星并提交"""
-    try:
-        # 等待弹窗出现，使用更长的超时时间
-        dialog_selector = "div[role='dialog']"
-        try:
-            await page.wait_for_selector(dialog_selector, timeout=5000, state="visible")
-            logging.info("检测到评分弹窗")
-        except Exception as e:
-            logging.debug(f"未检测到评分弹窗: {e}")
-            return False
-
-        # 给弹窗内容足够的加载时间
-        await page.wait_for_timeout(1500)
-
-        # 确保星星容器已加载
-        stars_container = "ul.ant-rate"
-        await page.wait_for_selector(stars_container, timeout=3000, state="visible")
-
-        try:
-            fifth_star = "ul.ant-rate li:nth-child(5) div[role='radio']"
-            await page.wait_for_selector(fifth_star, state="visible", timeout=2000)
-
-            # 确保星星在视图中
-            await page.evaluate(
-                "document.querySelector('ul.ant-rate').scrollIntoView({block: 'center'})"
-            )
-
-            # 使用force参数确保点击
-            await page.click(fifth_star, force=True)
-            logging.info("已点击第五颗星星")
-
-        except Exception as e:
-            logging.warning(f"方法1点击星星失败: {e}")
-        # 等待足够时间让按钮变为可用状态
-        await page.wait_for_timeout(1500)
-
-        # 检查按钮状态并点击
-        try:
-            # 点击确定按钮
-            await page.get_by_role("button", name="确 定").click()
-            logging.info("已点击确定按钮")
-            return True
-
-        except Exception as e:
-            logging.error(f"点击确定按钮时出错: {e}")
-            return False
-
-    except Exception as e:
-        logging.error(f"处理评分弹窗时出错: {e}")
-        return False
-
-
 async def main():
     with open("./学习课程考试链接.txt", encoding="utf-8") as f:
-        urls = list(f.readlines())
+        urls = set(list(f.readlines()))
 
     # Load the cookies
     with open("cookies.json", "r") as f:
@@ -166,7 +114,7 @@ async def main():
                         await page1.reload(wait_until="load")
                         await page1.wait_for_timeout(1500)
                         # 如果存在评价窗口，则点击评价按钮
-                        if await handle_rating_popup(page1):
+                        if await fm.handle_rating_popup(page1):
                             logging.info("五星评价完成")
                         continue
                 else:
@@ -175,7 +123,7 @@ async def main():
                     await page1.reload(wait_until="load")
                     await page1.wait_for_timeout(1500)
                     # 如果存在评价窗口，则点击评价按钮
-                    if await handle_rating_popup(page1):
+                    if await fm.handle_rating_popup(page1):
                         logging.info("五星评价完成")
                     continue
 
