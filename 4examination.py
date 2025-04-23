@@ -23,7 +23,7 @@ logging.basicConfig(
 # async def check_exam_passed(page):
 #     # 获取最高分
 #     highest_score_text = await page.locator(".neer-status").inner_text()
-#     # 判断是否在考试中状态：如果是，那就重新考试
+#     # 判断是否在考试中状态：如果是, 那就重新考试
 #     if "考试中" in highest_score_text:
 #         return False
 #     # 获取最高分数值
@@ -113,7 +113,7 @@ async def main():
                         await wait_for_finish_test(page1)
                         await page1.reload(wait_until="load")
                         await page1.wait_for_timeout(1500)
-                        # 如果存在评价窗口，则点击评价按钮
+                        # 如果存在评价窗口, 则点击评价按钮
                         if await fm.handle_rating_popup(page1):
                             logging.info("五星评价完成")
                         continue
@@ -122,14 +122,14 @@ async def main():
                     await wait_for_finish_test(page1)
                     await page1.reload(wait_until="load")
                     await page1.wait_for_timeout(1500)
-                    # 如果存在评价窗口，则点击评价按钮
+                    # 如果存在评价窗口, 则点击评价按钮
                     if await fm.handle_rating_popup(page1):
                         logging.info("五星评价完成")
                     continue
 
         await context.close()
         await browser.close()
-        logging.info(f"\n考试完成，当前时间为{time.ctime()}\n")
+        logging.info(f"\n考试完成, 当前时间为{time.ctime()}\n")
         os.remove("./学习课程考试链接.txt")
 
 

@@ -104,9 +104,9 @@ async def check_for_pass_grade(page):
 
 
 async def handle_rating_popup(page):
-    """监测评分弹窗，选择五星并提交"""
+    """监测评分弹窗, 选择五星并提交"""
     try:
-        # 等待弹窗出现，使用更长的超时时间
+        # 等待弹窗出现, 使用更长的超时时间
         dialog = page.locator(".ant-modal-content")
         try:
             await dialog.wait_for(state="visible", timeout=3000)
@@ -218,7 +218,7 @@ async def subject_learning(page, mark):
                     await page_detail.close()
 
             elif section_type == "URL":
-                logging.info("URL学习类型，存入文档单独审查")
+                logging.info("URL学习类型, 存入文档单独审查")
                 save_to_file("URL类型链接.txt", await get_course_url(learn_item))
                 async with page.expect_popup() as page_pop:
                     await learn_item.locator(".inline-block.operation").click()
@@ -240,18 +240,18 @@ async def subject_learning(page, mark):
                 if completion_status == "已完成":
                     continue
                 else:
-                    logging.info("学习主题考试类型，存入文档")
+                    logging.info("学习主题考试类型, 存入文档")
                     save_to_file(
                         "学习主题考试链接.txt",
                         await get_course_url(learn_item, section_type="exam"),
                     )
 
             elif section_type == "调研":
-                logging.info("调研学习类型，存入文档单独审查")
+                logging.info("调研学习类型, 存入文档单独审查")
                 save_to_file("调研类型链接.txt", await get_course_url(learn_item))
 
             else:
-                logging.info("非课程及考试类学习类型，存入文档单独审查")
+                logging.info("非课程及考试类学习类型, 存入文档单独审查")
                 save_to_file(
                     "非课程及考试类学习类型链接.txt", await get_course_url(learn_item)
                 )
@@ -265,7 +265,7 @@ async def course_learning(page_detail, learn_item=None):
 
     # 检查是否有权限访问该资源
     if await check_permisson(page_detail.main_frame):
-        # 如果存在课程五星评价窗口，则点击评价按钮
+        # 如果存在课程五星评价窗口, 则点击评价按钮
         if await handle_rating_popup(page_detail):
             logging.info("五星评价完成")
     else:
@@ -273,7 +273,7 @@ async def course_learning(page_detail, learn_item=None):
 
     if await is_course_completed(page_detail):
         title = await page_detail.locator("span.course-title-text").inner_text()
-        logging.info(f"<{title}>已学习完毕，跳过该课程\n")
+        logging.info(f"<{title}>已学习完毕, 跳过该课程\n")
         return
 
     await page_detail.locator("dl.chapter-list-box.required").last.wait_for()
@@ -292,12 +292,12 @@ async def course_learning(page_detail, learn_item=None):
                 all_learned = False
                 break
         else:
-            # 其他类型无法预先检测，标记需要处理
+            # 未知类型无法预先检测, 标记需要处理
             has_non_detectable_types = True
 
-    # 如果所有可检测章节已学习，且没有不可检测类型，则可跳过整个课程
+    # 如果所有已知类型章节已学习, 且没有未知类型章节, 则可跳过整个课程
     if all_learned and not has_non_detectable_types:
-        logging.info("所有章节已学习完毕，跳过该课程")
+        logging.info("所有章节已学习完毕, 跳过该课程")
         return
 
     # 处理各个章节
@@ -310,7 +310,7 @@ async def course_learning(page_detail, learn_item=None):
         if section_type in ["1", "2", "5", "6"]:
             progress_text = await box.locator(".section-item-wrapper").inner_text()
             if is_learned(progress_text):
-                logging.info(f"课程{count}已学习，跳过该节\n")
+                logging.info(f"课程{count}已学习, 跳过该节\n")
                 continue
 
         # 点击章节
@@ -334,7 +334,7 @@ async def course_learning(page_detail, learn_item=None):
             # 处理考试类型课程
             logging.info("该课程为考试类型")
             if await check_for_pass_grade(page_detail):
-                logging.info("考试已通过，跳过该节")
+                logging.info("考试已通过, 跳过该节")
                 continue
             else:
                 if learn_item:
@@ -342,7 +342,7 @@ async def course_learning(page_detail, learn_item=None):
                 else:
                     await handle_examination(page_detail)
         else:
-            logging.info("未知课程学习类型，存入文档单独审查")
+            logging.info("未知课程学习类型, 存入文档单独审查")
             if learn_item:
                 save_to_file("未知类型链接.txt", await get_course_url(learn_item))
             else:
@@ -354,7 +354,7 @@ async def course_learning(page_detail, learn_item=None):
 async def check_and_handle_rating_popup(page):
     """检查并处理视频内课程质量评价弹窗"""
     try:
-        # 使用快速超时检查弹窗是否存在，避免长时间等待
+        # 使用快速超时检查弹窗是否存在, 避免长时间等待
         popup_exists = (
             await page.locator(
                 "div.split-section-detail-header--interact:has-text('互动练习')"
@@ -379,7 +379,7 @@ async def check_and_handle_rating_popup(page):
 
 
 async def check_rating_popup_periodically(page, duration, interval=30):
-    """定期检查视频内评价弹窗，持续指定时间"""
+    """定期检查视频内评价弹窗, 持续指定时间"""
 
     elapsed = 0
     while elapsed < duration:
@@ -413,7 +413,7 @@ async def handle_video(box, page):
     logging.info(f"课程总时长: {duration} 秒")
     logging.info(f"还需学习: {remaining} 秒")
 
-    # 等待计算的剩余时间，同时定期检查评价弹窗
+    # 等待计算的剩余时间, 同时定期检查评价弹窗
     timer_task = asyncio.create_task(timer(remaining))
     popup_check_task = asyncio.create_task(
         check_rating_popup_periodically(page, remaining)
@@ -423,13 +423,13 @@ async def handle_video(box, page):
     await popup_check_task
 
     # 确认课程进度是否已同步到服务器
-    logging.info("课程学习完毕，确认课程进度同步状态...")
+    logging.info("课程学习完毕, 确认课程进度同步状态...")
     current_text = await box.locator(".section-item-wrapper").inner_text()
     if is_learned(current_text):
         logging.info(f"课程进度已同步到服务器")
         return
 
-    # 额外等待最多5分钟，以便同步课程进度
+    # 额外等待最多5分钟, 以便同步课程进度
     extra_wait_time = 5 * 60  # 额外等待5分钟同步状态
     check_interval = 10  # 每10秒检查一次
 
@@ -440,23 +440,23 @@ async def handle_video(box, page):
         # 检查是否还有"需再学"字样
         current_text = await box.locator(".section-item-wrapper").inner_text()
         if is_learned(current_text):
-            logging.info(f"课程进度已同步到服务器，额外等待 {i} 秒")
+            logging.info(f"课程进度已同步到服务器, 额外等待 {i} 秒")
 
-            # 如果存在课程五星评价窗口，则点击评价按钮
+            # 如果存在课程五星评价窗口, 则点击评价按钮
             if await handle_rating_popup(page):
                 logging.info("五星评价完成")
 
             return
 
         logging.info(
-            f"课程进度仍未同步完成，已额外等待 {i + check_interval} 秒，继续等待..."
+            f"课程进度仍未同步完成, 已额外等待 {i + check_interval} 秒, 继续等待..."
         )
         await page.wait_for_timeout(check_interval * 1000)
 
-    # 如果5分钟后仍未完成，抛出异常
+    # 如果5分钟后仍未完成, 抛出异常
     current_text = await box.locator(".section-item-wrapper").inner_text()
     if not is_learned(current_text):
-        logging.info(f"超时: 已额外等待5分钟，课程进度仍未同步")
+        logging.info(f"超时: 已额外等待5分钟, 课程进度仍未同步")
         raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
@@ -469,7 +469,7 @@ async def handle_document(page):
     timer_task = asyncio.create_task(timer(10, 1))
     await page.wait_for_timeout(10 * 1000)
     await timer_task
-    # 如果存在课程五星评价窗口，则点击评价按钮
+    # 如果存在课程五星评价窗口, 则点击评价按钮
     if await handle_rating_popup(page):
         logging.info("五星评价完成")
 
@@ -477,7 +477,7 @@ async def handle_document(page):
 async def handle_h5(page, learn_item):
     """处理h5类型课程"""
 
-    logging.info("h5课程类型，存入文档")
+    logging.info("h5课程类型, 存入文档")
     save_to_file("h5课程类型链接.txt", await get_course_url(learn_item))
 
 
@@ -486,15 +486,15 @@ async def handle_examination(page, learn_item=None):
 
     # await page_detail.wait_for_timeout(3 * 1000)
     if await check_for_pass_grade(page):
-        logging.info("考试已通过，跳过该节")
+        logging.info("考试已通过, 跳过该节")
 
     else:
         if learn_item:
-            logging.info("学习课程考试类型，存入文档")
+            logging.info("学习课程考试类型, 存入文档")
             save_to_file("学习课程考试链接.txt", await get_course_url(learn_item))
             logging.info(f"链接: {await get_course_url(learn_item)}\n")
         else:
-            logging.info("学习课程考试类型，存入文档")
+            logging.info("学习课程考试类型, 存入文档")
             save_to_file("学习课程考试链接.txt", page.url)
             logging.info(f"链接: {page.url}\n")
 

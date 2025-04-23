@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright
 # 设置学习文件路径
 learning_file = "./学习链接.txt"
 
-# 设置是否学习过程中存在未知错误的标识：0为未发生错误，1为发生了错误
+# 设置是否学习过程中存在未知错误的标识：0为未发生错误, 1为发生了错误
 mark = 0
 
 # 日志基本设置
@@ -35,10 +35,10 @@ async def main():
         mark = 1
         with open("./剩余未看课程链接.txt", encoding="utf-8") as f:
             urls = set(f.readlines())
-        # 读取文件中保存的链接后，便删除文件，便于后续重写并追加新的未学习的链接
+        # 读取文件中保存的链接后, 便删除文件, 便于后续重写并追加新的未学习的链接
         os.remove("./剩余未看课程链接.txt")
     else:
-        # 每一次运行main函数的时候，重置标识为0
+        # 每一次运行main函数的时候, 重置标识为0
         mark = 0
         # 移除旧的考试链接文件
         if os.path.exists("./学习课程考试链接.txt"):
@@ -132,13 +132,13 @@ async def main():
                         await page.close()
             os.remove("./URL类型链接.txt")
 
-        # 如果未出现错误且文本文档存在，则删除文本文档
+        # 如果未出现错误且文本文档存在, 则删除文本文档
         if os.path.exists("./剩余未看课程链接.txt") and mark == 0:
             os.remove("./剩余未看课程链接.txt")
 
         await context.close()
         await browser.close()
-        logging.info(f"自动挂课完成，当前时间为{time.ctime()}")
+        logging.info(f"自动挂课完成, 当前时间为{time.ctime()}")
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 
-# 通过获取网页内容，解析出所有链接并保存到文件中
+# 通过获取网页内容, 解析出所有链接并保存到文件中
 async def main():
     url = "https://cms.mylearning.cn/safe/topic/resource/2025/zycp/pc.html"
     with open("./cookies.json", "r") as f:
@@ -33,7 +33,7 @@ async def main():
             if "/app/" in href:
                 parsed_url = urlparse(href.strip())
 
-                # 去掉链接中的fragment部分，它可能包含 '?' 和 '&' 符号
+                # 去掉链接中的fragment部分, 它可能包含 '?' 和 '&' 符号
                 fragment = parsed_url.fragment
                 if fragment.startswith("/"):
                     fragment = fragment[1:]

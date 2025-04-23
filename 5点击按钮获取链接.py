@@ -38,7 +38,7 @@ def wait_for_zhixueyun_redirect(page, timeout=30000):
 
 def collect_urls(start_url, cookie_path):
     with sync_playwright() as p:
-        # 启动浏览器，设置窗口大小
+        # 启动浏览器, 设置窗口大小
         browser = p.chromium.launch(
             headless=False, channel="msedge", args=["--start-maximized"]  # 最大化窗口
         )
@@ -123,7 +123,7 @@ def collect_urls(start_url, cookie_path):
                     # 关闭新页面
                     new_page.close()
 
-                    # 短暂等待，避免操作过快
+                    # 短暂等待, 避免操作过快
                     time.sleep(1)
 
                 except Exception as e:

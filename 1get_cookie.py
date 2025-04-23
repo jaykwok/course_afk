@@ -12,7 +12,7 @@ def main():
         page = context.new_page()
         page.goto("https://kc.zhixueyun.com/")
 
-        # 检测是否勾选一周内自动登录，没有则勾上
+        # 检测是否勾选一周内自动登录, 没有则勾上
         # frame = page.frame_locator("#esurfingloginiframe")
         # auto_login = frame.locator("#j-auto-login-qr")
         # if not auto_login.is_checked():
