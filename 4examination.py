@@ -82,7 +82,7 @@ async def main():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False, args=["--mute-audio", "--start-maximized"], channel="chrome"
+            headless=False, args=["--mute-audio", "--start-maximized"], channel="msedge"
         )
         context = await browser.new_context(no_viewport=True)
         await context.add_cookies(cookies)

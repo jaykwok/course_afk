@@ -66,7 +66,7 @@ async def main():
         browser = await p.chromium.launch(
             headless=False,
             args=["--mute-audio", "--start-maximized"],
-            channel="chrome",
+            channel="msedge",
             slow_mo=3000,
         )
         context = await browser.new_context(no_viewport=True)

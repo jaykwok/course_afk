@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 # 获取cookies并保存到文件
 def main():
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, channel="chrome")
+        browser = p.chromium.launch(headless=False, channel="msedge")
         context = browser.new_context()
         page = context.new_page()
         page.goto("https://kc.zhixueyun.com/")

@@ -40,7 +40,7 @@ def collect_urls(start_url, cookie_path):
     with sync_playwright() as p:
         # 启动浏览器，设置窗口大小
         browser = p.chromium.launch(
-            channel="chrome", headless=False, args=["--start-maximized"]  # 最大化窗口
+            headless=False, channel="msedge", args=["--start-maximized"]  # 最大化窗口
         )
         context = browser.new_context()
 
