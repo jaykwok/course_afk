@@ -2,11 +2,11 @@ import asyncio
 import json
 from collections import defaultdict
 from urllib.parse import urlparse, parse_qs
-
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 
+# 通过获取网页内容，解析出所有链接并保存到文件中
 async def main():
     url = "https://cms.mylearning.cn/safe/topic/resource/2025/zycp/pc.html"
     with open("./cookies.json", "r") as f:
@@ -31,14 +31,35 @@ async def main():
         if href and "kc.zhixueyun.com" in href:
             if "/app/" in href:
                 parsed_url = urlparse(href.strip())
-                # 解析查询参数
-                query_params = parse_qs(parsed_url.fragment)
 
-                # 获取 businessId
-                business_id = query_params.get("businessId", [None])[0]
-                links[link.text.strip()].append(
-                    "https://kc.zhixueyun.com/#/study/subject/detail/" + business_id
-                )
+                # 去掉链接中的fragment部分，它可能包含 '?' 和 '&' 符号
+                fragment = parsed_url.fragment
+                if fragment.startswith("/"):
+                    fragment = fragment[1:]
+
+                # 分割fragment以获取查询参数
+                fragment_parts = fragment.split("?", 1)
+                if len(fragment_parts) > 1:
+                    # 拿到查询参数并解析成字典格式
+                    query_params = parse_qs(fragment_parts[1])
+
+                    business_id = query_params.get("businessId", [None])[0]
+                    business_type = query_params.get("businessType", [None])[0]
+
+                    if business_type == "1":
+                        links[link.text.strip()].append(
+                            "https://kc.zhixueyun.com/#/study/course/detail/"
+                            + business_id
+                        )
+                    elif business_type == "2":
+                        links[link.text.strip()].append(
+                            "https://kc.zhixueyun.com/#/study/subject/detail/"
+                            + business_id
+                        )
+                    else:
+                        print(f"未知链接类型: {parsed_url}")
+                else:
+                    print(f"No query parameters in fragment: {fragment}")
             else:
                 links[link.text.strip()].append(href.strip())
 
@@ -54,5 +75,6 @@ async def main():
     print(f"需要学习的链接总数为: {count}条")
 
 
+# 运行主程序
 if __name__ == "__main__":
     asyncio.run(main())
