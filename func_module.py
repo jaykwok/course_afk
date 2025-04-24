@@ -286,7 +286,7 @@ async def course_learning(page_detail, learn_item=None):
     for box in chapter_boxes:
         section_type = await box.get_attribute("data-sectiontype")
         # 只检查可以预先判断的类型（视频和文档）
-        if section_type in ["1", "2", "5", "6"]:
+        if section_type in ["1", "2", "3", "5", "6"]:
             progress_text = await box.locator(".section-item-wrapper").inner_text()
             if not is_learned(progress_text):
                 all_learned = False
@@ -307,7 +307,7 @@ async def course_learning(page_detail, learn_item=None):
         logging.info(f"课程信息: \n{box_text}\n")
 
         # 预先检查是否已学习(针对可检测的类型)
-        if section_type in ["1", "2", "5", "6"]:
+        if section_type in ["1", "2", "3", "5", "6"]:
             progress_text = await box.locator(".section-item-wrapper").inner_text()
             if is_learned(progress_text):
                 logging.info(f"课程{count}已学习, 跳过该节\n")
@@ -322,9 +322,9 @@ async def course_learning(page_detail, learn_item=None):
             # 处理视频类型课程
             logging.info("该课程为视频类型")
             await handle_video(box, page_detail)
-        elif section_type in ["1", "2"]:
-            # 处理文档类型课程
-            logging.info("该课程为文档类型")
+        elif section_type in ["1", "2", "3"]:
+            # 处理文档、网页类型课程
+            logging.info("该课程为文档、网页类型")
             await handle_document(page_detail)
         elif section_type == "4":
             # 处理h5类型课程
@@ -461,7 +461,7 @@ async def handle_video(box, page):
 
 
 async def handle_document(page):
-    """处理文档类型课程"""
+    """处理文档、网页类型课程"""
 
     # await page.wait_for_timeout(3 * 1000)
     # await page.locator('.clearfix').first.wait_for()
