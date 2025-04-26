@@ -34,7 +34,11 @@ async def check_permisson(frame):
     try:
         # 在当前frame中查找文本
         text_content = await frame.content()
-        if "您没有权限查看该资源" in text_content or "该资源已不存在" in text_content:
+        if (
+            "您没有权限查看该资源" in text_content
+            or "该资源已不存在" in text_content
+            or "该资源已下架" in text_content
+        ):
             return False
         else:
             return True
@@ -210,10 +214,15 @@ async def subject_learning(page, mark):
                 except Exception as e:
                     logging.error(f"发生错误: {str(e)}")
                     logging.error(traceback.format_exc())
-                    mark = 1
-                    save_to_file(
-                        "剩余未看课程链接.txt", await get_course_url(learn_item)
-                    )
+                    if str(e) == "无权限查看该资源":
+                        save_to_file(
+                            "无权限资源链接.txt", await get_course_url(learn_item)
+                        )
+                    else:
+                        mark = 1
+                        save_to_file(
+                            "剩余未看课程链接.txt", await get_course_url(learn_item)
+                        )
                 finally:
                     await page_detail.close()
 
