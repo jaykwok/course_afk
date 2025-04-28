@@ -30,6 +30,42 @@ def save_to_file(filename, url):
         wp.write(f"{url}\n")
 
 
+def is_compliant_url_regex(url):
+    """
+    使用正则表达式判断URL是否符合指定的合规格式。
+
+    合规格式: https://kc.zhixueyun.com/#/study/(course|subject)/detail/UUID
+
+    Args:
+    url: 待检查的URL字符串。
+
+    Returns:
+    True 如果URL合规, 否则 False。
+    """
+
+    # 正则表达式解释:
+    # ^                                  匹配字符串开头
+    # https://kc\.zhixueyun\.com/#/study/  匹配固定的前缀 (注意 . 和 # 需要转义, 虽然#在这里可能不必须, 但转义更安全)
+    # (course|subject)                   匹配 "course" 或 "subject"
+    # /detail/                           匹配 "/detail/"
+    # [0-9a-fA-F]{8}                     匹配8个十六进制字符
+    # -                                  匹配连字符
+    # [0-9a-fA-F]{4}                     匹配4个十六进制字符
+    # -                                  匹配连字符
+    # [0-9a-fA-F]{4}                     匹配4个十六进制字符
+    # -                                  匹配连字符
+    # [0-9a-fA-F]{4}                     匹配4个十六进制字符
+    # -                                  匹配连字符
+    # [0-9a-fA-F]{12}                    匹配12个十六进制字符
+    # $                                  匹配字符串结尾
+    pattern = r"^https://kc\.zhixueyun\.com/#/study/(course|subject)/detail/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+    if re.match(pattern, url):
+        return True
+    else:
+        return False
+
+
 async def check_permisson(frame):
     try:
         # 在当前frame中查找文本

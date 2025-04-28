@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright
 # 设置学习文件路径
 learning_file = "./学习链接.txt"
 
-# 设置是否学习过程中存在未知错误的标识：0为未发生错误, 1为发生了错误
+# 设置是否学习过程中存在未知错误的标识: 0为未发生错误, 1为发生了错误
 mark = 0
 
 # 日志基本设置
@@ -80,7 +80,15 @@ async def main():
         for count, url in enumerate(urls, start=1):
             page = await context.new_page()
             logging.info(f"({count}/{len(urls)})当前学习链接为: {url.strip()}")
+
+            # 检测url是否合规, 不合规则跳过
+            if not fm.is_compliant_url_regex(url.strip()):
+                logging.info("不合规链接, 已存入不合规链接.txt")
+                fm.save_to_file("不合规链接.txt", url.strip())
+                continue
             await page.goto(url.strip())
+
+            # 主题学习
             if "subject" in url:
                 try:
                     mark = await fm.subject_learning(page, mark)
@@ -95,7 +103,7 @@ async def main():
                             mark = 1
                 finally:
                     await page.close()
-
+            # 课程学习类型
             elif "course" in url:
                 try:
                     await fm.course_learning(page)
