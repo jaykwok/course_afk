@@ -56,7 +56,7 @@ async def wait_for_finish_test(page1):
 
 
 async def main():
-    with open("./学习课程考试链接.txt", encoding="utf-8") as f:
+    with open("./人工考试链接.txt", encoding="utf-8") as f:
         urls = f.readlines()
 
     # Load the cookies
@@ -113,7 +113,7 @@ async def main():
         await context.close()
         await browser.close()
         logging.info(f"\n考试完成, 当前时间为{time.ctime()}\n")
-        os.remove("./学习课程考试链接.txt")
+        os.remove("./人工考试链接.txt")
 
 
 if __name__ == "__main__":
