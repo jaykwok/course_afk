@@ -19,24 +19,7 @@ logging.basicConfig(
 )
 
 
-# 获取考试是否通过
-# async def check_exam_passed(page):
-#     # 获取最高分
-#     highest_score_text = await page.locator(".neer-status").inner_text()
-#     # 判断是否在考试中状态：如果是, 那就重新考试
-#     if "考试中" in highest_score_text:
-#         return False
-#     # 获取最高分数值
-#     highest_score = int(highest_score_text.split("：")[1].replace("分", ""))
-#     # 判断最高成绩是否大于等于80分
-#     if highest_score >= 80:
-#         logging.info(f"考试状态: 通过")
-#         return True
-#     else:
-#         logging.info(f"考试状态: 未通过")
-#         return False
-
-
+# 检测考试是否通过
 async def check_exam_passed(page):
     # 判断是否在考试中状态
     highest_score_text = await page.locator(".neer-status").inner_text()
