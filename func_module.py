@@ -548,7 +548,6 @@ async def handle_examination(page, learn_item=None):
     # await page_detail.wait_for_timeout(3 * 1000)
     if await check_exam_passed(page):
         logging.info("考试已通过, 跳过该节")
-
     else:
         if learn_item:
             logging.info("学习课程考试类型, 存入文档")
