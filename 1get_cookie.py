@@ -13,12 +13,11 @@ def main():
         page.goto("https://kc.zhixueyun.com/")
 
         # 检测是否勾选一周内自动登录, 没有则勾上
-        # frame = page.frame_locator("#esurfingloginiframe")
-        # auto_login = frame.locator("#j-auto-login-qr")
-        # if not auto_login.is_checked():
-        #     auto_login.click()
-        #     print("已勾选一周内自动登录")
-        # print(f"是否一周内自动登录: {auto_login.is_checked()}")
+        frame = page.locator("iframe").content_frame
+        auto_login = frame.locator("#j-auto-login-qr")
+        if not auto_login.is_checked():
+            auto_login.click()
+            print("已勾选一周内自动登录")
 
         # 等待跳转到主页面
         page.wait_for_url(

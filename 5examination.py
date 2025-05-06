@@ -19,33 +19,6 @@ logging.basicConfig(
 )
 
 
-# 检测考试是否通过
-async def check_exam_passed(page):
-    # 判断是否在考试中状态
-    highest_score_text = await page.locator(".neer-status").inner_text()
-    if "考试中" in highest_score_text:
-        logging.info("考试状态: 考试中")
-        return False
-
-    # 获取表格中最新一条记录的状态（第一行）
-    try:
-        # 定位到表格主体中的第一行的状态单元格
-        status_cell = await page.locator(
-            "div.tab-container table.table tbody tr:first-child td:nth-child(4)"
-        ).inner_text()
-        status_cell = status_cell.strip()
-
-        if status_cell == "及格":
-            logging.info("考试状态: 通过")
-            return True
-        else:
-            logging.info(f"考试状态: 未通过 ({status_cell})")
-            return False
-    except Exception as e:
-        logging.error(f"获取考试状态时出错: {e}")
-        return False
-
-
 # 等待完成考试
 async def wait_for_finish_test(page1):
     async with page1.expect_popup() as page2_info:
@@ -88,7 +61,7 @@ async def main():
                 # 判断是否为第一次考试
                 await page1.locator(".tab-container").wait_for()
                 if await page1.locator(".neer-status").all():
-                    if await check_exam_passed(page1):
+                    if await fm.check_exam_passed(page1):
                         await page1.close()
                         break
                     else:

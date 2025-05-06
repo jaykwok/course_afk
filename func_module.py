@@ -129,17 +129,33 @@ async def timer(duration: int, interval: int = 30):
     logging.info(f"结束时间: {time.ctime()}")
 
 
-async def check_for_pass_grade(page):
-    # 首先定位到包含表格的div
-    table_container = page.locator("div.tab-container table")
+# 检测考试是否通过
+async def check_exam_passed(page):
+    # 判断是否在考试中状态
+    highest_score_text = await page.locator(".neer-status").inner_text()
+    if "考试中" in highest_score_text:
+        logging.info("考试状态: 考试中")
+        return False
 
-    # 在表格中查找包含"及格"文本的单元格
-    pass_cell = await table_container.locator('td:has-text("及格")').all()
+    # 获取表格中最新一条记录的状态（第一行）
+    try:
+        # 定位到表格主体中的第一行的状态单元格
+        status_cell = await page.locator(
+            "div.tab-container table.table tbody tr:first-child td:nth-child(4)"
+        ).inner_text()
+        status_cell = status_cell.strip()
 
-    # 检查是否找到了"及格"
-    if pass_cell:
-        return True
-    else:
+        if status_cell == "及格":
+            logging.info("考试状态: 通过")
+            return True
+        elif status_cell == "待评卷":
+            logging.info("考试状态: 待评卷")
+            return True
+        else:
+            logging.info(f"考试状态: 未通过 ({status_cell})")
+            return False
+    except Exception as e:
+        logging.error(f"获取考试状态时出错: {e}")
         return False
 
 
@@ -378,7 +394,7 @@ async def course_learning(page_detail, learn_item=None):
         elif section_type == "9":
             # 处理考试类型课程
             logging.info("该课程为考试类型")
-            if await check_for_pass_grade(page_detail):
+            if await check_exam_passed(page_detail):
                 logging.info("考试已通过, 跳过该节")
                 continue
             else:
@@ -530,7 +546,7 @@ async def handle_examination(page, learn_item=None):
     """处理考试类型课程"""
 
     # await page_detail.wait_for_timeout(3 * 1000)
-    if await check_for_pass_grade(page):
+    if await check_exam_passed(page):
         logging.info("考试已通过, 跳过该节")
 
     else:
