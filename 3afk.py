@@ -121,24 +121,24 @@ async def main():
 
         if os.path.exists("./URL类型链接.txt"):
             with open("./URL类型链接.txt", encoding="utf-8") as f:
-                urls = f.readlines()
-            with open("./剩余未看课程链接.txt", "a+", encoding="utf-8") as f:
-                for url in urls:
-                    page = await context.new_page()
-                    await page.goto(url.strip())
-                    try:
-                        is_subject_completed = await fm.is_subject_completed(page)
-                        if await is_subject_completed:
-                            logging.info(f"URL类型链接: {url.strip()} 学习完成")
-                        else:
-                            f.write(url)
-                    except Exception as e:
-                        logging.error(f"发生错误: {str(e)}")
-                        logging.error(traceback.format_exc())
-                        f.write(url)
-                    finally:
-                        await page.close()
+                urls = set(f.readlines())
             os.remove("./URL类型链接.txt")
+            for url in urls:
+                page = await context.new_page()
+                await page.goto(url.strip())
+                try:
+                    is_subject_url_completed = await fm.is_subject_url_completed(page)
+                    if await is_subject_url_completed:
+                        logging.info(f"URL类型链接: {url.strip()} 学习完成")
+                    else:
+                        logging.info(f"URL类型链接: {url.strip()} 学习未完成")
+                        fm.save_to_file("URL类型链接.txt", url.strip())
+                except Exception as e:
+                    logging.error(f"发生错误: {str(e)}")
+                    logging.error(traceback.format_exc())
+                    f.write(url)
+                finally:
+                    await page.close()
 
         # 如果未出现错误且文本文档存在, 则删除文本文档
         if os.path.exists("./剩余未看课程链接.txt") and mark == 0:
