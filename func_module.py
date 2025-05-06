@@ -131,18 +131,34 @@ async def timer(duration: int, interval: int = 30):
 
 # 检测考试是否通过
 async def check_exam_passed(page):
-    # 判断是否在考试中状态
-    highest_score_text = await page.locator(".neer-status").inner_text()
-    if "考试中" in highest_score_text:
-        logging.info("考试状态: 考试中")
-        return False
-
-    # 获取表格中最新一条记录的状态（第一行）
     try:
-        # 定位到表格主体中的第一行的状态单元格
+        # 判断是否在考试中状态
+        status_element = await page.locator(".neer-status").count()
+        if status_element > 0:
+            highest_score_text = await page.locator(".neer-status").inner_text()
+            if "考试中" in highest_score_text:
+                logging.info("考试状态: 考试中")
+                return False
+
+        # 检查表格是否存在
+        table_exists = await page.locator("div.tab-container table.table").count()
+        if table_exists == 0:
+            logging.info("考试状态: 未找到考试表格")
+            return False
+
+        # 确认第一行的状态单元格存在后再获取文本, 使用较短的超时时间
+        status_cell_exists = await page.locator(
+            "div.tab-container table.table tbody tr:first-child td:nth-child(4)"
+        ).count()
+
+        if status_cell_exists == 0:
+            # 首次进入考试页面, 未进行考试
+            return False
+
+        # 获取状态单元格文本
         status_cell = await page.locator(
             "div.tab-container table.table tbody tr:first-child td:nth-child(4)"
-        ).inner_text()
+        ).inner_text(timeout=3000)
         status_cell = status_cell.strip()
 
         if status_cell == "及格":
