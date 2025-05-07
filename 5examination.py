@@ -85,7 +85,7 @@ async def main():
 
         await context.close()
         await browser.close()
-        logging.info(f"\n考试完成, 当前时间为{time.ctime()}\n")
+        logging.info(f"考试完成, 当前时间为{time.ctime()}\n")
         os.remove("./人工考试链接.txt")
 
 

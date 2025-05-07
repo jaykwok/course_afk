@@ -131,6 +131,7 @@ async def timer(duration: int, interval: int = 30):
 
 # 检测考试是否通过
 async def check_exam_passed(page):
+    await page.wait_for_timeout(1000)
     try:
         # 判断是否在考试中状态
         status_element = await page.locator(".neer-status").count()
@@ -147,12 +148,14 @@ async def check_exam_passed(page):
             return False
 
         # 确认第一行的状态单元格存在后再获取文本, 使用较短的超时时间
-        status_cell_exists = await page.locator(
+        status_cell_element = page.locator(
             "div.tab-container table.table tbody tr:first-child td:nth-child(4)"
-        ).count()
+        )
 
-        if status_cell_exists == 0:
-            # 首次进入考试页面, 未进行考试
+        await status_cell_element.wait_for(state="visible", timeout=1500)
+
+        if await status_cell_element.count() == 0:
+            logging.info("首次进入考试页面, 未进行考试")
             return False
 
         # 获取状态单元格文本
@@ -181,7 +184,7 @@ async def handle_rating_popup(page):
         # 等待弹窗出现, 使用更长的超时时间
         dialog = page.locator(".ant-modal-content")
         try:
-            await dialog.wait_for(state="visible", timeout=1000)
+            await dialog.wait_for(state="visible", timeout=1500)
             logging.info("检测到评分弹窗")
         except Exception as e:
             logging.debug(f"未检测到评分弹窗: {e}")
