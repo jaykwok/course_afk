@@ -592,12 +592,13 @@ async def detect_exam_mode(page):
     try:
         # 检查是否存在"下一题"按钮，这是单题目模式的特征
         single_btns = page.locator(".single-btns")
+        await single_btns.wait_for(state="visible", timeout=3000)
 
         if await single_btns.count() > 0:
-            logging.info("检测到单题目模式（有下一题按钮）")
+            logging.info("检测为单题目模式（有下一题按钮）")
             return "single"
         else:
-            logging.info("检测到多题目模式（无下一题按钮）")
+            logging.info("检测为多题目模式（无下一题按钮）")
             return "multi"
     except Exception as e:
         logging.error(f"检测考试模式出错: {e}")
