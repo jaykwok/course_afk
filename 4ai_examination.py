@@ -222,9 +222,11 @@ async def select_answers(page, question_data, answers):
     """根据AI答案选择选项（单题目模式）"""
     try:
         if not answers:
-            logging.info("没有获取到有效答案，推测为填空类型题目，等待30秒作答)")
-            # 没有获取到有效答案，推测为填空类型题目，等待30秒作答
-            await page.wait_for_timeout(30 * 1000)
+            logging.info(
+                "没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查)"
+            )
+            # 没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查
+            fm.save_to_file("./人工考试链接.txt", page.url)
             return
 
         logging.info(f"选择答案: {answers}")
@@ -284,9 +286,11 @@ async def select_answer_for_question_multi(page, question_data, answers):
         item_id = question_data["item_id"]
 
         if not answers:
-            logging.info("没有获取到有效答案，推测为填空类型题目，等待30秒作答)")
-            # 没有获取到有效答案，推测为填空类型题目，等待30秒作答
-            await page.wait_for_timeout(30 * 1000)
+            logging.info(
+                "没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查)"
+            )
+            # 没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查
+            fm.save_to_file("./人工考试链接.txt", page.url)
             return
 
         logging.info(f"题目 {question_data['index']+1}: 选择答案: {answers}")
