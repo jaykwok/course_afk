@@ -773,7 +773,7 @@ async def main():
             is_thinking = False
 
             while True:
-                await page1.locator(".top").first.wait_for(timeout=3000)
+                await page1.locator(".top").first.wait_for(timeout=5000)
                 await page1.locator(".top").first.click()
                 await page1.locator('dl.chapter-list-box[data-sectiontype="9"]').click()
                 await page1.locator(".tab-container").wait_for()
