@@ -128,7 +128,7 @@ async def main():
                 await page.goto(url.strip())
                 try:
                     is_subject_url_completed = await fm.is_subject_url_completed(page)
-                    if await is_subject_url_completed:
+                    if is_subject_url_completed:
                         logging.info(f"URL类型链接: {url.strip()} 学习完成")
                     else:
                         logging.info(f"URL类型链接: {url.strip()} 学习未完成")
