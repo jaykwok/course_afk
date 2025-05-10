@@ -222,14 +222,9 @@ async def select_answers(page, question_data, answers):
     """根据AI答案选择选项（单题目模式）"""
     try:
         if not answers:
-            logging.warning("没有获取到有效答案，随机选择第一个选项")
-            # 如果没有获取到答案，选择第一个选项
-            if question_data["type"] == "judge":
-                await page.locator(".preview-list dd:first-child span.pointer").click(
-                    strict=False
-                )
-            else:
-                await page.locator(".preview-list dd:first-child").click()
+            logging.info("没有获取到有效答案，推测为填空类型题目，等待30秒作答)")
+            # 没有获取到有效答案，推测为填空类型题目，等待30秒作答
+            await page.wait_for_timeout(30 * 1000)
             return
 
         logging.info(f"选择答案: {answers}")
@@ -289,42 +284,9 @@ async def select_answer_for_question_multi(page, question_data, answers):
         item_id = question_data["item_id"]
 
         if not answers:
-            logging.warning(
-                f"题目 {question_data['index']+1}: 没有获取到有效答案，随机选择第一个选项"
-            )
-            # 如果没有获取到答案，选择第一个选项
-            try:
-                # 定位到当前题目区域内的第一个选项
-                selector = (
-                    f"[data-dynamic-key='{item_id}'] .preview-list dd:first-child"
-                )
-                await page.locator(selector).click(timeout=2000)
-                logging.info(f"题目 {question_data['index']+1}: 已点击第一个选项")
-            except Exception as e:
-                logging.error(
-                    f"题目 {question_data['index']+1}: 点击第一个选项失败: {e}"
-                )
-                # 尝试使用JavaScript点击
-                try:
-                    await page.evaluate(
-                        f"""
-                        (function() {{
-                            const questionItem = document.querySelector("[data-dynamic-key='{item_id}']");
-                            if (!questionItem) return false;
-                            const firstOption = questionItem.querySelector(".preview-list dd");
-                            if (!firstOption) return false;
-                            firstOption.click();
-                            return true;
-                        }})()
-                    """
-                    )
-                    logging.info(
-                        f"题目 {question_data['index']+1}: 已使用JavaScript点击第一个选项"
-                    )
-                except Exception as js_e:
-                    logging.error(
-                        f"题目 {question_data['index']+1}: JavaScript点击第一个选项失败: {js_e}"
-                    )
+            logging.info("没有获取到有效答案，推测为填空类型题目，等待30秒作答)")
+            # 没有获取到有效答案，推测为填空类型题目，等待30秒作答
+            await page.wait_for_timeout(30 * 1000)
             return
 
         logging.info(f"题目 {question_data['index']+1}: 选择答案: {answers}")
