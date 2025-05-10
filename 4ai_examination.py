@@ -36,6 +36,20 @@ client = OpenAI(
 )
 
 
+async def detect_exam_mode(page):
+    """检测考试模式：根据是否存在下一题按钮来判断"""
+    try:
+        # 检查是否存在"下一题"按钮，这是单题目模式的特征
+        single_btns = page.locator(".single-btns")
+        await single_btns.wait_for(state="visible", timeout=3000)
+        logging.info("检测为单题目模式（有下一题按钮）")
+        return "single"
+
+    except Exception as e:
+        logging.info(f"检测为多题目模式（无下一题按钮:\n{e}）")
+        return "multi"  # 无法检测到下一题按钮元素证明为多题目模式
+
+
 async def extract_question_data(page):
     """提取单题目信息"""
     try:
@@ -587,24 +601,6 @@ async def get_ai_answers(question_data, is_thinking):
         return []
 
 
-async def detect_exam_mode(page):
-    """检测考试模式：根据是否存在下一题按钮来判断"""
-    try:
-        # 检查是否存在"下一题"按钮，这是单题目模式的特征
-        single_btns = page.locator(".single-btns")
-        await single_btns.wait_for(state="visible", timeout=3000)
-
-        if await single_btns.count() > 0:
-            logging.info("检测为单题目模式（有下一题按钮）")
-            return "single"
-        else:
-            logging.info("检测为多题目模式（无下一题按钮）")
-            return "multi"
-    except Exception as e:
-        logging.error(f"检测考试模式出错: {e}")
-        return "single"  # 默认单题目模式
-
-
 async def ai_exam(page, is_thinking):
     """AI自动答题主函数"""
     logging.info("AI考试开始")
@@ -735,7 +731,6 @@ async def ai_exam(page, is_thinking):
     logging.info("考试完成")
 
 
-# 其余函数保持不变
 async def wait_for_finish_test(page1, is_thinking=False):
     async with page1.expect_popup() as page2_info:
         await page1.locator(".btn.new-radius").click()
