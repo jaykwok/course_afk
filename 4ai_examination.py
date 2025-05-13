@@ -50,7 +50,7 @@ async def detect_exam_mode(page):
         return "multi"  # 无法检测到下一题按钮元素证明为多题目模式
 
 
-async def extract_question_data(page):
+async def extract_single_question_data(page):
     """提取单题目信息"""
     try:
         # 获取题目类型
@@ -118,7 +118,7 @@ async def extract_question_data(page):
         return None
 
 
-async def extract_all_questions_data(page):
+async def extract_multi_questions_data(page):
     """提取页面中所有题目的信息（多题目模式）"""
     try:
         # 获取所有题目项
@@ -280,7 +280,7 @@ async def select_answers(page, question_data, answers):
         logging.error(traceback.format_exc())
 
 
-async def select_answer_for_question_multi(page, question_data, answers):
+async def select_answer_for_multi_question(page, question_data, answers):
     """为多题目模式中的单个题目选择答案"""
     try:
         item_id = question_data["item_id"]
@@ -582,7 +582,7 @@ async def ai_exam(page, is_thinking):
             await page.wait_for_timeout(1000)  # 额外等待时间确保页面完全加载
 
             # 提取题目信息
-            question_data = await extract_question_data(page)
+            question_data = await extract_single_question_data(page)
             if not question_data:
                 logging.error("无法提取题目信息")
                 break
@@ -620,7 +620,7 @@ async def ai_exam(page, is_thinking):
         await page.wait_for_timeout(1000)  # 额外等待时间确保页面完全加载
 
         # 提取所有题目信息
-        all_questions = await extract_all_questions_data(page)
+        all_questions = await extract_multi_questions_data(page)
         if not all_questions:
             logging.error("无法提取任何题目信息")
             return
@@ -637,7 +637,7 @@ async def ai_exam(page, is_thinking):
             answers = await get_ai_answers(question_data, is_thinking)
 
             # 根据题目类型和AI答案点击选项
-            await select_answer_for_question_multi(page, question_data, answers)
+            await select_answer_for_multi_question(page, question_data, answers)
 
             # 短暂等待，确保选择已生效
             await page.wait_for_timeout(500)
