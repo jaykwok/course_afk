@@ -428,7 +428,7 @@ async def get_ai_answers(question_data, is_thinking):
         return []
 
 
-async def select_answers(page, question_data, answers):
+async def select_answers(page, question_data, answers, course_url):
     """根据AI答案选择选项（单题目模式）"""
     try:
         if not answers:
@@ -436,7 +436,7 @@ async def select_answers(page, question_data, answers):
                 "没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查)"
             )
             # 没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查
-            fm.save_to_file("./人工考试链接.txt", page.url)
+            fm.save_to_file("./人工考试链接.txt", course_url)
             return
 
         logging.info(f"选择答案: {answers}")
@@ -490,7 +490,7 @@ async def select_answers(page, question_data, answers):
         logging.error(traceback.format_exc())
 
 
-async def select_answer_for_multi_question(page, question_data, answers):
+async def select_answer_for_multi_question(page, question_data, answers, course_url):
     """为多题目模式中的单个题目选择答案"""
     try:
         item_id = question_data["item_id"]
@@ -500,7 +500,7 @@ async def select_answer_for_multi_question(page, question_data, answers):
                 "没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查)"
             )
             # 没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查
-            fm.save_to_file("./人工考试链接.txt", page.url)
+            fm.save_to_file("./人工考试链接.txt", course_url)
             return
 
         logging.info(f"题目 {question_data['index']+1}: 选择答案: {answers}")
@@ -581,7 +581,7 @@ async def select_answer_for_multi_question(page, question_data, answers):
         logging.error(traceback.format_exc())
 
 
-async def ai_exam(page, is_thinking):
+async def ai_exam(page, is_thinking, course_url):
     """AI自动答题主函数"""
     logging.info("AI考试开始")
 
@@ -608,7 +608,7 @@ async def ai_exam(page, is_thinking):
             answers = await get_ai_answers(question_data, is_thinking)
 
             # 根据题目类型和AI答案点击选项
-            await select_answers(page, question_data, answers)
+            await select_answers(page, question_data, answers, course_url)
 
             # 检查是否有下一题按钮并且可以点击
             next_button = page.locator(".single-btn-next")
@@ -651,7 +651,9 @@ async def ai_exam(page, is_thinking):
             answers = await get_ai_answers(question_data, is_thinking)
 
             # 根据题目类型和AI答案点击选项
-            await select_answer_for_multi_question(page, question_data, answers)
+            await select_answer_for_multi_question(
+                page, question_data, answers, course_url
+            )
 
             # 短暂等待，确保选择已生效
             await page.wait_for_timeout(500)
@@ -674,7 +676,7 @@ async def wait_for_finish_test(page1, is_thinking=False):
         await page1.locator(".btn.new-radius").click()
     page2 = await page2_info.value
     logging.info("等待作答完毕并关闭页面")
-    await ai_exam(page2, is_thinking)
+    await ai_exam(page2, is_thinking, page1.url)
     await page2.wait_for_event("close", timeout=0)
 
 
@@ -714,14 +716,32 @@ async def main():
 
                 # 如果为限定次数的考试，则纳入人工考试
                 exam_button_locator = page1.locator(".btn.new-radius")
-                # 如果存在考试按钮, 判定是否为限定次数的考试
+                # 如果存在考试按钮, 判定是否为限定次数的考试且剩余次数小于等于3
                 if await exam_button_locator.count() > 0:
                     button_text = await exam_button_locator.inner_text()
                     if "剩余" in button_text:
-                        logging.info("当前为限定次数的考试")
-                        fm.save_to_file("./人工考试链接.txt", url.strip())
-                        await page1.close()
-                        break
+                        # 使用正则表达式提取剩余次数
+                        remain_count = re.search(r"剩余(\d+)次", button_text)
+                        if remain_count:
+                            remaining_attempts = int(remain_count.group(1))
+                            if remaining_attempts <= 3:
+                                logging.info(
+                                    f"当前考试剩余次数为{remaining_attempts}，小于等于3次，转为人工考试"
+                                )
+                                fm.save_to_file("./人工考试链接.txt", url.strip())
+                                await page1.close()
+                                break
+                            else:
+                                logging.info(
+                                    f"当前考试剩余次数为{remaining_attempts}，大于3次，继续AI考试"
+                                )
+                        else:
+                            logging.info("无法解析剩余次数，转为人工考试处理")
+                            fm.save_to_file("./人工考试链接.txt", url.strip())
+                            await page1.close()
+                            break
+                    else:
+                        logging.info("不限制考试次数，继续AI考试")
 
                 # AI考试
                 # 如果存在考试记录
