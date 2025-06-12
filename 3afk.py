@@ -1,4 +1,3 @@
-import func_module as fm
 import asyncio
 import json
 import logging
@@ -6,6 +5,7 @@ import os
 import re
 import time
 import traceback
+import utils
 
 from playwright.async_api import async_playwright
 
@@ -57,7 +57,7 @@ async def main():
         "./未知类型链接.txt",
     ]
     for file in files:
-        fm.del_file(file)
+        utils.del_file(file)
 
     with open("cookies.json", "r", encoding="utf-8") as f:
         cookies = json.load(f)
@@ -82,23 +82,23 @@ async def main():
             logging.info(f"({count}/{len(urls)})当前学习链接为: {url.strip()}")
 
             # 检测url是否合规, 不合规则跳过
-            if not fm.is_compliant_url_regex(url.strip()):
+            if not utils.is_compliant_url_regex(url.strip()):
                 logging.info("不合规链接, 已存入不合规链接.txt")
-                fm.save_to_file("不合规链接.txt", url.strip())
+                utils.save_to_file("不合规链接.txt", url.strip())
                 continue
             await page.goto(url.strip())
 
             # 主题学习
             if "subject" in url:
                 try:
-                    mark = await fm.subject_learning(page, mark)
+                    mark = await utils.subject_learning(page, mark)
                 except Exception as e:
                     logging.error(f"发生错误: {str(e)}")
                     logging.error(traceback.format_exc())
                     if str(e) == "无权限查看该资源":
-                        fm.save_to_file("无权限资源链接.txt", url.strip())
+                        utils.save_to_file("无权限资源链接.txt", url.strip())
                     else:
-                        fm.save_to_file("剩余未看课程链接.txt", url.strip())
+                        utils.save_to_file("剩余未看课程链接.txt", url.strip())
                         if mark == 0:
                             mark = 1
                 finally:
@@ -106,14 +106,14 @@ async def main():
             # 课程学习类型
             elif "course" in url:
                 try:
-                    await fm.course_learning(page)
+                    await utils.course_learning(page)
                 except Exception as e:
                     logging.error(f"发生错误: {str(e)}")
                     logging.error(traceback.format_exc())
                     if str(e) == "无权限查看该资源":
-                        fm.save_to_file("无权限资源链接.txt", url.strip())
+                        utils.save_to_file("无权限资源链接.txt", url.strip())
                     else:
-                        fm.save_to_file("剩余未看课程链接.txt", url.strip())
+                        utils.save_to_file("剩余未看课程链接.txt", url.strip())
                         if mark == 0:
                             mark = 1
                 finally:
@@ -127,12 +127,14 @@ async def main():
                 page = await context.new_page()
                 await page.goto(url.strip())
                 try:
-                    is_subject_url_completed = await fm.is_subject_url_completed(page)
+                    is_subject_url_completed = await utils.is_subject_url_completed(
+                        page
+                    )
                     if is_subject_url_completed:
                         logging.info(f"URL类型链接: {url.strip()} 学习完成")
                     else:
                         logging.info(f"URL类型链接: {url.strip()} 学习未完成")
-                        fm.save_to_file("URL类型链接.txt", url.strip())
+                        utils.save_to_file("URL类型链接.txt", url.strip())
                 except Exception as e:
                     logging.error(f"发生错误: {str(e)}")
                     logging.error(traceback.format_exc())

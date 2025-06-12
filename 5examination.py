@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import time
-import func_module as fm
+import utils
 
 from playwright.async_api import async_playwright
 
@@ -61,7 +61,7 @@ async def main():
                 # 判断是否为第一次考试
                 await page1.locator(".tab-container").wait_for()
                 if await page1.locator(".neer-status").all():
-                    if await fm.check_exam_passed(page1):
+                    if await utils.check_exam_passed(page1):
                         await page1.close()
                         break
                     else:
@@ -70,7 +70,7 @@ async def main():
                         await page1.reload(wait_until="load")
                         await page1.wait_for_timeout(1500)
                         # 如果存在评价窗口, 则点击评价按钮
-                        if await fm.handle_rating_popup(page1):
+                        if await utils.handle_rating_popup(page1):
                             logging.info("五星评价完成")
                         continue
                 else:
@@ -79,7 +79,7 @@ async def main():
                     await page1.reload(wait_until="load")
                     await page1.wait_for_timeout(1500)
                     # 如果存在评价窗口, 则点击评价按钮
-                    if await fm.handle_rating_popup(page1):
+                    if await utils.handle_rating_popup(page1):
                         logging.info("五星评价完成")
                     continue
 
