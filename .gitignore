@@ -1,7 +1,7 @@
-﻿cookies.json
-.idea
+﻿__pycache__/
+.vscode
+cookies.json
 .env
 *.txt
-__pycache__/
 !学习链接.txt
 !requirements.txt
