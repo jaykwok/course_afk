@@ -63,83 +63,129 @@ async def main():
             await page1.wait_for_load_state("load")
             is_thinking = False
 
-            while True:
-                await page1.locator(".top").first.wait_for(timeout=5000)
-                await page1.locator(".top").first.click()
-                await page1.locator('dl.chapter-list-box[data-sectiontype="9"]').click()
-                await page1.locator(".tab-container").wait_for()
-                await page1.wait_for_timeout(1000)
+            if "course" in url.strip():
+                logging.info("当前考试位于课程链接中")
+                # 课程链接考试
+                while True:
+                    await page1.locator(".top").first.wait_for(timeout=5000)
+                    await page1.locator(".top").first.click()
+                    await page1.locator(
+                        'dl.chapter-list-box[data-sectiontype="9"]'
+                    ).click()
+                    await page1.locator(".tab-container").wait_for()
+                    await page1.wait_for_timeout(1000)
 
-                # 获取考试限定次数
-                exam_button_locator = page1.locator(".btn.new-radius")
-                # 如果存在考试按钮, 判定是否为限定次数的考试且剩余次数小于等于3
-                if await exam_button_locator.count() > 0:
-                    button_text = await exam_button_locator.inner_text()
-                    if "剩余" in button_text:
-                        # 使用正则表达式提取剩余次数
-                        remain_count = re.search(r"剩余(\d+)次", button_text)
-                        if remain_count:
-                            remaining_attempts = int(remain_count.group(1))
-                            if remaining_attempts <= 3:
-                                logging.info(
-                                    f"当前考试剩余次数为{remaining_attempts}，小于等于3次，转为人工考试"
-                                )
+                    # 获取考试限定次数
+                    exam_button_locator = page1.locator(".btn.new-radius")
+                    # 如果存在考试按钮, 判定是否为限定次数的考试且剩余次数小于等于3
+                    if await exam_button_locator.count() > 0:
+                        button_text = await exam_button_locator.inner_text()
+                        if "剩余" in button_text:
+                            # 使用正则表达式提取剩余次数
+                            remain_count = re.search(r"剩余(\d+)次", button_text)
+                            if remain_count:
+                                remaining_attempts = int(remain_count.group(1))
+                                if remaining_attempts <= 3:
+                                    logging.info(
+                                        f"当前考试剩余次数为{remaining_attempts}, 小于等于3次, 转为人工考试"
+                                    )
+                                    utils.save_to_file(
+                                        "./人工考试链接.txt", url.strip()
+                                    )
+                                    await page1.close()
+                                    break
+                                else:
+                                    logging.info(
+                                        f"当前考试剩余次数为{remaining_attempts}, 大于3次, 继续AI考试"
+                                    )
+                            else:
+                                logging.info("无法解析剩余次数, 转为人工考试处理")
                                 utils.save_to_file("./人工考试链接.txt", url.strip())
                                 await page1.close()
                                 break
-                            else:
-                                logging.info(
-                                    f"当前考试剩余次数为{remaining_attempts}，大于3次，继续AI考试"
-                                )
                         else:
-                            logging.info("无法解析剩余次数，转为人工考试处理")
-                            utils.save_to_file("./人工考试链接.txt", url.strip())
-                            await page1.close()
-                            break
-                    else:
-                        logging.info("不限制考试次数，继续AI考试")
+                            logging.info("不限制考试次数, 继续AI考试")
 
-                # AI考试
-                # 如果存在考试记录
-                if await page1.locator(".neer-status").count() > 0:
-                    if await utils.check_exam_passed(page1):
-                        await page1.close()
-                        is_thinking = False
-                        break
-                    # AI考试未通过，尝试试用推理模式
-                    else:
-                        if is_thinking:
-                            logging.info("AI考试未通过，使用人工模式重新考试")
-                            utils.save_to_file("./人工考试链接.txt", url.strip())
+                    # AI考试
+                    # 如果存在考试记录
+                    if await page1.locator(".neer-status").count() > 0:
+                        if await utils.check_exam_passed(page1):
+                            await page1.close()
                             is_thinking = False
+                            break
+                        # AI考试未通过, 尝试试用推理模式
+                        else:
+                            if is_thinking:
+                                logging.info("AI考试未通过, 使用人工模式重新考试")
+                                utils.save_to_file("./人工考试链接.txt", url.strip())
+                                is_thinking = False
+                                await page1.close()
+                                break
+                            else:
+                                is_thinking = True
+                                logging.info("使用推理模式重新考试")
+                                await utils.wait_for_finish_test(
+                                    client, model, page1, is_thinking
+                                )
+                                await page1.reload(wait_until="load")
+                                await page1.wait_for_timeout(1500)
+                                # 如果存在评价窗口, 则点击评价按钮
+                                if await utils.handle_rating_popup(page1):
+                                    logging.info("五星评价完成")
+                                continue
+                    else:
+                        logging.info("开始考试")
+                        await utils.wait_for_finish_test(
+                            client, model, page1, is_thinking
+                        )
+                        await page1.reload(wait_until="load")
+                        await page1.wait_for_timeout(1500)
+                        # 如果存在评价窗口, 则点击评价按钮
+                        if await utils.handle_rating_popup(page1):
+                            logging.info("五星评价完成")
+                        continue
+            elif "exam" in url.strip():
+                logging.info("当前考试位于试卷链接中")
+                # 试卷链接考试
+                exam_button_locator = page1.locator(
+                    ".banner-handler-btn.themeColor-border-color.themeColor-background-color"
+                )
+                button_text = await exam_button_locator.inner_text()
+                if "剩余" in button_text:
+                    # 使用正则表达式提取剩余次数
+                    remain_count = re.search(r"剩余(\d+)次", button_text)
+                    if remain_count:
+                        remaining_attempts = int(remain_count.group(1))
+                        if remaining_attempts <= 1:
+                            logging.info(
+                                f"当前考试剩余次数为{remaining_attempts}, 小于等于1次, 转为人工考试"
+                            )
+                            utils.save_to_file("./人工考试链接.txt", url.strip())
                             await page1.close()
                             break
                         else:
-                            is_thinking = True
-                            logging.info("使用推理模式重新考试")
-                            await utils.wait_for_finish_test(
-                                client, model, page1, is_thinking
+                            logging.info(
+                                f"当前考试剩余次数为{remaining_attempts}, 大于1次, 继续AI考试"
                             )
-                            await page1.reload(wait_until="load")
-                            await page1.wait_for_timeout(1500)
-                            # 如果存在评价窗口, 则点击评价按钮
-                            if await utils.handle_rating_popup(page1):
-                                logging.info("五星评价完成")
-                            continue
+                    else:
+                        logging.info("无法解析剩余次数, 转为人工考试处理")
+                        utils.save_to_file("./人工考试链接.txt", url.strip())
+                        await page1.close()
+                        break
                 else:
-                    logging.info("开始考试")
-                    await utils.wait_for_finish_test(client, model, page1, is_thinking)
-                    await page1.reload(wait_until="load")
-                    await page1.wait_for_timeout(1500)
-                    # 如果存在评价窗口, 则点击评价按钮
-                    if await utils.handle_rating_popup(page1):
-                        logging.info("五星评价完成")
-                    continue
+                    logging.info("不限制考试次数, 继续AI考试")
+
+                logging.info("等待作答完毕并关闭页面")
+                async with page1.expect_popup() as page2_info:
+                    await exam_button_locator.click()
+                page2 = await page2_info.value
+                logging.info("等待作答完毕并关闭页面")
+                await utils.ai_exam(client, model, page2, is_thinking, page1.url, False)
 
         await context.close()
         await browser.close()
         logging.info(f"\n考试完成, 当前时间为{time.ctime()}\n")
-        os.remove("./学习课程考试链接.txt")
+        # os.remove("./学习课程考试链接.txt")
 
 
 if __name__ == "__main__":

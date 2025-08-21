@@ -590,7 +590,7 @@ async def is_subject_url_completed(page):
 async def detect_exam_mode(page):
     """检测考试模式：根据是否存在下一题按钮来判断"""
     try:
-        # 检查是否存在"下一题"按钮，这是单题目模式的特征
+        # 检查是否存在"下一题"按钮, 这是单题目模式的特征
         single_btns = page.locator(".single-btns")
         await single_btns.wait_for(state="visible", timeout=3000)
         logging.info("检测为单题目模式（有下一题按钮）")
@@ -639,10 +639,10 @@ async def extract_single_question_data(page):
         # 获取选项
         options = []
 
-        # 如果是填空题，不获取选项
+        # 如果是填空题, 不获取选项
         if question_type == "fill_blank":
-            logging.info("检测到填空题，跳过选项提取")
-        # 如果是排序题，获取排序选项
+            logging.info("检测到填空题, 跳过选项提取")
+        # 如果是排序题, 获取排序选项
         elif question_type == "ordering":
             option_elements = page.locator(".preview-list dd")
             count = await option_elements.count()
@@ -763,10 +763,10 @@ async def extract_multi_questions_data(page):
             # 获取选项
             options = []
 
-            # 如果是填空题，跳过选项获取
+            # 如果是填空题, 跳过选项获取
             if question_type == "fill_blank":
-                logging.info(f"题目 {i+1} 是填空题，跳过选项提取")
-            # 如果是排序题，获取排序选项
+                logging.info(f"题目 {i+1} 是填空题, 跳过选项提取")
+            # 如果是排序题, 获取排序选项
             elif question_type == "ordering":
                 option_elements = question_item.locator(".preview-list dd")
                 option_count = await option_elements.count()
@@ -820,7 +820,7 @@ async def extract_multi_questions_data(page):
 
             logging.debug(f"题目 {i+1} 选项: {options}")
 
-            # 存储题目数据和元素ID，便于后续定位
+            # 存储题目数据和元素ID, 便于后续定位
             item_id = (
                 await question_item.get_attribute("data-dynamic-key") or f"item-{i}"
             )
@@ -830,7 +830,7 @@ async def extract_multi_questions_data(page):
                 "type": question_type,
                 "text": question_text,
                 "options": options,
-                "item_id": item_id,  # 存储元素ID，方便后续定位
+                "item_id": item_id,  # 存储元素ID, 方便后续定位
             }
 
             all_questions.append(question_data)
@@ -845,9 +845,9 @@ async def extract_multi_questions_data(page):
 async def get_ai_answers(client, model, question_data, is_thinking):
     """使用AI分析题目并获取答案 - 适配百炼API的流式输出和思考过程"""
     try:
-        # 如果是填空题，直接返回空数组，跳过自动作答
+        # 如果是填空题, 直接返回空数组, 跳过自动作答
         if question_data["type"] == "fill_blank":
-            logging.info("检测到填空题，将跳过自动作答")
+            logging.info("检测到填空题, 将跳过自动作答")
             return []
 
         # 构建提示
@@ -859,7 +859,7 @@ async def get_ai_answers(client, model, question_data, is_thinking):
         elif question_data["type"] == "judge":
             question_type_str = "判断题（请回答'正确'或'错误'）"
         elif question_data["type"] == "ordering":
-            question_type_str = "排序题（请按正确顺序给出选项字母，如'ACBDEF'）"
+            question_type_str = "排序题（请按正确顺序给出选项字母, 如'ACBDEF'）"
         elif question_data["type"] == "reading":
             question_type_str = "阅读理解题"
 
@@ -878,21 +878,21 @@ async def get_ai_answers(client, model, question_data, is_thinking):
 
         # 根据题型添加具体提示
         if question_data["type"] == "ordering":
-            prompt += "请直接给出正确的排序顺序，只需按字母顺序列出，如'ACBDEF'。"
+            prompt += "请直接给出正确的排序顺序, 只需按字母顺序列出, 如'ACBDEF'。"
         elif question_data["type"] == "reading":
             prompt += "请直接回答选项代号（如A、B、C、D）。"
         elif question_data["type"] == "judge":
             prompt += "请直接回答'正确'或'错误'。"
         else:
-            prompt += "请直接回答选项代号（如A、B、C、D等），不定项选择题、多选题可以选择多个选项。"
+            prompt += "请直接回答选项代号（如A、B、C、D等）, 不定项选择题、多选题可以选择多个选项。"
 
-        # 使用OpenAI API，启用流式响应和思考过程
+        # 使用OpenAI API, 启用流式响应和思考过程
         response = client.chat.completions.create(
             model=model,
             messages=[
                 {
                     "role": "system",
-                    "content": "你是一个专业的考试助手，请根据题目选择最合适的答案。",
+                    "content": "你是一个专业的考试助手, 请根据题目选择最合适的答案。",
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -947,7 +947,7 @@ async def get_ai_answers(client, model, question_data, is_thinking):
                 logging.warning(f"无法识别的判断题答案: {final_answer}")
                 return ["正确"]  # 默认选择正确
         elif question_data["type"] == "ordering":
-            # 处理排序题答案 - 先尝试提取完整序列，再尝试单个字母提取
+            # 处理排序题答案 - 先尝试提取完整序列, 再尝试单个字母提取
             pattern = r"[A-Z]+"
             sequences = re.findall(pattern, final_answer)
 
@@ -983,20 +983,20 @@ async def select_answers(page, question_data, answers, course_url):
     try:
         if not answers:
             logging.info(
-                "没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查)"
+                "没有获取到有效答案, 推测存在填空类型题目, 存入人工考试链接备查)"
             )
-            # 没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查
+            # 没有获取到有效答案, 推测存在填空类型题目, 存入人工考试链接备查
             save_to_file("./人工考试链接.txt", course_url)
             return
 
         logging.info(f"选择答案: {answers}")
 
-        # 如果是填空题，跳过自动作答
+        # 如果是填空题, 跳过自动作答
         if question_data["type"] == "fill_blank":
-            logging.info("填空题，跳过自动作答")
+            logging.info("填空题, 跳过自动作答")
             return
 
-        # 如果是排序题，填入排序顺序
+        # 如果是排序题, 填入排序顺序
         elif question_data["type"] == "ordering":
             answer_sequence = "".join(answers)
             logging.info(f"输入排序顺序: {answer_sequence}")
@@ -1031,7 +1031,7 @@ async def select_answers(page, question_data, answers, course_url):
                             f".preview-list dd:nth-child({option_index + 1})"
                         ).first.click()
                         logging.info(f"已点击选项: {answer}")
-                        await page.wait_for_timeout(300)  # 稍微延迟，避免点击太快
+                        await page.wait_for_timeout(300)  # 稍微延迟, 避免点击太快
                     except Exception as e:
                         logging.warning(f"点击选项 {answer} 失败: {e}")
 
@@ -1047,20 +1047,20 @@ async def select_answer_for_multi_question(page, question_data, answers, course_
 
         if not answers:
             logging.info(
-                "没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查)"
+                "没有获取到有效答案, 推测存在填空类型题目, 存入人工考试链接备查)"
             )
-            # 没有获取到有效答案，推测存在填空类型题目，存入人工考试链接备查
+            # 没有获取到有效答案, 推测存在填空类型题目, 存入人工考试链接备查
             save_to_file("./人工考试链接.txt", course_url)
             return
 
         logging.info(f"题目 {question_data['index']+1}: 选择答案: {answers}")
 
-        # 如果是填空题，跳过自动作答
+        # 如果是填空题, 跳过自动作答
         if question_data["type"] == "fill_blank":
-            logging.info(f"题目 {question_data['index']+1}: 填空题，跳过自动作答")
+            logging.info(f"题目 {question_data['index']+1}: 填空题, 跳过自动作答")
             return
 
-        # 如果是排序题，填入排序顺序
+        # 如果是排序题, 填入排序顺序
         elif question_data["type"] == "ordering":
             answer_sequence = "".join(answers)
             logging.info(
@@ -1120,7 +1120,7 @@ async def select_answer_for_multi_question(page, question_data, answers, course_
                         logging.info(
                             f"题目 {question_data['index']+1}: 已点击多选题选项: {answer}"
                         )
-                        await page.wait_for_timeout(300)  # 稍微延迟，避免点击太快
+                        await page.wait_for_timeout(300)  # 稍微延迟, 避免点击太快
                     except Exception as e:
                         logging.warning(
                             f"题目 {question_data['index']+1}: 点击选项 {answer} 失败: {e}"
@@ -1131,9 +1131,37 @@ async def select_answer_for_multi_question(page, question_data, answers, course_
         logging.error(traceback.format_exc())
 
 
-async def ai_exam(client, model, page, is_thinking, course_url):
+async def ai_exam(client, model, page, is_thinking, course_url, auto_submit=True):
     """AI自动答题主函数"""
     logging.info("AI考试开始")
+
+    # 等待页面初始加载
+    await page.wait_for_load_state("networkidle")
+    await page.wait_for_timeout(1000)  # 等待弹窗出现
+
+    # 检测并关闭考试提示弹窗
+    try:
+        # 检测弹窗是否存在 - 通过dialog相关的class
+        popup = page.locator(".dialog.animated")
+
+        if await popup.count() > 0:
+            logging.info("检测到考试提示弹窗，准备关闭")
+
+            # 优先尝试点击确定按钮，然后是关闭按钮
+            await popup.locator(".dialog-footer .btn").first.click()
+            await page.wait_for_timeout(1000)  # 等待弹窗关闭
+            logging.info("弹窗已关闭")
+        else:
+            logging.info("未检测到考试提示弹窗")
+
+    except Exception as e:
+        logging.error(f"处理考试提示弹窗时出错: {e}")
+        # 即使出错也继续执行，不影响后续答题流程
+        await page.wait_for_timeout(2000)
+
+    # 再次等待确保页面稳定
+    await page.wait_for_load_state("networkidle")
+    await page.wait_for_timeout(1000)
 
     # 检测考试模式
     exam_mode = await detect_exam_mode(page)
@@ -1165,14 +1193,20 @@ async def ai_exam(client, model, page, is_thinking, course_url):
             next_button_classes = await next_button.get_attribute("class") or ""
 
             if "next-disabled" in next_button_classes:
-                logging.info("已经是最后一题，准备交卷")
-                # 点击交卷
-                await page.locator("text=我要交卷").click()
-                await page.wait_for_timeout(1000)
-                await page.locator("button:has-text('确 定')").click()
-                await page.wait_for_timeout(1000)
-                await page.locator("text=确定").click()
-                break
+                if auto_submit:
+                    logging.info("已经是最后一题, 准备交卷")
+                    # 点击交卷
+                    await page.locator("text=我要交卷").click()
+                    await page.wait_for_timeout(1000)
+                    await page.locator("button:has-text('确 定')").click()
+                    await page.wait_for_timeout(1000)
+                    await page.locator("text=确定").click()
+                    break
+                else:
+                    logging.info("自动交卷已取消, 请手动交卷")
+                    logging.info("页面将保持打开状态, 等待手动操作...")
+                    await page.wait_for_event("close", timeout=0)
+                    break
             else:
                 logging.info("点击下一题")
                 await next_button.click()
@@ -1205,18 +1239,23 @@ async def ai_exam(client, model, page, is_thinking, course_url):
                 page, question_data, answers, course_url
             )
 
-            # 短暂等待，确保选择已生效
+            # 短暂等待, 确保选择已生效
             await page.wait_for_timeout(500)
 
         # 点击交卷
-        try:
-            await page.locator("text=我要交卷").click()
-            await page.wait_for_timeout(1000)
-            await page.locator("button:has-text('确 定')").click()
-            await page.wait_for_timeout(1000)
-            await page.locator("text=确定").click()
-        except Exception as e:
-            logging.error(f"点击交卷按钮失败: {e}")
+        if auto_submit:
+            try:
+                await page.locator("text=我要交卷").click()
+                await page.wait_for_timeout(1000)
+                await page.locator("button:has-text('确 定')").click()
+                await page.wait_for_timeout(1000)
+                await page.locator("text=确定").click()
+            except Exception as e:
+                logging.error(f"点击交卷按钮失败: {e}")
+        else:
+            logging.info("自动交卷已取消, 请手动交卷")
+            logging.info("页面将保持打开状态, 等待手动操作...")
+            await page.wait_for_event("close", timeout=0)
 
     logging.info("考试完成")
 
