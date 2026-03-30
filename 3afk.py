@@ -1,158 +1,145 @@
 import asyncio
-import json
 import logging
-import os
-import re
 import time
 import traceback
-import utils
 
-from playwright.async_api import async_playwright
+from core.browser import create_browser_context
+from core.file_ops import del_file, is_compliant_url_regex, save_to_file
+from core.learning import (
+    course_learning,
+    is_subject_url_completed,
+    subject_learning,
+)
+from core.logging_config import setup_logging
 
 # 设置学习文件路径
 learning_file = "./学习链接.txt"
 
-# 设置是否学习过程中存在未知错误的标识: 0为未发生错误, 1为发生了错误
-mark = 0
+# 日志配置
+setup_logging()
 
-# 日志基本设置
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d (%(funcName)s) %(message)s",
-    handlers=[
-        logging.FileHandler("log.txt", mode="w", encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
+# 需要在每次全新运行时清理的中间文件
+CLEANUP_FILES = [
+    "./学习主题考试链接.txt",
+    "./调研类型链接.txt",
+    "./URL类型链接.txt",
+    "./h5课程类型链接.txt",
+    "./非课程及考试类学习类型链接.txt",
+    "./未知类型链接.txt",
+]
 
 
-async def main():
+async def process_url(context, url, handler):
+    """
+    统一的URL处理流程，包含错误处理。
 
-    # 定义全局变量便于赋值
-    global mark
+    Returns:
+        True 如果发生了需要重试的错误, False 如果正常完成
+    """
+    page = await context.new_page()
+    try:
+        await page.goto(url.strip())
+        await handler(page)
+        return False
+    except Exception as e:
+        logging.error(f"发生错误: {str(e)}")
+        logging.error(traceback.format_exc())
+        if str(e) == "无权限查看该资源":
+            save_to_file("无权限资源链接.txt", url.strip())
+            return False
+        else:
+            save_to_file("剩余未看课程链接.txt", url.strip())
+            return True
+    finally:
+        await page.close()
+
+
+async def main() -> bool:
+    """
+    主学习流程。
+
+    Returns:
+        True 如果存在未完成的课程需要重试, False 如果全部完成
+    """
+    import os
+
+    needs_retry = False
 
     if os.path.exists("./剩余未看课程链接.txt"):
-        mark = 1
+        needs_retry = True
         with open("./剩余未看课程链接.txt", encoding="utf-8") as f:
             urls = set(f.readlines())
-        # 读取文件中保存的链接后, 便删除文件, 便于后续重写并追加新的未学习的链接
         os.remove("./剩余未看课程链接.txt")
     else:
-        # 每一次运行main函数的时候, 重置标识为0
-        mark = 0
-        # 移除旧的考试链接文件
+        # 首次运行, 清理旧文件
         if os.path.exists("./学习课程考试链接.txt"):
             os.remove("./学习课程考试链接.txt")
-        # 读取学习链接文件
         with open(learning_file, encoding="utf-8") as f:
             urls = f.readlines()
 
-    # 删除考试链接和调研链接等手动操作的文件
-    files = [
-        "./学习主题考试链接.txt",
-        "./调研类型链接.txt",
-        "./URL类型链接.txt",
-        "./h5课程类型链接.txt",
-        "./非课程及考试类学习类型链接.txt",
-        "./未知类型链接.txt",
-    ]
-    for file in files:
-        utils.del_file(file)
+    for file in CLEANUP_FILES:
+        del_file(file)
 
-    with open("cookies.json", "r", encoding="utf-8") as f:
-        cookies = json.load(f)
+    # 重置重试标识（仅在首次运行时）
+    if not needs_retry:
+        needs_retry = False
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=False,
-            args=["--mute-audio", "--start-maximized"],
-            channel="msedge",
-            slow_mo=3000,
-        )
-        context = await browser.new_context(no_viewport=True)
-        await context.add_cookies(cookies)
-        page = await context.new_page()
-        await page.goto("https://kc.zhixueyun.com/")
-        await page.wait_for_url(
-            re.compile(r"https://kc\.zhixueyun\.com/#/home-v\?id=\d+"), timeout=0
-        )
-        await page.close()
+    async with create_browser_context(slow_mo=3000) as (browser, context):
         for count, url in enumerate(urls, start=1):
-            page = await context.new_page()
             logging.info(f"({count}/{len(urls)})当前学习链接为: {url.strip()}")
 
-            # 检测url是否合规, 不合规则跳过
-            if not utils.is_compliant_url_regex(url.strip()):
+            if not is_compliant_url_regex(url.strip()):
                 logging.info("不合规链接, 已存入不合规链接.txt")
-                utils.save_to_file("不合规链接.txt", url.strip())
+                save_to_file("不合规链接.txt", url.strip())
                 continue
-            await page.goto(url.strip())
 
-            # 主题学习
             if "subject" in url:
-                try:
-                    mark = await utils.subject_learning(page, mark)
-                except Exception as e:
-                    logging.error(f"发生错误: {str(e)}")
-                    logging.error(traceback.format_exc())
-                    if str(e) == "无权限查看该资源":
-                        utils.save_to_file("无权限资源链接.txt", url.strip())
-                    else:
-                        utils.save_to_file("剩余未看课程链接.txt", url.strip())
-                        if mark == 0:
-                            mark = 1
-                finally:
-                    await page.close()
-            # 课程学习类型
+                error = await process_url(
+                    context, url, lambda page: subject_learning(page)
+                )
             elif "course" in url:
-                try:
-                    await utils.course_learning(page)
-                except Exception as e:
-                    logging.error(f"发生错误: {str(e)}")
-                    logging.error(traceback.format_exc())
-                    if str(e) == "无权限查看该资源":
-                        utils.save_to_file("无权限资源链接.txt", url.strip())
-                    else:
-                        utils.save_to_file("剩余未看课程链接.txt", url.strip())
-                        if mark == 0:
-                            mark = 1
-                finally:
-                    await page.close()
+                error = await process_url(
+                    context, url, lambda page: course_learning(page)
+                )
+            else:
+                continue
 
+            if error:
+                needs_retry = True
+
+        # 处理URL类型链接
         if os.path.exists("./URL类型链接.txt"):
             with open("./URL类型链接.txt", encoding="utf-8") as f:
-                urls = set(f.readlines())
+                url_type_links = set(f.readlines())
             os.remove("./URL类型链接.txt")
-            for url in urls:
+            for url in url_type_links:
                 page = await context.new_page()
                 await page.goto(url.strip())
                 try:
-                    is_subject_url_completed = await utils.is_subject_url_completed(
-                        page
-                    )
-                    if is_subject_url_completed:
+                    if await is_subject_url_completed(page):
                         logging.info(f"URL类型链接: {url.strip()} 学习完成")
                     else:
                         logging.info(f"URL类型链接: {url.strip()} 学习未完成")
-                        utils.save_to_file("URL类型链接.txt", url.strip())
+                        save_to_file("URL类型链接.txt", url.strip())
                 except Exception as e:
                     logging.error(f"发生错误: {str(e)}")
                     logging.error(traceback.format_exc())
-                    f.write(url)
+                    # 修复: 原代码使用已关闭的文件句柄 f.write(url)
+                    save_to_file("URL类型链接.txt", url.strip())
                 finally:
                     await page.close()
 
-        # 如果未出现错误且文本文档存在, 则删除文本文档
-        if os.path.exists("./剩余未看课程链接.txt") and mark == 0:
+        # 如果未出现错误且残留文件存在, 则删除
+        if os.path.exists("./剩余未看课程链接.txt") and not needs_retry:
             os.remove("./剩余未看课程链接.txt")
 
-        await context.close()
-        await browser.close()
         logging.info(f"自动挂课完成, 当前时间为{time.ctime()}")
+
+    return needs_retry
 
 
 if __name__ == "__main__":
     while True:
-        asyncio.run(main())
-        if mark == 0:
+        retry = asyncio.run(main())
+        if not retry:
             break

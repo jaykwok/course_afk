@@ -1,7 +1,9 @@
 ﻿__pycache__/
+.claude
+.venv
 .vscode
-cookies.json
 .env
+cookies.json
 *.txt
 !学习链接.txt
 !requirements.txt
