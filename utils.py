@@ -536,8 +536,12 @@ async def handle_document(page):
     """处理文档、网页类型课程"""
 
     # await page.wait_for_timeout(3 * 1000)
+    # 有些不包含clearfix, 去掉
     # await page.locator('.clearfix').first.wait_for()
-    await page.locator(".image-text-water").first.wait_for()
+    # 疑似现在没有水印, 规则失效
+    # await page.locator(".image-text-water").first.wait_for()
+    # 改用关联全屏内容元素做识别
+    await page.locator(".relative.fullScreen-content").first.wait_for()
     timer_task = asyncio.create_task(timer(10, 1))
     await page.wait_for_timeout(10 * 1000)
     await timer_task
