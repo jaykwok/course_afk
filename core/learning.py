@@ -182,13 +182,14 @@ async def subject_learning(page):
     await page.locator(".item.current-hover").last.wait_for()
     await page.locator(".item.current-hover").locator(".section-type").last.wait_for()
 
-    learn_list = await page.locator(
+    learn_locator = page.locator(
         ".item.current-hover", has_not=page.locator(".iconfont.m-right.icon-reload")
-    ).all()
+    )
+    learn_count = await learn_locator.count()
 
-    if learn_list:
-        for learn_item in learn_list:
-            section_type = await learn_item.locator(".section-type").inner_text()
+    for i in range(learn_count):
+        learn_item = learn_locator.nth(i)
+        section_type = await learn_item.locator(".section-type").inner_text()
 
             if section_type == "课程":
                 async with page.expect_popup() as page_pop:

@@ -68,14 +68,14 @@ async def main() -> bool:
     if os.path.exists("./剩余未看课程链接.txt"):
         needs_retry = True
         with open("./剩余未看课程链接.txt", encoding="utf-8") as f:
-            urls = set(f.readlines())
+            urls = set(line for line in f if line.strip())
         os.remove("./剩余未看课程链接.txt")
     else:
         # 首次运行, 清理旧文件
         if os.path.exists("./学习课程考试链接.txt"):
             os.remove("./学习课程考试链接.txt")
         with open(learning_file, encoding="utf-8") as f:
-            urls = f.readlines()
+            urls = [line for line in f if line.strip()]
 
     for file in CLEANUP_FILES:
         del_file(file)
