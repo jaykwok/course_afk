@@ -174,7 +174,7 @@ async def get_course_url(learn_item, section_type="course"):
 async def subject_learning(page):
     """主题内容学习"""
 
-    await page.wait_for_load_state("load")
+    await page.wait_for_load_state("networkidle")
 
     if not await check_permission(page.main_frame):
         raise Exception("无权限查看该资源")
@@ -421,7 +421,7 @@ async def handle_video(box, page):
 
 async def handle_document(page):
     """处理文档、网页类型课程"""
-    await page.locator(".relative.fullScreen-content").first.wait_for()
+    await page.locator("[class*='fullScreen-content']").first.wait_for()
     await timer(10, 1)
 
 
