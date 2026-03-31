@@ -18,7 +18,7 @@ async def check_permission(frame):
             or "该资源已下架" in text_content
         )
     except Exception as e:
-        print(f"检查frame时出错: {e}")
+        logging.error(f"检查frame时出错: {e}")
         return False
 
 
@@ -50,6 +50,8 @@ def calculate_remaining_time(text) -> tuple[int, int]:
     elif len(match) == 2:
         total_time = time_to_seconds(match[0])
         remaining_time = time_to_seconds(match[1])
+    else:
+        raise Exception(f"无法解析课程时长: {text}")
 
     return min(math.ceil(remaining_time / 60) * 60, total_time), total_time
 
@@ -92,10 +94,7 @@ async def check_exam_passed(page):
             logging.info("首次进入考试页面, 未进行考试")
             return False
 
-        status_cell = await page.locator(
-            "div.tab-container table.table tbody tr:first-child td:nth-child(4)"
-        ).inner_text(timeout=3000)
-        status_cell = status_cell.strip()
+        status_cell = (await status_cell_element.inner_text(timeout=3000)).strip()
 
         if status_cell == "及格":
             logging.info("考试状态: 通过")
@@ -182,13 +181,16 @@ async def subject_learning(page):
     await page.locator(".item.current-hover").last.wait_for()
     await page.locator(".item.current-hover").locator(".section-type").last.wait_for()
 
-    learn_locator = page.locator(
-        ".item.current-hover", has_not=page.locator(".iconfont.m-right.icon-reload")
-    )
+    learn_locator = page.locator(".item.current-hover")
     learn_count = await learn_locator.count()
 
     for i in range(learn_count):
         learn_item = learn_locator.nth(i)
+
+        # 跳过已学完（重新学习）的项
+        if await learn_item.locator(".iconfont.m-right.icon-reload").count() > 0:
+            continue
+
         section_type = await learn_item.locator(".section-type").inner_text()
 
         if section_type == "课程":
@@ -284,6 +286,7 @@ async def course_learning(page_detail, learn_item=None):
         logging.info("所有章节已学习完毕, 跳过该课程")
         return
 
+    has_failed_box = False
     for count in range(chapter_count):
         box = chapter_locator.nth(count)
         section_type = await box.get_attribute("data-sectiontype")
@@ -301,33 +304,42 @@ async def course_learning(page_detail, learn_item=None):
         await box.locator(".section-item-wrapper").wait_for()
         await box.locator(".section-item-wrapper").click()
 
-        if section_type in ["5", "6"]:
-            logging.info("该课程为视频类型")
-            await handle_video(box, page_detail)
-        elif section_type in ["1", "2", "3"]:
-            logging.info("该课程为文档、网页类型")
-            await handle_document(page_detail)
-        elif section_type == "4":
-            logging.info("该课程为h5类型")
-            await handle_h5(page_detail, learn_item)
-        elif section_type == "9":
-            logging.info("该课程为考试类型")
-            if await check_exam_passed(page_detail):
-                logging.info("考试已通过, 跳过该节")
-                continue
-            else:
-                if learn_item:
-                    await handle_examination(page_detail, learn_item)
+        try:
+            if section_type in ["5", "6"]:
+                logging.info("该课程为视频类型")
+                await handle_video(box, page_detail)
+            elif section_type in ["1", "2", "3"]:
+                logging.info("该课程为文档、网页类型")
+                await handle_document(page_detail, box)
+            elif section_type == "4":
+                logging.info("该课程为h5类型")
+                await handle_h5(page_detail, learn_item)
+            elif section_type == "9":
+                logging.info("该课程为考试类型")
+                if await check_exam_passed(page_detail):
+                    logging.info("考试已通过, 跳过该节")
+                    continue
                 else:
-                    await handle_examination(page_detail)
-        else:
-            logging.info("未知课程学习类型, 存入文档单独审查")
-            if learn_item:
-                save_to_file("未知类型链接.txt", await get_course_url(learn_item))
+                    if learn_item:
+                        await handle_examination(page_detail, learn_item)
+                    else:
+                        await handle_examination(page_detail)
             else:
-                save_to_file("未知类型链接.txt", page_detail.url)
+                logging.info("未知课程学习类型, 存入文档单独审查")
+                if learn_item:
+                    save_to_file("未知类型链接.txt", await get_course_url(learn_item))
+                else:
+                    save_to_file("未知类型链接.txt", page_detail.url)
+                continue
+        except Exception as e:
+            logging.error(f"课程{count+1}学习失败: {str(e)}")
+            logging.error(traceback.format_exc())
+            has_failed_box = True
             continue
         logging.info(f"课程{count+1}学习完毕")
+
+    if has_failed_box:
+        raise Exception("部分章节学习失败")
 
 
 async def check_and_handle_rating_popup(page):
@@ -423,10 +435,29 @@ async def handle_video(box, page):
         raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
-async def handle_document(page):
+async def handle_document(page, box):
     """处理文档、网页类型课程"""
     await page.locator("[class*='fullScreen-content']").first.wait_for()
-    await timer(10, 1)
+    await timer(5, 1)
+
+    # 确认课程进度是否已同步到服务器
+    logging.info("课程学习完毕, 确认课程进度同步状态...")
+    current_text = await box.locator(".section-item-wrapper").inner_text()
+    if is_learned(current_text):
+        logging.info("课程进度已同步到服务器")
+        return
+
+    # 额外等待最多5秒
+    for i in range(1, 6):
+        await page.wait_for_timeout(1000)
+        current_text = await box.locator(".section-item-wrapper").inner_text()
+        if is_learned(current_text):
+            logging.info(f"课程进度已同步到服务器, 额外等待 {i} 秒")
+            return
+        logging.info(f"课程进度仍未同步完成, 已额外等待 {i} 秒, 继续等待...")
+
+    logging.info("超时: 已额外等待5秒, 课程进度仍未同步")
+    raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
 async def handle_h5(page, learn_item):

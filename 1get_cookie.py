@@ -1,4 +1,5 @@
 import json
+import logging
 
 from playwright.sync_api import sync_playwright
 
@@ -26,13 +27,13 @@ def main():
         ).click()
 
         iframe.locator("#j-auto-login-qr").click()
-        print("已勾选30天内自动登录")
+        logging.info("已勾选30天内自动登录")
 
         # 等待跳转到主页面
         page.wait_for_url("https://www.mylearning.cn/p5/index.html", timeout=0)
         with open("cookies.json", "w") as f:
             f.write(json.dumps(context.cookies()))
-            print("已保存cookies")
+            logging.info("已保存cookies")
         page.close()
         context.close()
         browser.close()

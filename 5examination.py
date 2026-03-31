@@ -11,7 +11,7 @@ from core.logging_config import setup_logging
 setup_logging()
 
 
-async def wait_for_finish_test(page1):
+async def wait_for_manual_test(page1):
     """等待用户手动完成考试"""
     async with page1.expect_popup() as page2_info:
         await page1.locator(".btn.new-radius").click()
@@ -22,7 +22,7 @@ async def wait_for_finish_test(page1):
 
 async def main():
     with open("./人工考试链接.txt", encoding="utf-8") as f:
-        urls = set(f.readlines())
+        urls = set(line for line in f if line.strip())
 
     async with create_browser_context() as (browser, context):
         for url in urls:
@@ -44,7 +44,7 @@ async def main():
                         break
                     else:
                         logging.info("重新考试")
-                        await wait_for_finish_test(page1)
+                        await wait_for_manual_test(page1)
                         await page1.reload(wait_until="load")
                         await page1.wait_for_timeout(1500)
                         if await handle_rating_popup(page1):
@@ -52,7 +52,7 @@ async def main():
                         continue
                 else:
                     logging.info("开始考试")
-                    await wait_for_finish_test(page1)
+                    await wait_for_manual_test(page1)
                     await page1.reload(wait_until="load")
                     await page1.wait_for_timeout(1500)
                     if await handle_rating_popup(page1):

@@ -110,7 +110,7 @@ async def main() -> bool:
         # 处理URL类型链接
         if os.path.exists("./URL类型链接.txt"):
             with open("./URL类型链接.txt", encoding="utf-8") as f:
-                url_type_links = set(f.readlines())
+                url_type_links = set(line for line in f if line.strip())
             os.remove("./URL类型链接.txt")
             for url in url_type_links:
                 page = await context.new_page()

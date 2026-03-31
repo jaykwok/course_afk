@@ -35,5 +35,11 @@ async def create_browser_context(
         try:
             yield browser, context
         finally:
-            await context.close()
-            await browser.close()
+            try:
+                await context.close()
+            except Exception:
+                pass
+            try:
+                await browser.close()
+            except Exception:
+                pass
