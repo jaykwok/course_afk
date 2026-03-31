@@ -262,13 +262,15 @@ async def course_learning(page_detail, learn_item=None):
         return
 
     await page_detail.locator("dl.chapter-list-box.required").last.wait_for()
-    chapter_boxes = await page_detail.locator("dl.chapter-list-box.required").all()
+    chapter_locator = page_detail.locator("dl.chapter-list-box.required")
+    chapter_count = await chapter_locator.count()
 
     # 预先检查所有章节是否已学习
     all_learned = True
     has_non_detectable_types = False
 
-    for box in chapter_boxes:
+    for i in range(chapter_count):
+        box = chapter_locator.nth(i)
         section_type = await box.get_attribute("data-sectiontype")
         if section_type in ["1", "2", "3", "5", "6"]:
             progress_text = await box.locator(".section-item-wrapper").inner_text()
@@ -282,7 +284,8 @@ async def course_learning(page_detail, learn_item=None):
         logging.info("所有章节已学习完毕, 跳过该课程")
         return
 
-    for count, box in enumerate(chapter_boxes, start=1):
+    for count in range(chapter_count):
+        box = chapter_locator.nth(count)
         section_type = await box.get_attribute("data-sectiontype")
         box_text = await box.locator(".text-overflow").inner_text()
         logging.info(f"课程信息: \n{box_text}\n")
@@ -290,7 +293,7 @@ async def course_learning(page_detail, learn_item=None):
         if section_type in ["1", "2", "3", "5", "6"]:
             progress_text = await box.locator(".section-item-wrapper").inner_text()
             if is_learned(progress_text):
-                logging.info(f"课程{count}已学习, 跳过该节\n")
+                logging.info(f"课程{count+1}已学习, 跳过该节\n")
                 continue
 
         if await handle_rating_popup(page_detail):
@@ -324,7 +327,7 @@ async def course_learning(page_detail, learn_item=None):
             else:
                 save_to_file("未知类型链接.txt", page_detail.url)
             continue
-        logging.info(f"课程{count}学习完毕")
+        logging.info(f"课程{count+1}学习完毕")
 
 
 async def check_and_handle_rating_popup(page):
