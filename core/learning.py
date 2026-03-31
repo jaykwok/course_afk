@@ -191,58 +191,58 @@ async def subject_learning(page):
         learn_item = learn_locator.nth(i)
         section_type = await learn_item.locator(".section-type").inner_text()
 
-            if section_type == "课程":
-                async with page.expect_popup() as page_pop:
-                    await learn_item.locator(".inline-block.operation").click()
-                page_detail = await page_pop.value
-                try:
-                    await course_learning(page_detail, learn_item)
-                except Exception as e:
-                    logging.error(f"发生错误: {str(e)}")
-                    logging.error(traceback.format_exc())
-                    if str(e) == "无权限查看该资源":
-                        save_to_file(
-                            "无权限资源链接.txt", await get_course_url(learn_item)
-                        )
-                    else:
-                        save_to_file(
-                            "剩余未看课程链接.txt", await get_course_url(learn_item)
-                        )
-                        raise
-                finally:
-                    await page_detail.close()
-
-            elif section_type == "URL":
-                logging.info("URL学习类型, 存入文档单独审查")
-                save_to_file("URL类型链接.txt", page.url)
-                async with page.expect_popup() as page_pop:
-                    await learn_item.locator(".inline-block.operation").click()
-                page_detail = await page_pop.value
-                timer_task = asyncio.create_task(timer(10, 1))
-                await page_detail.wait_for_timeout(10 * 1000)
-                await timer_task
+        if section_type == "课程":
+            async with page.expect_popup() as page_pop:
+                await learn_item.locator(".inline-block.operation").click()
+            page_detail = await page_pop.value
+            try:
+                await course_learning(page_detail, learn_item)
+            except Exception as e:
+                logging.error(f"发生错误: {str(e)}")
+                logging.error(traceback.format_exc())
+                if str(e) == "无权限查看该资源":
+                    save_to_file(
+                        "无权限资源链接.txt", await get_course_url(learn_item)
+                    )
+                else:
+                    save_to_file(
+                        "剩余未看课程链接.txt", await get_course_url(learn_item)
+                    )
+                    raise
+            finally:
                 await page_detail.close()
 
-            elif section_type == "考试":
-                status_texts = await page.locator(
-                    "div.text-overflow.inline-block.m-left span.finished-status"
-                ).all_inner_texts()
-                completion_status = next(
-                    (status for status in status_texts if "已完成" in status), None
-                )
-                if completion_status == "已完成":
-                    continue
-                else:
-                    logging.info("学习主题考试类型, 存入文档")
-                    save_to_file("学习主题考试链接.txt", page.url)
+        elif section_type == "URL":
+            logging.info("URL学习类型, 存入文档单独审查")
+            save_to_file("URL类型链接.txt", page.url)
+            async with page.expect_popup() as page_pop:
+                await learn_item.locator(".inline-block.operation").click()
+            page_detail = await page_pop.value
+            timer_task = asyncio.create_task(timer(10, 1))
+            await page_detail.wait_for_timeout(10 * 1000)
+            await timer_task
+            await page_detail.close()
 
-            elif section_type == "调研":
-                logging.info("调研学习类型, 存入文档单独审查")
-                save_to_file("调研类型链接.txt", await get_course_url(learn_item))
-
+        elif section_type == "考试":
+            status_texts = await page.locator(
+                "div.text-overflow.inline-block.m-left span.finished-status"
+            ).all_inner_texts()
+            completion_status = next(
+                (status for status in status_texts if "已完成" in status), None
+            )
+            if completion_status == "已完成":
+                continue
             else:
-                logging.info("非课程及考试类学习类型, 存入文档单独审查")
-                save_to_file("非课程及考试类学习类型链接.txt", page.url)
+                logging.info("学习主题考试类型, 存入文档")
+                save_to_file("学习主题考试链接.txt", page.url)
+
+        elif section_type == "调研":
+            logging.info("调研学习类型, 存入文档单独审查")
+            save_to_file("调研类型链接.txt", await get_course_url(learn_item))
+
+        else:
+            logging.info("非课程及考试类学习类型, 存入文档单独审查")
+            save_to_file("非课程及考试类学习类型链接.txt", page.url)
 
 
 async def course_learning(page_detail, learn_item=None):
