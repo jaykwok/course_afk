@@ -15,10 +15,10 @@ async def detect_exam_mode(page):
     try:
         single_btns = page.locator(".single-btns")
         await single_btns.wait_for(state="visible", timeout=3000)
-        logging.info("检测为单题目模式（有下一题按钮）")
+        logging.info("检测为单题目模式(有下一题按钮)")
         return "single"
     except Exception as e:
-        logging.info(f"检测为多题目模式（无下一题按钮）\n{e}")
+        logging.info(f"检测为多题目模式(无下一题按钮)\n{e}")
         return "multi"
 
 
@@ -51,7 +51,7 @@ async def extract_single_question_data(page):
 
 
 async def extract_multi_questions_data(page):
-    """提取页面中所有题目的信息（多题目模式）"""
+    """提取页面中所有题目的信息(多题目模式)"""
     try:
         question_items = page.locator(".question-type-item")
         count = await question_items.count()
@@ -88,7 +88,7 @@ async def extract_multi_questions_data(page):
 
             logging.debug(f"题目 {i+1} 内容: {question_text}")
 
-            # 获取选项（使用统一的提取函数）
+            # 获取选项(使用统一的提取函数)
             options = await extract_options(question_item, question_type)
             logging.debug(f"题目 {i+1} 选项: {options}")
 
@@ -124,8 +124,8 @@ async def get_ai_answers(client, model, question_data, is_thinking):
         type_labels = {
             "single": "单选题",
             "multiple": "多选题/不定项选择题",
-            "judge": "判断题（请回答'正确'或'错误'）",
-            "ordering": "排序题（请按正确顺序给出选项字母, 如'ACBDEF'���",
+            "judge": "判断题(请回答'正确'或'错误')",
+            "ordering": "排序题(请按正确顺序给出选项字母, 如'ACBDEF')",
             "reading": "阅读理解题",
         }
         question_type_str = type_labels.get(question_data["type"], "")
@@ -146,12 +146,12 @@ async def get_ai_answers(client, model, question_data, is_thinking):
         # 根据题型添加具体提示
         type_hints = {
             "ordering": "请直接给出正确的排序顺序, 只需按字母顺序列出, 如'ACBDEF'。",
-            "reading": "请直接回答选项代号（如A、B、C、D）。",
+            "reading": "请直接回答选项代号(如A、B、C、D)。",
             "judge": "请直接回答'正确'或'错误'。",
         }
         prompt += type_hints.get(
             question_data["type"],
-            "请直接回答选项代号（如A、B、C、D等）, 不定项选择题、多选题可以选择多个选项。",
+            "请直接回答选项代号(如A、B、C、D等), 不定项选择题、多选题可以选择多个选项。",
         )
 
         response = client.chat.completions.create(
@@ -230,14 +230,12 @@ async def get_ai_answers(client, model, question_data, is_thinking):
         return []
 
 
-async def select_answers(
-    page, question_data, answers, course_url, selector_prefix=""
-):
+async def select_answers(page, question_data, answers, course_url, selector_prefix=""):
     """
-    根据AI答案选择选项（统一���理单题目和多题目模式）。
+    根据AI答案选择选项(统一处理单题目和多题目模式)。
 
     Args:
-        selector_prefix: CSS选择器前缀，多题目模式传入 "[data-dynamic-key='xxx'] "
+        selector_prefix: CSS选择器前缀, 多题目模式传入 "[data-dynamic-key='xxx'] "
     """
     try:
         question_index = question_data.get("index", 0)
@@ -269,7 +267,9 @@ async def select_answers(
         elif question_data["type"] == "judge":
             answer_index = 0 if answers[0] == "正确" else 1
             try:
-                selector = f"{selector_prefix}.preview-list dd:nth-child({answer_index + 1})"
+                selector = (
+                    f"{selector_prefix}.preview-list dd:nth-child({answer_index + 1})"
+                )
                 await page.locator(selector).click(timeout=2000)
                 logging.info(f"{log_prefix}已点击判断题选项: {answers[0]}")
             except Exception as e:
@@ -288,7 +288,7 @@ async def select_answers(
                     logging.warning(f"{log_prefix}点击选项 {answer} 失败: {e}")
 
         else:
-            # 单选题（单题模式）和多选题
+            # 单选题(单题模式)和多选题
             for answer in answers:
                 option_index = ord(answer) - ord("A")
                 if 0 <= option_index < len(question_data["options"]):
@@ -316,7 +316,7 @@ async def ai_exam(client, model, page, is_thinking, course_url, auto_submit=True
     try:
         popup = page.locator(".dialog.animated")
         if await popup.count() > 0:
-            logging.info("检测到考试提示弹窗，准备关闭")
+            logging.info("检测到考试提示弹窗, 准备关闭")
             await popup.locator(".dialog-footer .btn").first.click()
             await page.wait_for_timeout(1000)
             logging.info("弹窗已关闭")
@@ -388,7 +388,7 @@ async def ai_exam(client, model, page, is_thinking, course_url, auto_submit=True
 
             answers = await get_ai_answers(client, model, question_data, is_thinking)
 
-            # 使用统一的 select_answers，通过 selector_prefix 区分
+            # 使用统一的 select_answers, 通过 selector_prefix 区分
             item_id = question_data["item_id"]
             await select_answers(
                 page,

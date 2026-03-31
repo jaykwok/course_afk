@@ -2,7 +2,7 @@ import logging
 
 
 def setup_logging(log_file="log.txt", mode="w"):
-    """统一日志配置，所有脚本共用"""
+    """统一日志配置, 所有脚本共用"""
 
     logging.basicConfig(
         level=logging.DEBUG,

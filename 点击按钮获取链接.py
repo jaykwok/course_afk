@@ -15,14 +15,14 @@ def load_existing_urls(output_file):
         with open(output_file, "r", encoding="utf-8") as f:
             urls = {line.strip() for line in f if line.strip()}
         if urls:
-            print(f"已从文件加载 {len(urls)} 个历史URL，将自动跳过重复项")
+            print(f"已从文件加载 {len(urls)} 个历史URL, 将自动跳过重复项")
         return urls
     except FileNotFoundError:
         return set()
 
 
 def clean_url(url: str) -> str:
-    """去除 URL 中 UUID 前的多余前缀，如 99@@ 。
+    """去除 URL 中 UUID 前的多余前缀, 如 99@@ 。
 
     例：/detail/99@@5df62a1e-... → /detail/5df62a1e-...
     """
@@ -58,11 +58,11 @@ async def collect_urls(start_url, cookie_path):
                         f.write(f"{url}\n")
                     print(f"[+] 已保存 (共{len(collected_urls)}条): {url}")
                 else:
-                    print(f"[=] 已存在，跳过: {url}")
+                    print(f"[=] 已存在, 跳过: {url}")
 
             await asyncio.sleep(1)
             await new_page.close()
-            print("新页面已关闭，等待下一次点击...")
+            print("新页面已关闭, 等待下一次点击...")
 
         except Exception as e:
             print(f"处理新页面时发生错误: {str(e)}")
@@ -99,14 +99,14 @@ async def collect_urls(start_url, cookie_path):
             context.on(
                 "page", lambda page: asyncio.ensure_future(handle_new_page(page))
             )
-            print("页面已就绪，开始监听。请手动点击元素打开新页面。")
+            print("页面已就绪, 开始监听。请手动点击元素打开新页面。")
             print("退出方式：关闭浏览器窗口 或 按 Ctrl+C\n")
 
             await wait_for_browser_close(main_page)
-            print("\n浏览器已关闭，正在退出...")
+            print("\n浏览器已关闭, 正在退出...")
 
         except (KeyboardInterrupt, asyncio.CancelledError):
-            print("\n收到退出信号，正在退出...")
+            print("\n收到退出信号, 正在退出...")
         except Exception as e:
             print(f"发生错误: {str(e)}")
         finally:
@@ -130,4 +130,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(collect_urls(start_url, cookie_path))
     except KeyboardInterrupt:
-        pass  # 已在协程内处理，这里只负责抑制 Traceback
+        pass  # 已在协程内处理, 这里只负责抑制 Traceback

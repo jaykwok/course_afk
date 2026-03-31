@@ -187,7 +187,7 @@ async def subject_learning(page):
     for i in range(learn_count):
         learn_item = learn_locator.nth(i)
 
-        # 跳过已学完（重新学习）的项
+        # 跳过已学完(重新学习)的项
         if await learn_item.locator(".iconfont.m-right.icon-reload").count() > 0:
             continue
 
@@ -203,9 +203,7 @@ async def subject_learning(page):
                 logging.error(f"发生错误: {str(e)}")
                 logging.error(traceback.format_exc())
                 if str(e) == "无权限查看该资源":
-                    save_to_file(
-                        "无权限资源链接.txt", await get_course_url(learn_item)
-                    )
+                    save_to_file("无权限资源链接.txt", await get_course_url(learn_item))
                 else:
                     save_to_file(
                         "剩余未看课程链接.txt", await get_course_url(learn_item)

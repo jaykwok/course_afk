@@ -21,7 +21,7 @@ def parse_question_type(type_text: str) -> str:
 
 
 async def detect_question_type_by_dom(locator) -> str:
-    """通过 DOM 结构检测题型（文本解析失败时的后备方案）"""
+    """通过 DOM 结构检测题型(文本解析失败时的后备方案)"""
     if await locator.locator("form.vertical .sentence-input").count() > 0:
         return "fill_blank"
     if await locator.locator(".answer-input-shot").count() > 0:
@@ -34,7 +34,7 @@ async def extract_options(locator, question_type: str) -> list[dict]:
     从题目容器中提取选项列表。
 
     Args:
-        locator: 题目容器的 Playwright Locator（单题模式为 page，多题模式为 question_item）
+        locator: 题目容器的 Playwright Locator(单题模式为 page, 多题模式为 question_item)
         question_type: 题目类型字符串
     """
     options = []

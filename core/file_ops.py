@@ -4,7 +4,7 @@ import re
 
 
 def del_file(filename):
-    """删除文件（如果存在）"""
+    """删除文件(如果存在)"""
     if os.path.exists(filename):
         os.remove(filename)
 

@@ -31,7 +31,7 @@ CLEANUP_FILES = [
 
 async def process_url(context, url, handler):
     """
-    统一的URL处理流程，包含错误处理。
+    统一的URL处理流程, 包含错误处理。
 
     Returns:
         True 如果发生了需要重试的错误, False 如果正常完成
@@ -80,7 +80,7 @@ async def main() -> bool:
     for file in CLEANUP_FILES:
         del_file(file)
 
-    # 重置重试标识（仅在首次运行时）
+    # 重置重试标识(仅在首次运行时)
     if not needs_retry:
         needs_retry = False
 
