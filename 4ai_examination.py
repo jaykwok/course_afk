@@ -59,7 +59,7 @@ async def check_remaining_attempts(button_locator, threshold: int, url: str) -> 
     return True
 
 
-async def handle_exam_result(page1, url, is_thinking):
+async def handle_exam_result(page1, url):
     """处理考试后的结果检查和重试逻辑"""
     await page1.reload(wait_until="load")
     await page1.wait_for_timeout(1500)
@@ -77,7 +77,6 @@ async def main():
             logging.info(f"当前考试链接为: {url.strip()}")
             await page1.goto(url.strip())
             await page1.wait_for_load_state("load")
-            is_thinking = False
 
             if "course" in url.strip():
                 logging.info("当前考试位于课程链接中")
@@ -104,29 +103,16 @@ async def main():
                     if await page1.locator(".neer-status").count() > 0:
                         if await check_exam_passed(page1):
                             await page1.close()
-                            is_thinking = False
                             break
                         else:
-                            if is_thinking:
-                                logging.info("AI考试未通过, 使用人工模式重新考试")
-                                save_to_file("./人工考试链接.txt", url.strip())
-                                is_thinking = False
-                                await page1.close()
-                                break
-                            else:
-                                is_thinking = True
-                                logging.info("使用推理模式重新考试")
-                                await wait_for_finish_test(
-                                    client, model, page1, is_thinking
-                                )
-                                await handle_exam_result(page1, url, is_thinking)
-                                continue
+                            logging.info("AI考试未通过, 转为人工考试")
+                            save_to_file("./人工考试链接.txt", url.strip())
+                            await page1.close()
+                            break
                     else:
                         logging.info("开始考试")
-                        await wait_for_finish_test(
-                            client, model, page1, is_thinking
-                        )
-                        await handle_exam_result(page1, url, is_thinking)
+                        await wait_for_finish_test(client, model, page1)
+                        await handle_exam_result(page1, url)
                         continue
 
             elif "exam" in url.strip():
@@ -149,7 +135,7 @@ async def main():
                     await exam_button_locator.click()
                 page2 = await page2_info.value
                 logging.info("等待作答完毕并关闭页面")
-                await ai_exam(client, model, page2, is_thinking, page1.url, False)
+                await ai_exam(client, model, page2, page1.url, False)
 
         logging.info(f"\n考试完成, 当前时间为{time.ctime()}\n")
 

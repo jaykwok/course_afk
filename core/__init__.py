@@ -2,7 +2,7 @@
 
 from core.browser import create_browser_context
 from core.exam_engine import ai_exam, wait_for_finish_test
-from core.file_ops import del_file, is_compliant_url_regex, save_to_file
+from core.file_ops import del_file, is_compliant_url_regex, normalize_url, save_to_file
 from core.learning import (
     check_exam_passed,
     check_permission,

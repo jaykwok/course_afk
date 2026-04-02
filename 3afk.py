@@ -4,7 +4,7 @@ import time
 import traceback
 
 from core.browser import create_browser_context
-from core.file_ops import del_file, is_compliant_url_regex, save_to_file
+from core.file_ops import del_file, is_compliant_url_regex, normalize_url, save_to_file
 from core.learning import (
     course_learning,
     is_subject_url_completed,
@@ -86,11 +86,12 @@ async def main() -> bool:
 
     async with create_browser_context(slow_mo=3000) as (browser, context):
         for count, url in enumerate(urls, start=1):
-            logging.info(f"({count}/{len(urls)})当前学习链接为: {url.strip()}")
+            url = normalize_url(url.strip())
+            logging.info(f"({count}/{len(urls)})当前学习链接为: {url}")
 
-            if not is_compliant_url_regex(url.strip()):
+            if not is_compliant_url_regex(url):
                 logging.info("不合规链接, 已存入不合规链接.txt")
-                save_to_file("不合规链接.txt", url.strip())
+                save_to_file("不合规链接.txt", url)
                 continue
 
             if "subject" in url:
