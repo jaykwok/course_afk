@@ -129,7 +129,7 @@ async def collect_urls(start_url, cookie_path):
                 await browser.close()
             except Exception:
                 pass
-            logging.info(f"所有URL已��存到文件: {output_file}")
+            logging.info(f"所有URL已保存到文件: {output_file}")
             logging.info(f"共收集到 {len(collected_urls)} 个唯一URL")
 
 
