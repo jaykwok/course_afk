@@ -113,7 +113,7 @@ async def extract_multi_questions_data(page):
         return []
 
 
-async def get_ai_answers(client, model, question_data, is_thinking):
+async def get_ai_answers(client, model, question_data):
     """使用AI分析题目并获取答案"""
     try:
         if question_data["type"] == "fill_blank":
@@ -154,39 +154,14 @@ async def get_ai_answers(client, model, question_data, is_thinking):
             "请直接回答选项代号(如A、B、C、D等), 不定项选择题、多选题可以选择多个选项。",
         )
 
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "你是一个专业的考试助手, 请根据题目选择最合适的答案。",
-                },
-                {"role": "user", "content": prompt},
-            ],
+            instructions="你是一个专业的考试助手, 请根据题目选择最合适的答案。",
+            input=prompt,
             temperature=0,
-            stream=True,
-            extra_body={"enable_thinking": is_thinking},
         )
 
-        reasoning_content = ""
-        answer_content = ""
-
-        for chunk in response:
-            if not chunk.choices:
-                continue
-
-            delta = chunk.choices[0].delta
-
-            if (
-                hasattr(delta, "reasoning_content")
-                and delta.reasoning_content is not None
-            ):
-                reasoning_content += delta.reasoning_content
-
-            if hasattr(delta, "content") and delta.content:
-                answer_content += delta.content
-
-        logging.info(f"AI推理过程: {reasoning_content[:200]}...")
+        answer_content = response.output_text
         logging.info(f"AI最终答案: {answer_content}")
 
         final_answer = answer_content.strip()
@@ -305,7 +280,7 @@ async def select_answers(page, question_data, answers, course_url, selector_pref
         logging.error(traceback.format_exc())
 
 
-async def ai_exam(client, model, page, is_thinking, course_url, auto_submit=True):
+async def ai_exam(client, model, page, course_url, auto_submit=True):
     """AI自动答题主函数"""
     logging.info("AI考试开始")
 
@@ -345,7 +320,7 @@ async def ai_exam(client, model, page, is_thinking, course_url, auto_submit=True
             logging.info(f"当前题目: {question_data['text']}")
             logging.info(f"题目类型: {question_data['type']}")
 
-            answers = await get_ai_answers(client, model, question_data, is_thinking)
+            answers = await get_ai_answers(client, model, question_data)
             await select_answers(page, question_data, answers, course_url)
 
             next_button = page.locator(".single-btn-next")
@@ -386,7 +361,7 @@ async def ai_exam(client, model, page, is_thinking, course_url, auto_submit=True
                 f"处理题目 {question_data['index']+1}: {question_data['text']}"
             )
 
-            answers = await get_ai_answers(client, model, question_data, is_thinking)
+            answers = await get_ai_answers(client, model, question_data)
 
             # 使用统一的 select_answers, 通过 selector_prefix 区分
             item_id = question_data["item_id"]
@@ -418,11 +393,11 @@ async def ai_exam(client, model, page, is_thinking, course_url, auto_submit=True
     logging.info("考试完成")
 
 
-async def wait_for_finish_test(client, model, page1, is_thinking=False):
+async def wait_for_finish_test(client, model, page1):
     """打开考试弹窗并执行AI考试"""
     async with page1.expect_popup() as page2_info:
         await page1.locator(".btn.new-radius").click()
     page2 = await page2_info.value
     logging.info("等待作答完毕并关闭页面")
-    await ai_exam(client, model, page2, is_thinking, page1.url)
+    await ai_exam(client, model, page2, page1.url)
     await page2.wait_for_event("close", timeout=0)

@@ -1,15 +1,29 @@
 import asyncio
 import json
+import logging
+import os
 
 from collections import defaultdict
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from playwright.async_api import async_playwright
+
+from core.logging_config import setup_logging
+
+# 加载.env文件
+load_dotenv()
+
+# 日志配置
+setup_logging()
 
 
 # 通过获取网页内容, 解析出所有链接并保存到文件中
 async def main():
-    url = "https://cms.mylearning.cn/safe/topic/resource/2025/zycp/pc.html"
+    url = os.getenv("TOPIC_URL")
+    if not url:
+        logging.error("请在.env文件中配置TOPIC_URL")
+        return
     with open("./cookies.json", "r") as f:
         cookies = json.load(f)
     async with async_playwright() as p:
@@ -58,9 +72,9 @@ async def main():
                             + business_id
                         )
                     else:
-                        print(f"未知链接类型: {parsed_url}")
+                        logging.warning(f"未知链接类型: {parsed_url}")
                 else:
-                    print(f"No query parameters in fragment: {fragment}")
+                    logging.warning(f"No query parameters in fragment: {fragment}")
             else:
                 links[link.text.strip()].append(href.strip())
 
@@ -68,12 +82,12 @@ async def main():
     count = 0
     with open(f"{file_name}.txt", "w+", encoding="utf-8") as f:
         for link_type, link_list in links.items():
-            print(f"{link_type}: ")
+            logging.info(f"{link_type}: ")
             for link in link_list:
-                print(link)
+                logging.info(link)
                 f.write(link + "\n")
                 count += 1
-    print(f"需要学习的链接总数为: {count}条")
+    logging.info(f"需要学习的链接总数为: {count}条")
 
 
 # 运行主程序

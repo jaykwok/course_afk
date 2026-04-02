@@ -1,8 +1,19 @@
 import asyncio
 import json
+import logging
+import os
 import re
 
+from dotenv import load_dotenv
 from playwright.async_api import async_playwright
+
+from core.logging_config import setup_logging
+
+# 加载.env文件
+load_dotenv()
+
+# 日志配置
+setup_logging()
 
 
 def load_cookies_data(cookie_path):
@@ -15,7 +26,7 @@ def load_existing_urls(output_file):
         with open(output_file, "r", encoding="utf-8") as f:
             urls = {line.strip() for line in f if line.strip()}
         if urls:
-            print(f"已从文件加载 {len(urls)} 个历史URL, 将自动跳过重复项")
+            logging.info(f"已从文件加载 {len(urls)} 个历史URL, 将自动跳过重复项")
         return urls
     except FileNotFoundError:
         return set()
@@ -49,23 +60,23 @@ async def collect_urls(start_url, cookie_path):
                 timeout=15000,
             )
             await new_page.wait_for_load_state("load", timeout=15000)
-            url = clean_url(new_page.url)  # ✅ 清洗 URL
+            url = clean_url(new_page.url)
 
             if url and url != "about:blank":
                 if url not in collected_urls:
                     collected_urls.add(url)
                     with open(output_file, "a+", encoding="utf-8") as f:
                         f.write(f"{url}\n")
-                    print(f"[+] 已保存 (共{len(collected_urls)}条): {url}")
+                    logging.info(f"[+] 已保存 (共{len(collected_urls)}条): {url}")
                 else:
-                    print(f"[=] 已存在, 跳过: {url}")
+                    logging.info(f"[=] 已存在, 跳过: {url}")
 
             await asyncio.sleep(1)
             await new_page.close()
-            print("新页面已关闭, 等待下一次点击...")
+            logging.info("新页面已关闭, 等待下一次点击...")
 
         except Exception as e:
-            print(f"处理新页面时发生错误: {str(e)}")
+            logging.error(f"处理新页面时发生错误: {str(e)}")
             try:
                 await new_page.close()
             except Exception:
@@ -84,7 +95,7 @@ async def collect_urls(start_url, cookie_path):
 
             cookies = load_cookies_data(cookie_path)
             await context.add_cookies(cookies)
-            print("成功加载cookies")
+            logging.info("成功加载cookies")
 
             await main_page.goto("https://kc.zhixueyun.com/")
             await main_page.wait_for_url(
@@ -92,23 +103,23 @@ async def collect_urls(start_url, cookie_path):
                 timeout=0,
             )
 
-            print(f"正在访问起始页面: {start_url}")
+            logging.info(f"正在访问起始页面: {start_url}")
             await main_page.goto(start_url)
             await main_page.wait_for_load_state("load")
 
             context.on(
                 "page", lambda page: asyncio.ensure_future(handle_new_page(page))
             )
-            print("页面已就绪, 开始监听。请手动点击元素打开新页面。")
-            print("退出方式：关闭浏览器窗口 或 按 Ctrl+C\n")
+            logging.info("页面已就绪, 开始监听。请手动点击元素打开新页面。")
+            logging.info("退出方式：关闭浏览器窗口 或 按 Ctrl+C")
 
             await wait_for_browser_close(main_page)
-            print("\n浏览器已关闭, 正在退出...")
+            logging.info("浏览器已关闭, 正在退出...")
 
         except (KeyboardInterrupt, asyncio.CancelledError):
-            print("\n收到退出信号, 正在退出...")
+            logging.info("收到退出信号, 正在退出...")
         except Exception as e:
-            print(f"发生错误: {str(e)}")
+            logging.error(f"发生错误: {str(e)}")
         finally:
             try:
                 await context.close()
@@ -118,14 +129,15 @@ async def collect_urls(start_url, cookie_path):
                 await browser.close()
             except Exception:
                 pass
-            print(f"\n所有URL已保存到文件: {output_file}")
-            print(f"共收集到 {len(collected_urls)} 个唯一URL")
+            logging.info(f"所有URL已��存到文件: {output_file}")
+            logging.info(f"共收集到 {len(collected_urls)} 个唯一URL")
 
 
 if __name__ == "__main__":
-    start_url = (
-        "https://kc.zhixueyun.com/#/branch-list-v/fbeb2cf4-6801-4575-a090-81603dce1404"
-    )
+    start_url = os.getenv("START_URL")
+    if not start_url:
+        logging.error("请在.env文件中配置START_URL")
+        exit(1)
     cookie_path = "cookies.json"
     try:
         asyncio.run(collect_urls(start_url, cookie_path))

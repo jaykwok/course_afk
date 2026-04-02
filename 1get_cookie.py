@@ -3,6 +3,11 @@ import logging
 
 from playwright.sync_api import sync_playwright
 
+from core.logging_config import setup_logging
+
+# 日志配置
+setup_logging()
+
 
 # 获取cookies并保存到文件
 def main():
