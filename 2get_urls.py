@@ -6,13 +6,15 @@ import os
 from collections import defaultdict
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
-from core.logging_config import setup_logging
-
-# 加载.env文件
-load_dotenv()
+from core.config import (
+    BROWSER_CHANNEL,
+    COOKIES_FILE,
+    ZHIXUEYUN_COURSE_PREFIX,
+    ZHIXUEYUN_SUBJECT_PREFIX,
+    setup_logging,
+)
 
 # 日志配置
 setup_logging()
@@ -24,10 +26,10 @@ async def main():
     if not url:
         logging.error("请在.env文件中配置TOPIC_URL")
         return
-    with open("./cookies.json", "r") as f:
+    with open(COOKIES_FILE, "r") as f:
         cookies = json.load(f)
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, channel="msedge")
+        browser = await p.chromium.launch(headless=False, channel=BROWSER_CHANNEL)
         context = await browser.new_context()
         await context.add_cookies(cookies)
         page = await context.new_page()
@@ -63,13 +65,11 @@ async def main():
 
                     if business_type == "1":
                         links[link.text.strip()].append(
-                            "https://kc.zhixueyun.com/#/study/course/detail/"
-                            + business_id
+                            ZHIXUEYUN_COURSE_PREFIX + business_id
                         )
                     elif business_type == "2":
                         links[link.text.strip()].append(
-                            "https://kc.zhixueyun.com/#/study/subject/detail/"
-                            + business_id
+                            ZHIXUEYUN_SUBJECT_PREFIX + business_id
                         )
                     else:
                         logging.warning(f"未知链接类型: {parsed_url}")

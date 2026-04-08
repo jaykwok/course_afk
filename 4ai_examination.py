@@ -1,34 +1,34 @@
 import asyncio
 import logging
-import os
 import re
 import time
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
 from core.browser import create_browser_context
+from core.config import (
+    COURSE_EXAM_ATTEMPT_THRESHOLD,
+    DASHSCOPE_API_KEY,
+    DASHSCOPE_BASE_URL,
+    EXAM_URLS_FILE,
+    MANUAL_EXAM_FILE,
+    MODEL_NAME,
+    PAPER_EXAM_ATTEMPT_THRESHOLD,
+    setup_logging,
+)
 from core.exam_engine import ai_exam, wait_for_finish_test
 from core.file_ops import save_to_file
 from core.learning import check_exam_passed, handle_rating_popup
-from core.logging_config import setup_logging
 
 # 日志配置
 setup_logging()
-
-# 加载.env文件
-load_dotenv()
-
-# 配置DashScope
-DASHSCOPE_BASE_URL = os.getenv("DASHSCOPE_BASE_URL")
-DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
-model = os.getenv("MODEL_NAME")
 
 # 初始化OpenAI客户端
 client = OpenAI(
     api_key=DASHSCOPE_API_KEY,
     base_url=DASHSCOPE_BASE_URL,
 )
+model = MODEL_NAME
 
 
 async def check_remaining_attempts(button_locator, threshold: int, url: str) -> bool:
@@ -46,13 +46,13 @@ async def check_remaining_attempts(button_locator, threshold: int, url: str) -> 
     match = re.search(r"剩余(\d+)次", button_text)
     if not match:
         logging.info("无法解析剩余次数, 转为人工考试处理")
-        save_to_file("./人工考试链接.txt", url.strip())
+        save_to_file(MANUAL_EXAM_FILE, url.strip())
         return False
 
     remaining = int(match.group(1))
     if remaining <= threshold:
         logging.info(f"当前考试剩余次数为{remaining}, 小于等于{threshold}次, 转为人工考试")
-        save_to_file("./人工考试链接.txt", url.strip())
+        save_to_file(MANUAL_EXAM_FILE, url.strip())
         return False
 
     logging.info(f"当前考试剩余次数为{remaining}, 大于{threshold}次, 继续AI考试")
@@ -68,7 +68,7 @@ async def handle_exam_result(page1, url):
 
 
 async def main():
-    with open("./学习课程考试链接.txt", encoding="utf-8") as f:
+    with open(EXAM_URLS_FILE, encoding="utf-8") as f:
         urls = f.readlines()
 
     async with create_browser_context() as (browser, context):
@@ -93,7 +93,7 @@ async def main():
                     exam_button_locator = page1.locator(".btn.new-radius")
                     if await exam_button_locator.count() > 0:
                         can_continue = await check_remaining_attempts(
-                            exam_button_locator, threshold=3, url=url
+                            exam_button_locator, threshold=COURSE_EXAM_ATTEMPT_THRESHOLD, url=url
                         )
                         if not can_continue:
                             await page1.close()
@@ -106,7 +106,7 @@ async def main():
                             break
                         else:
                             logging.info("AI考试未通过, 转为人工考试")
-                            save_to_file("./人工考试链接.txt", url.strip())
+                            save_to_file(MANUAL_EXAM_FILE, url.strip())
                             await page1.close()
                             break
                     else:
@@ -123,7 +123,7 @@ async def main():
 
                 # 检查剩余次数
                 can_continue = await check_remaining_attempts(
-                    exam_button_locator, threshold=1, url=url
+                    exam_button_locator, threshold=PAPER_EXAM_ATTEMPT_THRESHOLD, url=url
                 )
                 if not can_continue:
                     await page1.close()

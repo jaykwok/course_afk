@@ -4,8 +4,8 @@ import os
 import time
 
 from core.browser import create_browser_context
+from core.config import MANUAL_EXAM_FILE, setup_logging
 from core.learning import check_exam_passed, handle_rating_popup
-from core.logging_config import setup_logging
 
 # 日志配置
 setup_logging()
@@ -21,7 +21,7 @@ async def wait_for_manual_test(page1):
 
 
 async def main():
-    with open("./人工考试链接.txt", encoding="utf-8") as f:
+    with open(MANUAL_EXAM_FILE, encoding="utf-8") as f:
         urls = set(line for line in f if line.strip())
 
     async with create_browser_context() as (browser, context):
@@ -60,7 +60,7 @@ async def main():
                     continue
 
         logging.info(f"考试完成, 当前时间为{time.ctime()}\n")
-        os.remove("./人工考试链接.txt")
+        os.remove(MANUAL_EXAM_FILE)
 
 
 if __name__ == "__main__":

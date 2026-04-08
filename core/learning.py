@@ -5,6 +5,25 @@ import re
 import time
 import traceback
 
+from core.config import (
+    DOCUMENT_INITIAL_WAIT,
+    DOCUMENT_SYNC_EXTRA_WAIT,
+    EXAM_URLS_FILE,
+    H5_TYPE_FILE,
+    NO_PERMISSION_FILE,
+    OTHER_TYPE_FILE,
+    RETRY_URLS_FILE,
+    SUBJECT_EXAM_FILE,
+    SURVEY_TYPE_FILE,
+    TIMER_DEFAULT_INTERVAL,
+    UNKNOWN_TYPE_FILE,
+    URL_TYPE_FILE,
+    URL_TYPE_WAIT,
+    VIDEO_SYNC_CHECK_INTERVAL,
+    VIDEO_SYNC_EXTRA_WAIT,
+    ZHIXUEYUN_COURSE_PREFIX,
+    ZHIXUEYUN_EXAM_PREFIX,
+)
 from core.file_ops import save_to_file
 
 
@@ -56,7 +75,7 @@ def calculate_remaining_time(text) -> tuple[int, int]:
     return min(math.ceil(remaining_time / 60) * 60, total_time), total_time
 
 
-async def timer(duration: int, interval: int = 30):
+async def timer(duration: int, interval: int = TIMER_DEFAULT_INTERVAL):
     """定时器"""
     duration = math.ceil(duration)
     logging.info(f"开始时间: {time.ctime()}")
@@ -164,9 +183,9 @@ async def get_course_url(learn_item, section_type="course"):
     """根据学习项构造课程或考试URL"""
     course_id = await learn_item.get_attribute("data-resource-id")
     if section_type == "exam":
-        prefix = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/"
+        prefix = ZHIXUEYUN_EXAM_PREFIX
     else:
-        prefix = "https://kc.zhixueyun.com/#/study/course/detail/"
+        prefix = ZHIXUEYUN_COURSE_PREFIX
     return str(prefix + course_id)
 
 
@@ -203,10 +222,10 @@ async def subject_learning(page):
                 logging.error(f"发生错误: {str(e)}")
                 logging.error(traceback.format_exc())
                 if str(e) == "无权限查看该资源":
-                    save_to_file("无权限资源链接.txt", await get_course_url(learn_item))
+                    save_to_file(NO_PERMISSION_FILE, await get_course_url(learn_item))
                 else:
                     save_to_file(
-                        "剩余未看课程链接.txt", await get_course_url(learn_item)
+                        RETRY_URLS_FILE, await get_course_url(learn_item)
                     )
                     raise
             finally:
@@ -214,12 +233,12 @@ async def subject_learning(page):
 
         elif section_type == "URL":
             logging.info("URL学习类型, 存入文档单独审查")
-            save_to_file("URL类型链接.txt", page.url)
+            save_to_file(URL_TYPE_FILE, page.url)
             async with page.expect_popup() as page_pop:
                 await learn_item.locator(".inline-block.operation").click()
             page_detail = await page_pop.value
-            timer_task = asyncio.create_task(timer(10, 1))
-            await page_detail.wait_for_timeout(10 * 1000)
+            timer_task = asyncio.create_task(timer(URL_TYPE_WAIT, 1))
+            await page_detail.wait_for_timeout(URL_TYPE_WAIT * 1000)
             await timer_task
             await page_detail.close()
 
@@ -234,15 +253,15 @@ async def subject_learning(page):
                 continue
             else:
                 logging.info("学习主题考试类型, 存入文档")
-                save_to_file("学习主题考试链接.txt", page.url)
+                save_to_file(SUBJECT_EXAM_FILE, page.url)
 
         elif section_type == "调研":
             logging.info("调研学习类型, 存入文档单独审查")
-            save_to_file("调研类型链接.txt", await get_course_url(learn_item))
+            save_to_file(SURVEY_TYPE_FILE, await get_course_url(learn_item))
 
         else:
             logging.info("非课程及考试类学习类型, 存入文档单独审查")
-            save_to_file("非课程及考试类学习类型链接.txt", page.url)
+            save_to_file(OTHER_TYPE_FILE, page.url)
 
 
 async def course_learning(page_detail, learn_item=None):
@@ -325,9 +344,9 @@ async def course_learning(page_detail, learn_item=None):
             else:
                 logging.info("未知课程学习类型, 存入文档单独审查")
                 if learn_item:
-                    save_to_file("未知类型链接.txt", await get_course_url(learn_item))
+                    save_to_file(UNKNOWN_TYPE_FILE, await get_course_url(learn_item))
                 else:
-                    save_to_file("未知类型链接.txt", page_detail.url)
+                    save_to_file(UNKNOWN_TYPE_FILE, page_detail.url)
                 continue
         except Exception as e:
             logging.error(f"课程{count+1}学习失败: {str(e)}")
@@ -410,11 +429,8 @@ async def handle_video(box, page):
         logging.info("课程进度已同步到服务器")
         return
 
-    # 额外等待最多5分钟, 以便同步课程进度
-    extra_wait_time = 5 * 60
-    check_interval = 10
-
-    for i in range(0, extra_wait_time, check_interval):
+    # 额外等待最多 VIDEO_SYNC_EXTRA_WAIT 秒, 以便同步课程进度
+    for i in range(0, VIDEO_SYNC_EXTRA_WAIT, VIDEO_SYNC_CHECK_INTERVAL):
         await check_and_handle_rating_popup(page)
 
         current_text = await box.locator(".section-item-wrapper").inner_text()
@@ -423,20 +439,20 @@ async def handle_video(box, page):
             return
 
         logging.info(
-            f"课程进度仍未同步完成, 已额外等待 {i + check_interval} 秒, 继续等待..."
+            f"课程进度仍未同步完成, 已额外等待 {i + VIDEO_SYNC_CHECK_INTERVAL} 秒, 继续等待..."
         )
-        await page.wait_for_timeout(check_interval * 1000)
+        await page.wait_for_timeout(VIDEO_SYNC_CHECK_INTERVAL * 1000)
 
     current_text = await box.locator(".section-item-wrapper").inner_text()
     if not is_learned(current_text):
-        logging.info("超时: 已额外等待5分钟, 课程进度仍未同步")
+        logging.info(f"超时: 已额外等待{VIDEO_SYNC_EXTRA_WAIT}秒, 课程进度仍未同步")
         raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
 async def handle_document(page, box):
     """处理文档、网页类型课程"""
     await page.locator("[class*='fullScreen-content']").first.wait_for()
-    await timer(5, 1)
+    await timer(DOCUMENT_INITIAL_WAIT, 1)
 
     # 确认课程进度是否已同步到服务器
     logging.info("课程学习完毕, 确认课程进度同步状态...")
@@ -445,8 +461,8 @@ async def handle_document(page, box):
         logging.info("课程进度已同步到服务器")
         return
 
-    # 额外等待最多30秒
-    for i in range(1, 31):
+    # 额外等待最多 DOCUMENT_SYNC_EXTRA_WAIT 秒
+    for i in range(1, DOCUMENT_SYNC_EXTRA_WAIT + 1):
         await page.wait_for_timeout(1000)
         current_text = await box.locator(".section-item-wrapper").inner_text()
         if is_learned(current_text):
@@ -454,14 +470,14 @@ async def handle_document(page, box):
             return
         logging.info(f"课程进度仍未同步完成, 已额外等待 {i} 秒, 继续等待...")
 
-    logging.info("超时: 已额外等待30秒, 课程进度仍未同步")
+    logging.info(f"超时: 已额外等待{DOCUMENT_SYNC_EXTRA_WAIT}秒, 课程进度仍未同步")
     raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
 async def handle_h5(page, learn_item):
     """处理h5类型课程"""
     logging.info("h5课程类型, 存入文档")
-    save_to_file("h5课程类型链接.txt", await get_course_url(learn_item))
+    save_to_file(H5_TYPE_FILE, await get_course_url(learn_item))
 
 
 async def handle_examination(page, learn_item=None):
@@ -471,11 +487,11 @@ async def handle_examination(page, learn_item=None):
     else:
         if learn_item:
             logging.info("学习课程考试类型, 存入文档")
-            save_to_file("学习课程考试链接.txt", await get_course_url(learn_item))
+            save_to_file(EXAM_URLS_FILE, await get_course_url(learn_item))
             logging.info(f"链接: {await get_course_url(learn_item)}\n")
         else:
             logging.info("学习课程考试类型, 存入文档")
-            save_to_file("学习课程考试链接.txt", page.url)
+            save_to_file(EXAM_URLS_FILE, page.url)
             logging.info(f"链接: {page.url}\n")
 
 

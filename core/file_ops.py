@@ -2,6 +2,8 @@ import logging
 import os
 import re
 
+from core.config import ZHIXUEYUN_COURSE_PREFIX, ZHIXUEYUN_SUBJECT_PREFIX
+
 
 def del_file(filename):
     """删除文件(如果存在)"""
@@ -19,6 +21,13 @@ def save_to_file(filename, url):
 
 _UUID = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 _BUSINESS_TYPE_MAP = {"1": "course", "2": "subject"}
+
+# 根据配置的 URL 前缀生成合规正则
+_COURSE_PREFIX_ESCAPED = re.escape(ZHIXUEYUN_COURSE_PREFIX)
+_SUBJECT_PREFIX_ESCAPED = re.escape(ZHIXUEYUN_SUBJECT_PREFIX)
+_COMPLIANT_URL_PATTERN = re.compile(
+    rf"^({_COURSE_PREFIX_ESCAPED}|{_SUBJECT_PREFIX_ESCAPED}){_UUID}$"
+)
 
 
 def normalize_url(url):
@@ -39,7 +48,8 @@ def normalize_url(url):
     if qr_match:
         btype = _BUSINESS_TYPE_MAP.get(qr_match.group(1))
         if btype:
-            return f"https://kc.zhixueyun.com/#/study/{btype}/detail/{qr_match.group(2)}"
+            prefix = ZHIXUEYUN_COURSE_PREFIX if btype == "course" else ZHIXUEYUN_SUBJECT_PREFIX
+            return f"{prefix}{qr_match.group(2)}"
 
     # detail带前缀格式: /detail/数字&UUID → /detail/UUID
     detail_match = re.search(
@@ -59,5 +69,4 @@ def is_compliant_url_regex(url):
     合规格式: https://kc.zhixueyun.com/#/study/(course|subject)/detail/UUID
     """
 
-    pattern = rf"^https://kc\.zhixueyun\.com/#/study/(course|subject)/detail/{_UUID}$"
-    return bool(re.match(pattern, url))
+    return bool(_COMPLIANT_URL_PATTERN.match(url))

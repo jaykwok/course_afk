@@ -2,6 +2,7 @@ import logging
 import re
 import traceback
 
+from core.config import AI_SYSTEM_PROMPT, AI_TEMPERATURE, MANUAL_EXAM_FILE
 from core.file_ops import save_to_file
 from core.question_parser import (
     detect_question_type_by_dom,
@@ -156,9 +157,9 @@ async def get_ai_answers(client, model, question_data):
 
         response = client.responses.create(
             model=model,
-            instructions="你是一个专业的考试助手, 请根据题目选择最合适的答案。",
+            instructions=AI_SYSTEM_PROMPT,
             input=prompt,
-            temperature=0,
+            temperature=AI_TEMPERATURE,
         )
 
         answer_content = response.output_text
@@ -220,7 +221,7 @@ async def select_answers(page, question_data, answers, course_url, selector_pref
             logging.info(
                 f"{log_prefix}没有获取到有效答案, 推测存在填空类型题目, 存入人工考试链接备查"
             )
-            save_to_file("./人工考试链接.txt", course_url)
+            save_to_file(MANUAL_EXAM_FILE, course_url)
             return
 
         logging.info(f"{log_prefix}选择答案: {answers}")

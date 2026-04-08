@@ -4,13 +4,16 @@ import logging
 import os
 import re
 
-from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
-from core.logging_config import setup_logging
-
-# 加载.env文件
-load_dotenv()
+from core.config import (
+    BROWSER_CHANNEL,
+    CLICK_URLS_FILE,
+    COOKIES_FILE,
+    ZHIXUEYUN_HOME,
+    ZHIXUEYUN_HOME_PATTERN,
+    setup_logging,
+)
 
 # 日志配置
 setup_logging()
@@ -50,8 +53,7 @@ async def wait_for_browser_close(main_page, interval=1.0):
 
 
 async def collect_urls(start_url, cookie_path):
-    output_file = "学习链接_点击按钮.txt"
-    collected_urls = load_existing_urls(output_file)
+    collected_urls = load_existing_urls(CLICK_URLS_FILE)
 
     async def handle_new_page(new_page):
         try:
@@ -65,7 +67,7 @@ async def collect_urls(start_url, cookie_path):
             if url and url != "about:blank":
                 if url not in collected_urls:
                     collected_urls.add(url)
-                    with open(output_file, "a+", encoding="utf-8") as f:
+                    with open(CLICK_URLS_FILE, "a+", encoding="utf-8") as f:
                         f.write(f"{url}\n")
                     logging.info(f"[+] 已保存 (共{len(collected_urls)}条): {url}")
                 else:
@@ -85,7 +87,7 @@ async def collect_urls(start_url, cookie_path):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=False,
-            channel="msedge",
+            channel=BROWSER_CHANNEL,
             args=["--start-maximized"],
         )
         context = await browser.new_context(no_viewport=True)
@@ -97,9 +99,9 @@ async def collect_urls(start_url, cookie_path):
             await context.add_cookies(cookies)
             logging.info("成功加载cookies")
 
-            await main_page.goto("https://kc.zhixueyun.com/")
+            await main_page.goto(ZHIXUEYUN_HOME)
             await main_page.wait_for_url(
-                re.compile(r"https://kc\.zhixueyun\.com/#/home-v\?id=\d+"),
+                re.compile(ZHIXUEYUN_HOME_PATTERN),
                 timeout=0,
             )
 
@@ -129,7 +131,7 @@ async def collect_urls(start_url, cookie_path):
                 await browser.close()
             except Exception:
                 pass
-            logging.info(f"所有URL已保存到文件: {output_file}")
+            logging.info(f"所有URL已保存到文件: {CLICK_URLS_FILE}")
             logging.info(f"共收集到 {len(collected_urls)} 个唯一URL")
 
 
@@ -138,7 +140,7 @@ if __name__ == "__main__":
     if not start_url:
         logging.error("请在.env文件中配置START_URL")
         exit(1)
-    cookie_path = "cookies.json"
+    cookie_path = COOKIES_FILE
     try:
         asyncio.run(collect_urls(start_url, cookie_path))
     except KeyboardInterrupt:
