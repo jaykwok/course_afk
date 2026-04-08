@@ -4,6 +4,7 @@
 .vscode/
 .env
 cookies.json
+CLAUDE.md
 *.txt
 !学习链接.txt
 !requirements.txt
