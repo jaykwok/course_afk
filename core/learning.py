@@ -445,8 +445,8 @@ async def handle_document(page, box):
         logging.info("课程进度已同步到服务器")
         return
 
-    # 额外等待最多5秒
-    for i in range(1, 6):
+    # 额外等待最多30秒
+    for i in range(1, 31):
         await page.wait_for_timeout(1000)
         current_text = await box.locator(".section-item-wrapper").inner_text()
         if is_learned(current_text):
@@ -454,7 +454,7 @@ async def handle_document(page, box):
             return
         logging.info(f"课程进度仍未同步完成, 已额外等待 {i} 秒, 继续等待...")
 
-    logging.info("超时: 已额外等待5秒, 课程进度仍未同步")
+    logging.info("超时: 已额外等待30秒, 课程进度仍未同步")
     raise Exception("课程进度未能在额外等待时间内同步完成")
 
 
