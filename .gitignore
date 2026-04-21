@@ -18,6 +18,7 @@ tmp_*
 *_probe.txt
 
 # Generated workflow output files
+学习链接.txt
 剩余未看课程链接.txt
 学习课程考试链接.txt
 人工考试链接.txt
@@ -29,6 +30,3 @@ h5课程类型链接.txt
 学习主题考试链接.txt
 未知类型链接.txt
 非课程及考试类学习类型链接.txt
-
-# Keep the user-maintained input file tracked
-!学习链接.txt
