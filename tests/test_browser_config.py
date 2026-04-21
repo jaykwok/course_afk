@@ -62,5 +62,103 @@ class BrowserLaunchConfigTests(unittest.TestCase):
         fake_launcher.launch.assert_awaited_once_with(headless=True)
 
 
+class BrowserControllerPageTests(unittest.IsolatedAsyncioTestCase):
+    async def test_ensure_controller_page_reuses_existing_open_page(self):
+        class FakeBrowser:
+            def is_connected(self):
+                return True
+
+        class FakePage:
+            def __init__(self):
+                self.goto_calls = []
+                self.closed = False
+                self.handlers = {}
+
+            async def goto(self, url, wait_until="load"):
+                self.goto_calls.append((url, wait_until))
+
+            def is_closed(self):
+                return self.closed
+
+            def on(self, event, handler):
+                self.handlers[event] = handler
+
+        class FakeContext:
+            def __init__(self):
+                self.browser = FakeBrowser()
+                self.pages = []
+
+            async def new_page(self):
+                page = FakePage()
+                self.pages.append(page)
+                return page
+
+        context = FakeContext()
+        try:
+            first_page = await browser.ensure_controller_page(context)
+            second_page = await browser.ensure_controller_page(context)
+        finally:
+            browser.release_controller_page(context)
+
+        self.assertIs(first_page, second_page)
+        self.assertEqual(len(context.pages), 1)
+        self.assertEqual(
+            first_page.goto_calls,
+            [(browser.MYLEARNING_HOME, "load")],
+        )
+
+    async def test_ensure_controller_page_recreates_closed_controller_tab(self):
+        class FakeBrowser:
+            def is_connected(self):
+                return True
+
+        class FakePage:
+            def __init__(self):
+                self.goto_calls = []
+                self.closed = False
+                self.handlers = {}
+
+            async def goto(self, url, wait_until="load"):
+                self.goto_calls.append((url, wait_until))
+
+            def is_closed(self):
+                return self.closed
+
+            def on(self, event, handler):
+                self.handlers[event] = handler
+
+            async def close(self):
+                self.closed = True
+                close_handler = self.handlers.get("close")
+                if close_handler is not None:
+                    close_handler()
+
+        class FakeContext:
+            def __init__(self):
+                self.browser = FakeBrowser()
+                self.pages = []
+
+            async def new_page(self):
+                page = FakePage()
+                self.pages.append(page)
+                return page
+
+        context = FakeContext()
+        try:
+            first_page = await browser.ensure_controller_page(context)
+            await first_page.close()
+            await asyncio.sleep(0)
+            second_page = await browser.ensure_controller_page(context)
+        finally:
+            browser.release_controller_page(context)
+
+        self.assertIsNot(first_page, second_page)
+        self.assertEqual(len(context.pages), 2)
+        self.assertEqual(
+            second_page.goto_calls,
+            [(browser.MYLEARNING_HOME, "load")],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

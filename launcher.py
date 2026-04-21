@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 MENU_OPTIONS = [
-    "推荐流程 / 继续上次进度",
+    "推荐挂课流程（挂课+考试（如有）） / 继续上次进度",
     "更新登录凭证 / 切换账号",
-    "查看学习链接状态",
     "手动选择学习课程",
-    "开始挂课",
+    "仅挂课",
     "AI 自动考试",
     "人工考试",
     "查看当前状态与输出文件",
+    "查看待学习链接状态",
     "退出",
 ]
 
@@ -21,7 +21,7 @@ MANUAL_SELECTION_PROMPTS = [
 ]
 
 
-def main() -> None:
+def main() -> int:
     from core.abort import UserAbortRequested
     from core.config import setup_logging
     from core.config import EXAM_URLS_FILE, LEARNING_URLS_FILE, MANUAL_EXAM_FILE
@@ -52,22 +52,22 @@ def main() -> None:
             elif choice == 2:
                 handle_refresh_credential(state, ui)
             elif choice == 3:
-                handle_show_learning_links(LEARNING_URLS_FILE, ui)
-            elif choice == 4:
                 handle_manual_selection(MANUAL_SELECTION_PROMPTS, ui)
-            elif choice == 5:
+            elif choice == 4:
                 handle_afk(ui)
-            elif choice == 6:
+            elif choice == 5:
                 handle_ai_exam(ui)
-            elif choice == 7:
+            elif choice == 6:
                 handle_manual_exam(ui)
-            elif choice == 8:
+            elif choice == 7:
                 handle_show_output_state(
                     EXAM_URLS_FILE,
                     LEARNING_URLS_FILE,
                     MANUAL_EXAM_FILE,
                     ui,
                 )
+            elif choice == 8:
+                handle_show_learning_links(LEARNING_URLS_FILE, ui)
             elif choice == 9:
                 ui.show_success("已退出统一入口")
                 return 0

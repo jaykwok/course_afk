@@ -4,6 +4,7 @@ import asyncio
 import logging
 import traceback
 
+from core.browser import is_page_browser_connected, is_target_closed_exception
 from core.config import (
     EXAM_URLS_FILE,
     NO_PERMISSION_FILE,
@@ -65,6 +66,11 @@ async def subject_learning(page):
             try:
                 await course_learning(page_detail, learn_item)
             except Exception as exc:
+                if is_target_closed_exception(exc):
+                    if is_page_browser_connected(page_detail):
+                        logging.info("当前课程标签页已关闭，跳过该课程")
+                        continue
+                    raise
                 logging.error(f"发生错误: {str(exc)}")
                 logging.error(traceback.format_exc())
                 if str(exc) == "无权限查看该资源":

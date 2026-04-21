@@ -122,7 +122,7 @@ class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
                 ],
             )
 
-    async def test_run_afk_once_retries_current_url_and_continues_when_only_current_tab_is_closed(self):
+    async def test_run_afk_once_skips_current_url_and_continues_when_only_course_tab_is_closed(self):
         from core.afk_runner import AfkBatch, run_afk_once
 
         class TargetClosedError(Exception):
@@ -133,10 +133,13 @@ class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
                 return True
 
         class FakePage:
-            async def goto(self, url):
+            async def goto(self, url, **kwargs):
                 return None
 
             async def close(self):
+                return None
+
+            def on(self, _event, _handler):
                 return None
 
         class FakeContext:
@@ -188,14 +191,11 @@ class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
             ):
                 needs_retry = await run_afk_once()
 
-            self.assertTrue(needs_retry)
-            self.assertEqual(
-                retry_file.read_text(encoding="utf-8").splitlines(),
-                ["https://kc.zhixueyun.com/#/study/course/detail/a"],
-            )
+            self.assertFalse(needs_retry)
+            self.assertFalse(retry_file.exists())
             mock_warning.assert_not_called()
 
-    async def test_run_afk_once_exits_when_browser_window_is_closed(self):
+    async def test_run_afk_once_exits_without_saving_retry_urls_when_browser_window_is_closed(self):
         from core.abort import UserAbortRequested
         from core.afk_runner import AfkBatch, run_afk_once
 
@@ -207,10 +207,13 @@ class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
                 return False
 
         class FakePage:
-            async def goto(self, url):
+            async def goto(self, url, **kwargs):
                 return None
 
             async def close(self):
+                return None
+
+            def on(self, _event, _handler):
                 return None
 
         class FakeContext:
@@ -256,16 +259,11 @@ class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
                 ),
                 patch("core.afk_runner.logging.warning") as mock_warning,
             ):
-                with self.assertRaises(UserAbortRequested):
+                with self.assertRaises(UserAbortRequested) as ctx:
                     await run_afk_once()
 
-            self.assertEqual(
-                retry_file.read_text(encoding="utf-8").splitlines(),
-                [
-                    "https://kc.zhixueyun.com/#/study/course/detail/a",
-                    "https://kc.zhixueyun.com/#/study/course/detail/b",
-                ],
-            )
+            self.assertEqual(str(ctx.exception), "已关闭浏览器窗口，程序退出")
+            self.assertFalse(retry_file.exists())
             mock_warning.assert_not_called()
 
 

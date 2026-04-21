@@ -16,12 +16,14 @@ class LauncherEntryTests(unittest.TestCase):
             manual_exam_count=0,
         )
 
+        afk_choice = launcher.MENU_OPTIONS.index("仅挂课") + 1
+
         with (
             patch("core.config.setup_logging"),
             patch("core.state.collect_project_state", return_value=fake_state),
             patch("core.ui.show_title"),
             patch("core.ui.render_dashboard"),
-            patch("core.ui.show_menu", return_value=5),
+            patch("core.ui.show_menu", return_value=afk_choice),
             patch("core.ui.show_warning") as mock_warning,
             patch(
                 "core.launcher_controller.handle_afk",

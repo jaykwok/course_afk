@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from rich.align import Align
-from rich.box import HEAVY_HEAD, ROUNDED, SIMPLE_HEAVY
+from rich.box import DOUBLE_EDGE, HEAVY_HEAD, ROUNDED, SIMPLE_HEAVY
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
@@ -12,6 +14,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.prompt import IntPrompt, Prompt
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
@@ -23,118 +26,166 @@ console = Console()
 
 
 def show_title(title: str, subtitle: str | None = None) -> None:
-    text = Text(title, style="bold cyan")
+    console.print()
+    title_text = Text(justify="center")
+    title_text.append(title, style="bold bright_cyan")
     if subtitle:
-        text.append(f"\n{subtitle}", style="dim")
+        title_text.append(f"\n{subtitle}", style="dim white")
     console.print(
         Align.center(
             Panel(
-                text,
+                title_text,
                 expand=False,
-                border_style="bright_blue",
-                padding=(0, 3),
+                border_style="bright_cyan",
+                padding=(1, 6),
+                box=DOUBLE_EDGE,
             )
         )
     )
+    console.print()
 
 
 def show_info(message: str) -> None:
-    console.print(f"[cyan]{message}[/cyan]")
+    console.print(f"  [cyan]·[/cyan]  {message}")
 
 
 def show_success(message: str) -> None:
-    console.print(f"[green]{message}[/green]")
+    console.print(f"  [bold green]√[/bold green]  [green]{message}[/green]")
 
 
 def show_warning(message: str) -> None:
-    console.print(f"[yellow]{message}[/yellow]")
+    console.print(f"  [bold yellow]![/bold yellow]  [yellow]{message}[/yellow]")
 
 
 def show_error(message: str) -> None:
-    console.print(f"[bold red]{message}[/bold red]")
+    console.print(f"  [bold red]×[/bold red]  [bold red]{message}[/bold red]")
+
+
+def _credential_display(state: ProjectState, metadata) -> Text:
+    if not state.has_credential:
+        return Text("×  不存在", style="bold red")
+    if state.credential_expired:
+        return Text("!  已过期", style="bold yellow")
+    if metadata and metadata.expires_at:
+        try:
+            expires_dt = datetime.fromisoformat(metadata.expires_at)
+            days_left = (expires_dt - datetime.now()).days
+            t = Text("√  有效", style="bold green")
+            t.append(f"  （还有 {days_left} 天）", style="dim")
+            return t
+        except ValueError:
+            pass
+    return Text("√  有效", style="bold green")
+
+
+def _count_display(count: int) -> Text:
+    if count == 0:
+        return Text("0", style="dim")
+    return Text(str(count), style="bold bright_white")
 
 
 def render_dashboard(state: ProjectState) -> None:
     metadata = load_credential_metadata()
     account_label = metadata.account_label if metadata else "未登录"
-    credential_status = "已过期" if state.credential_expired else "有效"
-    if not state.has_credential:
-        credential_status = "不存在"
+
+    recommended = recommend_next_step(
+        has_credential=state.has_credential and not state.credential_expired,
+        learning_count=state.learning_count,
+        exam_count=state.exam_count,
+        manual_exam_count=state.manual_exam_count,
+    )
 
     table = Table(
-        title="当前状态",
-        show_header=True,
-        header_style="bold magenta",
+        show_header=False,
         box=ROUNDED,
+        border_style="bright_black",
+        title="[bold white]当前状态[/bold white]",
+        title_style="bold white",
+        min_width=54,
+        padding=(0, 1),
     )
-    table.add_column("项目")
-    table.add_column("值", overflow="fold", min_width=36)
-    table.add_row("当前账号", account_label)
-    table.add_row("登录凭证", credential_status)
-    table.add_row("学习链接数量", str(state.learning_count))
-    table.add_row("考试链接数量", str(state.exam_count))
-    table.add_row("人工考试数量", str(state.manual_exam_count))
+    table.add_column("项目", style="dim white", min_width=10, justify="right")
+    table.add_column("值", overflow="fold", min_width=40)
+
+    table.add_row("账号", Text(account_label, style="bold white"))
+    table.add_row("凭证", _credential_display(state, metadata))
+    table.add_row("学习链接", _count_display(state.learning_count))
+    table.add_row("考试链接", _count_display(state.exam_count))
+    table.add_row("人工考试", _count_display(state.manual_exam_count))
     table.add_row(
-        "推荐下一步",
-        recommend_next_step(
-            has_credential=state.has_credential and not state.credential_expired,
-            learning_count=state.learning_count,
-            exam_count=state.exam_count,
-            manual_exam_count=state.manual_exam_count,
-        ),
+        "建议操作",
+        Text(f"->  {recommended}", style="bold bright_yellow"),
     )
     console.print(Align.center(table))
+    console.print()
 
 
 def show_menu(options: list[str]) -> int:
     table = Table(
-        title="主菜单",
-        show_header=True,
-        header_style="bold green",
+        show_header=False,
         box=HEAVY_HEAD,
+        border_style="bright_black",
+        title="[bold white]主菜单[/bold white]",
+        title_style="bold white",
+        min_width=54,
+        padding=(0, 1),
     )
-    table.add_column("序号", justify="right", style="bold cyan")
-    table.add_column("功能", min_width=32)
+    table.add_column("序号", justify="right", style="bold cyan", width=4)
+    table.add_column("功能", min_width=44)
     for index, option in enumerate(options, start=1):
-        table.add_row(str(index), option)
+        if index == len(options):
+            table.add_row(str(index), Text(option, style="dim"))
+        else:
+            table.add_row(str(index), option)
     console.print(Align.center(table))
-    return IntPrompt.ask("请选择功能", choices=[str(i) for i in range(1, len(options) + 1)])
+    return IntPrompt.ask(
+        "\n  [bold cyan]请选择功能[/bold cyan]",
+        choices=[str(i) for i in range(1, len(options) + 1)],
+    )
 
 
 def prompt_choice(title: str, options: list[str], prompt: str = "请选择") -> int:
     table = Table(
-        title=title,
-        show_header=True,
-        header_style="bold cyan",
+        show_header=False,
         box=ROUNDED,
+        border_style="bright_black",
+        title=f"[bold white]{title}[/bold white]",
+        title_style="bold white",
+        min_width=54,
+        padding=(0, 1),
     )
-    table.add_column("序号", justify="right", style="bold cyan")
-    table.add_column("选项", min_width=32)
+    table.add_column("序号", justify="right", style="bold cyan", width=4)
+    table.add_column("选项", min_width=44)
     for index, option in enumerate(options, start=1):
         table.add_row(str(index), option)
     console.print(Align.center(table))
-    return IntPrompt.ask(prompt, choices=[str(i) for i in range(1, len(options) + 1)])
+    return IntPrompt.ask(
+        f"\n  [bold cyan]{prompt}[/bold cyan]",
+        choices=[str(i) for i in range(1, len(options) + 1)],
+    )
 
 
 def prompt_multiline_input(messages: list[str]) -> str:
     instruction = Text()
     for index, message in enumerate(messages, start=1):
-        instruction.append(f"{index}. {message}\n", style="cyan")
-    instruction.append("输入完成后请直接输入单独一行 END（不区分大小写）", style="bold yellow")
+        instruction.append(f"  {index}. ", style="bold cyan")
+        instruction.append(f"{message}\n", style="white")
+    instruction.append("\n  输入完成后请直接输入单独一行 END（不区分大小写）", style="bold yellow")
     console.print(
         Align.center(
             Panel(
                 instruction,
-                title="手动选择学习课程",
+                title="[bold white]手动选择学习课程[/bold white]",
                 border_style="cyan",
                 box=ROUNDED,
                 width=76,
+                padding=(1, 2),
             )
         )
     )
     lines: list[str] = []
     while True:
-        line = Prompt.ask("")
+        line = Prompt.ask("  ")
         if line.strip().upper() == "END":
             break
         lines.append(line)
@@ -142,20 +193,26 @@ def prompt_multiline_input(messages: list[str]) -> str:
 
 
 def pause(message: str = "按回车返回主菜单") -> None:
-    Prompt.ask(message, default="")
+    console.print()
+    console.print(Rule(style="bright_black"))
+    Prompt.ask(f"  [dim]{message}[/dim]", default="")
+    console.print()
 
 
 def show_summary(title: str, rows: list[tuple[str, str]]) -> None:
     table = Table(
-        title=title,
-        show_header=True,
-        header_style="bold blue",
+        show_header=False,
         box=SIMPLE_HEAVY,
+        border_style="bright_black",
+        title=f"[bold white]{title}[/bold white]",
+        title_style="bold white",
+        min_width=54,
+        padding=(0, 1),
     )
-    table.add_column("项目")
-    table.add_column("结果", overflow="fold", min_width=36)
+    table.add_column("项目", style="dim white", min_width=16, justify="right")
+    table.add_column("结果", overflow="fold", min_width=34)
     for left, right in rows:
-        table.add_row(left, right)
+        table.add_row(left, Text(right, style="bold white"))
     console.print(Align.center(table))
 
 
@@ -171,21 +228,21 @@ async def wait_with_progress(
         return
     step = max(1, int(step))
     with Progress(
-        SpinnerColumn(),
+        SpinnerColumn(spinner_name="dots"),
         TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("{task.completed}/{task.total} 秒"),
+        BarColumn(bar_width=28),
+        TextColumn("[cyan]{task.completed}[/cyan][dim]/{task.total}s[/dim]"),
+        TextColumn("[dim]([/dim][bold]{task.percentage:>3.0f}%[/bold][dim])[/dim]"),
         TimeRemainingColumn(),
         console=console,
-        auto_refresh=False,
+        auto_refresh=True,
+        refresh_per_second=10,
         transient=True,
     ) as progress:
         task = progress.add_task(description, total=duration)
-        progress.refresh()
         completed = 0
         while completed < duration:
             advance = min(step, duration - completed)
             await asyncio.sleep(advance)
             completed += advance
             progress.update(task, advance=advance)
-            progress.refresh()
