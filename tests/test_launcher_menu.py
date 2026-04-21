@@ -9,9 +9,9 @@ class LauncherMenuTests(unittest.TestCase):
             MENU_OPTIONS,
             [
                 "推荐挂课流程（挂课+考试（如有）） / 继续上次进度",
+                "仅挂课",
                 "更新登录凭证 / 切换账号",
                 "手动选择学习课程",
-                "仅挂课",
                 "AI 自动考试",
                 "人工考试",
                 "查看当前状态与输出文件",

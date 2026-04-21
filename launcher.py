@@ -2,9 +2,9 @@ from __future__ import annotations
 
 MENU_OPTIONS = [
     "推荐挂课流程（挂课+考试（如有）） / 继续上次进度",
+    "仅挂课",
     "更新登录凭证 / 切换账号",
     "手动选择学习课程",
-    "仅挂课",
     "AI 自动考试",
     "人工考试",
     "查看当前状态与输出文件",
@@ -50,11 +50,11 @@ def main() -> int:
             if choice == 1:
                 handle_recommended_flow(ui)
             elif choice == 2:
-                handle_refresh_credential(state, ui)
-            elif choice == 3:
-                handle_manual_selection(MANUAL_SELECTION_PROMPTS, ui)
-            elif choice == 4:
                 handle_afk(ui)
+            elif choice == 3:
+                handle_refresh_credential(state, ui)
+            elif choice == 4:
+                handle_manual_selection(MANUAL_SELECTION_PROMPTS, ui)
             elif choice == 5:
                 handle_ai_exam(ui)
             elif choice == 6:

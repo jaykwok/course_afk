@@ -180,14 +180,18 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> bool:
             pending_start_index = len(normalized_urls)
     except BaseException as exc:
         if _is_user_abort_exception(exc):
-            save_pending_urls = getattr(exc, "save_pending_urls", True)
+            if isinstance(exc, KeyboardInterrupt):
+                save_pending_urls = False
+                message = "已收到 Ctrl+C，程序退出"
+            else:
+                save_pending_urls = getattr(exc, "save_pending_urls", True)
+                message = str(exc) or (
+                    "已保存当前和剩余学习链接，程序退出"
+                    if save_pending_urls
+                    else "已关闭浏览器窗口，程序退出"
+                )
             if save_pending_urls:
                 _append_unique_lines(RETRY_URLS_FILE, normalized_urls[pending_start_index:])
-            message = str(exc) or (
-                "已保存当前和剩余学习链接，程序退出"
-                if save_pending_urls
-                else "已关闭浏览器窗口，程序退出"
-            )
             logging.debug(f"用户主动终止挂课流程: {message}")
             raise UserAbortRequested(
                 message,
