@@ -8,7 +8,12 @@ from pathlib import Path
 from typing import Callable
 
 from core.abort import UserAbortRequested
-from core.browser import create_browser_context
+from core.browser import (
+    create_browser_context,
+    ensure_controller_page,
+    is_browser_connected,
+    is_target_closed_exception,
+)
 from core.config import (
     AFK_SLOW_MO,
     CLEANUP_FILES,
@@ -53,41 +58,6 @@ def _is_user_abort_exception(exc: BaseException) -> bool:
     return isinstance(exc, (UserAbortRequested, KeyboardInterrupt, asyncio.CancelledError))
 
 
-def _is_target_closed_exception(exc: BaseException) -> bool:
-    message = str(exc).lower()
-    return exc.__class__.__name__ == "TargetClosedError" or any(
-        marker in message
-        for marker in (
-            "target page, context or browser has been closed",
-            "browser has been closed",
-        )
-    )
-
-
-def _get_context_browser(context):
-    browser = getattr(context, "browser", None)
-    if callable(browser):
-        try:
-            return browser()
-        except Exception:
-            return None
-    return browser
-
-
-def _is_browser_connected(context) -> bool:
-    browser = _get_context_browser(context)
-    if browser is None:
-        return False
-
-    is_connected = getattr(browser, "is_connected", None)
-    if callable(is_connected):
-        try:
-            return bool(is_connected())
-        except Exception:
-            return False
-    return False
-
-
 def prepare_afk_batch(
     *,
     retry_file: Path = RETRY_URLS_FILE,
@@ -110,18 +80,21 @@ def prepare_afk_batch(
 
 
 async def _process_url(context, url: str, handler) -> bool:
+    await ensure_controller_page(context)
     page = await context.new_page()
     try:
         await page.goto(url)
         await handler(page)
         return False
     except Exception as exc:
-        if _is_target_closed_exception(exc):
-            if _is_browser_connected(context):
-                logging.info(f"当前学习标签页已关闭，已记录稍后重试: {url}")
-                save_to_file(RETRY_URLS_FILE, url)
-                return True
-            raise UserAbortRequested() from None
+        if is_target_closed_exception(exc):
+            if is_browser_connected(context):
+                logging.info(f"当前课程标签页已关闭，跳过当前学习链接: {url}")
+                return False
+            raise UserAbortRequested(
+                "已关闭浏览器窗口，程序退出",
+                save_pending_urls=False,
+            ) from None
         logging.error(f"发生错误: {exc}")
         logging.error(traceback.format_exc())
         if str(exc) == "无权限查看该资源":
@@ -144,6 +117,7 @@ async def _recheck_url_type_links(context) -> None:
 
     del_file(URL_TYPE_FILE)
     for url in url_type_links:
+        await ensure_controller_page(context)
         page = await context.new_page()
         try:
             await page.goto(url)
@@ -206,10 +180,19 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> bool:
             pending_start_index = len(normalized_urls)
     except BaseException as exc:
         if _is_user_abort_exception(exc):
-            _append_unique_lines(RETRY_URLS_FILE, normalized_urls[pending_start_index:])
-            message = str(exc) or "已保存当前和剩余学习链接，程序退出"
+            save_pending_urls = getattr(exc, "save_pending_urls", True)
+            if save_pending_urls:
+                _append_unique_lines(RETRY_URLS_FILE, normalized_urls[pending_start_index:])
+            message = str(exc) or (
+                "已保存当前和剩余学习链接，程序退出"
+                if save_pending_urls
+                else "已关闭浏览器窗口，程序退出"
+            )
             logging.debug(f"用户主动终止挂课流程: {message}")
-            raise UserAbortRequested(message) from None
+            raise UserAbortRequested(
+                message,
+                save_pending_urls=save_pending_urls,
+            ) from None
         raise
 
     logging.info("本轮自动挂课完成")
