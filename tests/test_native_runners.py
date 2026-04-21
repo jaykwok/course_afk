@@ -67,7 +67,7 @@ class AfkBatchPreparationTests(unittest.TestCase):
 
 
 class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
-    async def test_run_afk_once_appends_current_and_remaining_urls_on_keyboard_interrupt(self):
+    async def test_run_afk_once_exits_without_saving_retry_urls_on_keyboard_interrupt(self):
         from core.abort import UserAbortRequested
         from core.afk_runner import AfkBatch, run_afk_once
 
@@ -110,16 +110,13 @@ class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
                     side_effect=[True, KeyboardInterrupt()],
                 ),
             ):
-                with self.assertRaises(UserAbortRequested):
+                with self.assertRaises(UserAbortRequested) as ctx:
                     await run_afk_once()
 
+            self.assertEqual(str(ctx.exception), "已收到 Ctrl+C，程序退出")
             self.assertEqual(
                 retry_file.read_text(encoding="utf-8").splitlines(),
-                [
-                    "https://kc.zhixueyun.com/#/study/course/detail/a",
-                    "https://kc.zhixueyun.com/#/study/course/detail/b",
-                    "https://kc.zhixueyun.com/#/study/course/detail/c",
-                ],
+                ["https://kc.zhixueyun.com/#/study/course/detail/a"],
             )
 
     async def test_run_afk_once_skips_current_url_and_continues_when_only_course_tab_is_closed(self):
