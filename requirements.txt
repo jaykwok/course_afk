@@ -5,3 +5,4 @@ playwright
 beautifulsoup4
 python-dotenv
 openai
+rich

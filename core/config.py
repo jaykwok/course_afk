@@ -4,43 +4,194 @@
 修改参数时只需编辑本文件，无需改动业务代码。
 """
 
+import ctypes
 import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 # 加载 .env 文件（API密钥等敏感信息仍由 .env 管理）
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
 
 # ============================================================
 # 日志配置
 # ============================================================
-LOG_FILE = "log.txt"
+LOG_FILE = PROJECT_ROOT / "log.txt"
 LOG_LEVEL = logging.DEBUG
+CONSOLE_LOG_LEVEL = logging.INFO
 LOG_FORMAT = (
     "%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d (%(funcName)s) %(message)s"
 )
+CONSOLE_LOG_FORMAT = "%(message)s"
+_LOGGING_CONFIGURED = False
+_NOISY_LOGGER_NAMES = (
+    "asyncio",
+    "openai",
+    "httpx",
+    "httpcore",
+    "playwright",
+    "urllib3",
+    "websockets",
+)
 
 
-def setup_logging():
-    """统一日志配置，所有脚本共用，追加模式保留历史日志"""
-    logging.basicConfig(
-        level=LOG_LEVEL,
-        format=LOG_FORMAT,
-        handlers=[
-            logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8"),
-            logging.StreamHandler(),
-        ],
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_text(name: str, default: str | None = None) -> str | None:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    stripped = value.strip()
+    return stripped or default
+
+
+def _default_browser_channel(browser_type: str) -> str | None:
+    if browser_type == "chromium" and sys.platform.startswith("win"):
+        return "msedge"
+    return None
+
+
+def _build_file_handler():
+    handler = logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
+    handler.setLevel(LOG_LEVEL)
+    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    return handler
+
+
+def _get_console_log_level() -> int:
+    return logging.DEBUG if _env_flag("DEBUG_MODE") else CONSOLE_LOG_LEVEL
+
+
+def _is_utf8_console_encoding(encoding: str | None) -> bool:
+    if not encoding:
+        return False
+    normalized = encoding.strip().lower().replace("_", "-")
+    return normalized in {"utf-8", "utf8", "cp65001"}
+
+
+def _prepare_console_streams() -> None:
+    _disable_windows_console_input_modes()
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                try:
+                    reconfigure(errors="replace")
+                except Exception:
+                    pass
+
+
+def _can_use_rich_console() -> bool:
+    return _is_utf8_console_encoding(getattr(sys.stdout, "encoding", None)) and (
+        _is_utf8_console_encoding(getattr(sys.stderr, "encoding", None))
     )
+
+
+def _disable_windows_console_input_modes() -> None:
+    if not sys.platform.startswith("win"):
+        return
+
+    try:
+        kernel32 = ctypes.windll.kernel32
+        stdin_handle = kernel32.GetStdHandle(-10)
+        if stdin_handle in (0, -1):
+            return
+
+        mode = ctypes.c_uint()
+        if not kernel32.GetConsoleMode(stdin_handle, ctypes.byref(mode)):
+            return
+
+        extended_flags = 0x0080
+        quick_edit_mode = 0x0040
+        insert_mode = 0x0020
+        updated_mode = (mode.value | extended_flags) & ~(quick_edit_mode | insert_mode)
+        if updated_mode != mode.value:
+            kernel32.SetConsoleMode(stdin_handle, updated_mode)
+    except Exception:
+        pass
+
+
+def _build_console_handler():
+    _prepare_console_streams()
+
+    handler = None
+    if _can_use_rich_console():
+        try:
+            from rich.logging import RichHandler
+
+            handler = RichHandler(
+                rich_tracebacks=True,
+                show_path=False,
+                show_time=False,
+                show_level=False,
+                markup=True,
+            )
+        except Exception:
+            handler = None
+
+    if handler is None:
+        handler = logging.StreamHandler()
+    handler.setLevel(_get_console_log_level())
+    handler.setFormatter(logging.Formatter(CONSOLE_LOG_FORMAT))
+    return handler
+
+
+def _silence_noisy_loggers():
+    for logger_name in _NOISY_LOGGER_NAMES:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+
+def _should_show_startup_banner(show_startup_banner: bool | None) -> bool:
+    if show_startup_banner is not None:
+        return show_startup_banner
+    return not _env_flag("SUPPRESS_STARTUP_BANNER")
+
+
+def _log_startup_banner(root_logger):
     script_name = sys.argv[0] if sys.argv[0] else "unknown"
     separator = (
         f"\n{'='*60}\n"
         f"[启动] {script_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         f"{'='*60}"
     )
-    logging.info(separator)
+    root_logger.info(separator)
+
+
+def setup_logging(show_startup_banner: bool | None = None):
+    """统一日志配置，所有脚本共用，追加模式保留历史日志"""
+    global _LOGGING_CONFIGURED
+
+    if _LOGGING_CONFIGURED:
+        return logging.getLogger()
+
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+        try:
+            handler.close()
+        except Exception:
+            pass
+
+    root_logger.setLevel(LOG_LEVEL)
+    root_logger.addHandler(_build_file_handler())
+    root_logger.addHandler(_build_console_handler())
+    _silence_noisy_loggers()
+    _LOGGING_CONFIGURED = True
+
+    if _should_show_startup_banner(show_startup_banner):
+        _log_startup_banner(root_logger)
+    return root_logger
 
 
 # ============================================================
@@ -49,15 +200,22 @@ def setup_logging():
 DASHSCOPE_BASE_URL = os.getenv("DASHSCOPE_BASE_URL")
 DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME")
+AI_ENABLE_WEB_SEARCH = _env_flag("AI_ENABLE_WEB_SEARCH", False)
+AI_RESPONSE_TOOLS = [{"type": "web_search"}] if AI_ENABLE_WEB_SEARCH else None
 
 # AI 考试参数
 AI_TEMPERATURE = 0
-AI_SYSTEM_PROMPT = "你是一个专业的考试助手, 请根据题目选择最合适的答案。"
+AI_SYSTEM_PROMPT = (
+    "你是一个专业的考试助手, 请根据题目选择最合适的答案。"
+    "如果关键信息不足且已提供联网搜索工具, 可以先搜索再作答。"
+    "最终只输出答案内容, 不要解释。"
+)
 
 # ============================================================
 # 浏览器配置
 # ============================================================
-BROWSER_CHANNEL = "msedge"
+BROWSER_TYPE = (_env_text("BROWSER_TYPE", "chromium") or "chromium").lower()
+BROWSER_CHANNEL = _env_text("BROWSER_CHANNEL", _default_browser_channel(BROWSER_TYPE))
 BROWSER_ARGS = ["--mute-audio", "--start-maximized"]
 
 # ============================================================
@@ -74,22 +232,22 @@ ZHIXUEYUN_EXAM_PREFIX = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/"
 # ============================================================
 # 文件路径
 # ============================================================
-COOKIES_FILE = "cookies.json"
-LEARNING_URLS_FILE = "./学习链接.txt"
-RETRY_URLS_FILE = "./剩余未看课程链接.txt"
-EXAM_URLS_FILE = "./学习课程考试链接.txt"
-MANUAL_EXAM_FILE = "./人工考试链接.txt"
-NO_PERMISSION_FILE = "无权限资源链接.txt"
-NON_COMPLIANT_FILE = "不合规链接.txt"
-URL_TYPE_FILE = "URL类型链接.txt"
-H5_TYPE_FILE = "h5课程类型链接.txt"
-SURVEY_TYPE_FILE = "调研类型链接.txt"
-SUBJECT_EXAM_FILE = "学习主题考试链接.txt"
-UNKNOWN_TYPE_FILE = "未知类型链接.txt"
-OTHER_TYPE_FILE = "非课程及考试类学习类型链接.txt"
-CLICK_URLS_FILE = "学习链接_点击按钮.txt"
+COOKIES_FILE = PROJECT_ROOT / "cookies.json"
+CREDENTIAL_META_FILE = PROJECT_ROOT / "credential_meta.json"
+LEARNING_URLS_FILE = PROJECT_ROOT / "学习链接.txt"
+RETRY_URLS_FILE = PROJECT_ROOT / "剩余未看课程链接.txt"
+EXAM_URLS_FILE = PROJECT_ROOT / "学习课程考试链接.txt"
+MANUAL_EXAM_FILE = PROJECT_ROOT / "人工考试链接.txt"
+NO_PERMISSION_FILE = PROJECT_ROOT / "无权限资源链接.txt"
+NON_COMPLIANT_FILE = PROJECT_ROOT / "不合规链接.txt"
+URL_TYPE_FILE = PROJECT_ROOT / "URL类型链接.txt"
+H5_TYPE_FILE = PROJECT_ROOT / "h5课程类型链接.txt"
+SURVEY_TYPE_FILE = PROJECT_ROOT / "调研类型链接.txt"
+SUBJECT_EXAM_FILE = PROJECT_ROOT / "学习主题考试链接.txt"
+UNKNOWN_TYPE_FILE = PROJECT_ROOT / "未知类型链接.txt"
+OTHER_TYPE_FILE = PROJECT_ROOT / "非课程及考试类学习类型链接.txt"
 
-# 每次全新运行 3afk.py 时需要清理的中间文件
+# 每次全新开始挂课时需要清理的中间文件
 CLEANUP_FILES = [
     SUBJECT_EXAM_FILE,
     SURVEY_TYPE_FILE,
@@ -102,9 +260,15 @@ CLEANUP_FILES = [
 # ============================================================
 # 超时 / 等待时间（秒）
 # ============================================================
-# 视频课程进度同步额外等待时间
+# 视频课程服务端记录学习点的周期，也是播放结束后的额外等待上限
 VIDEO_SYNC_EXTRA_WAIT = 5 * 60  # 5分钟
-VIDEO_SYNC_CHECK_INTERVAL = 10  # 每10秒检查一次
+
+# 视频学习 UI 与同步轮询的自适应间隔策略
+VIDEO_PROGRESS_SHORT_THRESHOLD = 5 * 60  # 5分钟及以下
+VIDEO_PROGRESS_MEDIUM_THRESHOLD = 30 * 60  # 30分钟及以下
+VIDEO_PROGRESS_SHORT_INTERVAL = 1  # 秒
+VIDEO_PROGRESS_MEDIUM_INTERVAL = 5  # 秒
+VIDEO_PROGRESS_LONG_INTERVAL = 10  # 秒
 
 # 文档课程初始等待时间
 DOCUMENT_INITIAL_WAIT = 5  # 秒
@@ -117,14 +281,14 @@ URL_TYPE_WAIT = 10  # 秒
 # timer 默认间隔
 TIMER_DEFAULT_INTERVAL = 30  # 秒
 
-# 3afk.py 的 slow_mo 参数
+# 挂课流程的 slow_mo 参数
 AFK_SLOW_MO = 3000  # 毫秒
 
 # ============================================================
 # 考试配置
 # ============================================================
 # 课程内考试: 剩余次数 <= 此值时转为人工考试
-COURSE_EXAM_ATTEMPT_THRESHOLD = 3
+COURSE_EXAM_ATTEMPT_THRESHOLD = 1
 # 试卷链接考试: 剩余次数 <= 此值时转为人工考试
 PAPER_EXAM_ATTEMPT_THRESHOLD = 1
 
@@ -133,3 +297,6 @@ PAPER_EXAM_ATTEMPT_THRESHOLD = 1
 # ============================================================
 # 自动登录天数选项的 data-time 值 ("3" 对应30天)
 AUTO_LOGIN_DATA_TIME = "3"
+
+# 登录凭证逻辑有效期（天）
+CREDENTIAL_VALID_DAYS = 28

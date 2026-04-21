@@ -1,88 +1,116 @@
-# 自用自动化挂课
+# 中国电信挂课统一入口
 
-基于 Playwright 浏览器自动化 + 阿里云百炼 AI 大模型的在线学习平台自动挂课工具。
+基于 Playwright + 阿里云百炼 AI 的在线学习自动化工具。
+
+当前项目已经整理为统一入口版本，不再依赖旧的编号脚本；推荐直接使用 `run.bat` 或 `python launcher.py`。
 
 ## 环境准备
 
-### 依赖安装
-
 ```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-playwright install chromium
 ```
 
-### 配置 .env 文件
+默认配置会在 Windows 上直接调用系统自带的 Edge（`BROWSER_TYPE=chromium`，`BROWSER_CHANNEL=msedge`），因此通常不需要再执行 `playwright install chromium`。
 
-在项目根目录创建 `.env` 文件，配置以下内容：
+如果你改成其他浏览器，再按下面补安装：
+
+- `BROWSER_TYPE=chromium` 且 `BROWSER_CHANNEL=chrome`：使用本机 Chrome，一般也不需要额外安装 Playwright Chromium
+- `BROWSER_TYPE=chromium` 且不设置 `BROWSER_CHANNEL`：使用 Playwright 自带 Chromium，需要执行 `playwright install chromium`
+- `BROWSER_TYPE=webkit`：使用 Playwright WebKit（Safari 同内核，不是系统 Safari），需要执行 `playwright install webkit`
+- `BROWSER_TYPE=firefox`：需要执行 `playwright install firefox`
+
+建议先复制 `.env.example` 为 `.env`，然后填写你自己的真实参数。当前只需要保留 AI 相关配置：
 
 ```env
-# OpenAI兼容模式的API地址
 DASHSCOPE_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
-# 阿里云百炼 API Key
 DASHSCOPE_API_KEY=你的API Key
-# 模型名称
 MODEL_NAME=qwen3.6-plus
-
-# 2get_urls.py 主题学习页面链接
-TOPIC_URL="主题学习页面的完整URL"
-# 点击按钮获取链接.py 起始页面链接
-START_URL="点击获取链接的起始页面URL"
 ```
 
-> 链接变动时只需修改 `.env` 文件，无需改动代码，`.env` 已被 `.gitignore` 忽略。
+AI 自动考试当前通过百炼 OpenAI 兼容 `Responses API` 发起请求。默认不启用联网搜索；如果希望模型在拿不准时自行补检索，可以在 `.env` 中额外加入：
 
-## 运行步骤
-
-### 1. 获取 Cookie
-
-```bash
-python 1get_cookie.py
+```env
+AI_ENABLE_WEB_SEARCH=1
 ```
 
-启动浏览器后扫码登录，登录成功后自动保存 Cookie 到 `cookies.json`。
+可选浏览器配置：
 
-### 2. 获取学习链接（二选一）
+```env
+# Windows 默认就是这组配置，可不写
+BROWSER_TYPE=chromium
+BROWSER_CHANNEL=msedge
 
-**方式一：自动解析主题页面**
+# 如果以后改用 Chrome
+# BROWSER_TYPE=chromium
+# BROWSER_CHANNEL=chrome
 
-```bash
-python 2get_urls.py
+# 如果以后改用 WebKit（Safari 同内核）
+# BROWSER_TYPE=webkit
+# BROWSER_CHANNEL=
 ```
 
-从 `.env` 中配置的 `TOPIC_URL` 页面解析所有课程链接，保存到以页面标题命名的文本文件中。
+学习专区链接、入口链接不再写在 `.env` 中；需要时直接在统一入口的“手动选择学习课程”里粘贴即可。
 
-**方式二：手动点击获取**
+可选环境变量：
 
-```bash
-python 点击按钮获取链接.py
-```
+- `DEBUG_MODE=1`：把控制台日志提升到 `DEBUG`，便于排查问题
+- `SUPPRESS_STARTUP_BANNER=1`：只隐藏启动横幅，不影响其他日志输出
+- `AI_ENABLE_WEB_SEARCH=1`：为 AI 考试开启联网搜索工具；默认关闭
 
-从 `.env` 中配置的 `START_URL` 页面启动，手动点击课程按钮，自动捕获弹出页面的链接并保存到 `学习链接_点击按钮.txt`。
+## 启动方式
 
-### 3. 自动挂课
+- 双击 `run.bat`（要求当前目录存在 `.venv\Scripts\python.exe`）
+- 或在已激活虚拟环境后执行 `python launcher.py`
 
-将需要学习的链接粘贴到 `学习链接.txt` 文件中，然后运行：
+## 统一入口能力
 
-```bash
-python 3afk.py
-```
+- 统一的主菜单、状态面板、结果汇总和等待进度展示
+- 自动检查登录凭证是否存在，以及是否超过 28 天
+- 展示当前登录账号
+- 手动选择学习课程并自动记录真实学习链接
+- 自动挂课
+- AI 自动考试
+- 人工考试兜底
 
-自动处理视频（等待播放完毕）、文档（等待进度同步）等课程类型，考试链接保存到 `学习课程考试链接.txt`。
+## 推荐流程
 
-### 4. AI 自动考试
+1. 登录凭证不存在或超过 28 天时，统一入口会直接提示重新登录。
+2. `学习链接.txt` 为空时，先选择“手动选择学习课程”。
+3. 有学习链接后即可开始挂课。
+4. 挂课结束后，如果没有考试链接，本次流程直接结束。
+5. 如果生成了考试链接，继续进入 AI 自动考试。
 
-```bash
-python 4ai_examination.py
-```
+## 手动选择学习课程
 
-读取 `学习课程考试链接.txt`，通过 AI 大模型自动答题。考试未通过或遇到无法处理的题型时，链接写入 `人工考试链接.txt`。
+如果你没有现成的学习链接，可以在菜单里选择“手动选择学习课程”。
 
-> 限定考试剩余次数 <=3 次的自动转入人工考试，避免次数超限。
+你可以直接粘贴两类链接：
 
-### 5. 人工考试
+1. 入口链接
+2. 学习专区链接
 
-```bash
-python 5examination.py
-```
+如果检测到学习专区链接，程序会先询问你：
 
-逐个打开 `人工考试链接.txt` 中的链接，等待手动完成考试。
+1. 全部学习：自动解析专区里的课程/主题链接并写入 `学习链接.txt`
+2. 手动选择学习模块：照常打开页面，由你自己点击课程
+
+对于需要手动处理的页面，你只需要：
+
+1. 进入对应课程页面
+2. 如有需要先报名
+3. 点击“开始学习”
+
+点击后新打开的真实学习链接会自动记录到 `学习链接.txt`。
+
+输入支持多行混合文本，程序会自动提取其中的 URL 并去重。结束输入时，输入单独一行 `END` 即可，大小写都可以。
+
+## 主要输出文件
+
+- `cookies.json`：浏览器登录凭证
+- `credential_meta.json`：登录凭证时间和账号信息
+- `学习链接.txt`：待挂课的学习链接
+- `学习课程考试链接.txt`：挂课后识别出的考试链接
+- `人工考试链接.txt`：需要手动处理的考试链接
+- `log.txt`：完整运行日志

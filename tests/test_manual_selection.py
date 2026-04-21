@@ -1,0 +1,232 @@
+import asyncio
+import json
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import mock
+
+from core import workflows
+from core.workflows import parse_manual_selection_input
+
+
+class FakeManualSelectionPage:
+    def __init__(self, url: str = "about:blank", opener_page=None):
+        self.url = url
+        self._opener_page = opener_page
+        self.closed = False
+
+    async def opener(self):
+        return self._opener_page
+
+    async def wait_for_timeout(self, _milliseconds):
+        await asyncio.sleep(0)
+
+    async def goto(self, url, wait_until="load"):
+        self.url = url
+        for _ in range(3):
+            await asyncio.sleep(0)
+            if self.closed:
+                raise RuntimeError("Target page, context or browser has been closed")
+
+    async def wait_for_url(self, _pattern, timeout=0):
+        for _ in range(3):
+            await asyncio.sleep(0)
+            if self.closed:
+                raise RuntimeError("Target page, context or browser has been closed")
+
+    async def wait_for_event(self, _event, timeout=0):
+        self.closed = True
+
+    async def close(self):
+        self.closed = True
+
+
+class FakeManualSelectionContext:
+    def __init__(self):
+        self.page_handler = None
+
+    async def add_cookies(self, _cookies):
+        return None
+
+    def on(self, event, handler):
+        if event == "page":
+            self.page_handler = handler
+
+    async def new_page(self):
+        page = FakeManualSelectionPage()
+        if self.page_handler:
+            self.page_handler(page)
+        return page
+
+    async def close(self):
+        return None
+
+
+class FakeManualSelectionBrowser:
+    def __init__(self, context):
+        self.context = context
+
+    async def new_context(self, no_viewport=True):
+        return self.context
+
+    async def close(self):
+        return None
+
+
+class FakeManualSelectionChromium:
+    def __init__(self, context):
+        self.context = context
+
+    async def launch(self, **_kwargs):
+        return FakeManualSelectionBrowser(self.context)
+
+
+class FakeAsyncPlaywrightManager:
+    def __init__(self, context):
+        self.context = context
+
+    async def __aenter__(self):
+        return type(
+            "FakePlaywright",
+            (),
+            {"chromium": FakeManualSelectionChromium(self.context)},
+        )()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+class ManualSelectionTests(unittest.TestCase):
+    def test_parse_manual_selection_input_returns_empty_for_blank_text(self):
+        self.assertEqual(parse_manual_selection_input(" \n\t "), [])
+
+    def test_parse_manual_selection_input_extracts_multiple_urls(self):
+        text = (
+            "请处理这些入口 https://a.example.com/1, https://b.example.com/2"
+            "\n以及 https://a.example.com/1"
+        )
+        self.assertEqual(
+            parse_manual_selection_input(text),
+            ["https://a.example.com/1", "https://b.example.com/2"],
+        )
+
+
+class ManualSelectionWorkflowTests(unittest.IsolatedAsyncioTestCase):
+    async def test_collect_learning_links_from_entry_urls_keeps_context_created_pages_open(self):
+        with TemporaryDirectory() as tmp:
+            temp_root = Path(tmp)
+            cookies_file = temp_root / "cookies.json"
+            learning_file = temp_root / "学习链接.txt"
+            cookies_file.write_text(json.dumps([]), encoding="utf-8")
+            learning_file.write_text("", encoding="utf-8")
+
+            fake_context = FakeManualSelectionContext()
+            with mock.patch.object(workflows, "COOKIES_FILE", cookies_file):
+                with mock.patch.object(workflows, "LEARNING_URLS_FILE", learning_file):
+                    with mock.patch.object(
+                        workflows,
+                        "async_playwright",
+                        return_value=FakeAsyncPlaywrightManager(fake_context),
+                    ):
+                        result = await workflows.collect_learning_links_from_entry_urls(
+                            ["https://example.com/entry"]
+                        )
+
+        self.assertEqual(result, (0, 0))
+
+    async def test_track_background_task_consumes_task_exceptions(self):
+        pending_tasks = set()
+
+        async def fail():
+            raise RuntimeError("boom")
+
+        task = asyncio.create_task(fail())
+        workflows._track_background_task(task, pending_tasks)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+        self.assertEqual(pending_tasks, set())
+        self.assertTrue(task.done())
+        self.assertIsInstance(task.exception(), RuntimeError)
+
+    async def test_run_manual_course_selection_auto_parses_learning_zone_urls(self):
+        with TemporaryDirectory() as tmp:
+            temp_root = Path(tmp)
+            learning_file = temp_root / "学习链接.txt"
+            learning_file.write_text("", encoding="utf-8")
+
+            with mock.patch.object(workflows, "LEARNING_URLS_FILE", learning_file):
+                with mock.patch.object(
+                    workflows,
+                    "collect_learning_links_from_learning_zone_urls",
+                    new=mock.AsyncMock(return_value=2),
+                ) as parse_zone:
+                    with mock.patch.object(
+                        workflows,
+                        "collect_learning_links_from_entry_urls",
+                        new=mock.AsyncMock(return_value=(1, 1)),
+                    ) as collect_entry:
+                        result = await workflows.run_manual_course_selection(
+                            "\n".join(
+                                [
+                                    "https://kc.zhixueyun.com/#/study/course/detail/12345678-1234-1234-1234-123456789abc",
+                                    "https://kc.zhixueyun.com/#/topic/专区001",
+                                    "https://example.com/entry",
+                                ]
+                            ),
+                            learning_zone_mode="auto",
+                        )
+
+        parse_zone.assert_awaited_once_with(
+            ["https://kc.zhixueyun.com/#/topic/专区001"],
+            status_callback=None,
+        )
+        collect_entry.assert_awaited_once_with(
+            ["https://example.com/entry"],
+            status_callback=None,
+        )
+        self.assertEqual(result["direct_learning_count"], 1)
+        self.assertEqual(result["learning_zone_parsed_count"], 2)
+        self.assertEqual(result["entry_url_count"], 1)
+
+    async def test_run_manual_course_selection_manual_mode_opens_learning_zone_urls_manually(self):
+        with TemporaryDirectory() as tmp:
+            temp_root = Path(tmp)
+            learning_file = temp_root / "学习链接.txt"
+            learning_file.write_text("", encoding="utf-8")
+
+            with mock.patch.object(workflows, "LEARNING_URLS_FILE", learning_file):
+                with mock.patch.object(
+                    workflows,
+                    "collect_learning_links_from_learning_zone_urls",
+                    new=mock.AsyncMock(return_value=0),
+                ) as parse_zone:
+                    with mock.patch.object(
+                        workflows,
+                        "collect_learning_links_from_entry_urls",
+                        new=mock.AsyncMock(return_value=(2, 2)),
+                    ) as collect_entry:
+                        result = await workflows.run_manual_course_selection(
+                            "\n".join(
+                                [
+                                    "https://kc.zhixueyun.com/#/topic/专区001",
+                                    "https://example.com/entry",
+                                ]
+                            ),
+                            learning_zone_mode="manual",
+                        )
+
+        parse_zone.assert_not_awaited()
+        collect_entry.assert_awaited_once_with(
+            [
+                "https://kc.zhixueyun.com/#/topic/专区001",
+                "https://example.com/entry",
+            ],
+            status_callback=None,
+        )
+        self.assertEqual(result["learning_zone_parsed_count"], 0)
+        self.assertEqual(result["entry_url_count"], 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
