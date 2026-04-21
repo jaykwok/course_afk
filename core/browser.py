@@ -7,10 +7,70 @@ from playwright.async_api import async_playwright
 from core.config import (
     BROWSER_ARGS,
     BROWSER_CHANNEL,
+    BROWSER_TYPE,
     COOKIES_FILE,
     ZHIXUEYUN_HOME,
     ZHIXUEYUN_HOME_PATTERN,
 )
+
+
+def _get_browser_launcher(playwright):
+    try:
+        return getattr(playwright, BROWSER_TYPE)
+    except AttributeError as exc:
+        raise ValueError(f"不支持的浏览器类型: {BROWSER_TYPE}") from exc
+
+
+def build_browser_launch_options(
+    *,
+    headless: bool,
+    slow_mo=None,
+    extra_args: list[str] | None = None,
+):
+    options = {"headless": headless}
+
+    if BROWSER_TYPE == "chromium":
+        args = list(BROWSER_ARGS)
+        if extra_args:
+            for arg in extra_args:
+                if arg not in args:
+                    args.append(arg)
+        if args:
+            options["args"] = args
+        if BROWSER_CHANNEL:
+            options["channel"] = BROWSER_CHANNEL
+
+    if slow_mo is not None:
+        options["slow_mo"] = slow_mo
+    return options
+
+
+def build_browser_context_options(*, headless: bool) -> dict[str, object]:
+    if headless:
+        return {}
+    return {"no_viewport": True}
+
+
+async def launch_async_browser(playwright, *, headless: bool, slow_mo=None, extra_args=None):
+    browser_launcher = _get_browser_launcher(playwright)
+    return await browser_launcher.launch(
+        **build_browser_launch_options(
+            headless=headless,
+            slow_mo=slow_mo,
+            extra_args=extra_args,
+        )
+    )
+
+
+def launch_sync_browser(playwright, *, headless: bool, slow_mo=None, extra_args=None):
+    browser_launcher = _get_browser_launcher(playwright)
+    return browser_launcher.launch(
+        **build_browser_launch_options(
+            headless=headless,
+            slow_mo=slow_mo,
+            extra_args=extra_args,
+        )
+    )
 
 
 @asynccontextmanager
@@ -23,13 +83,10 @@ async def create_browser_context(
         cookies = json.load(f)
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=headless,
-            args=BROWSER_ARGS,
-            channel=BROWSER_CHANNEL,
-            slow_mo=slow_mo,
+        browser = await launch_async_browser(p, headless=headless, slow_mo=slow_mo)
+        context = await browser.new_context(
+            **build_browser_context_options(headless=headless)
         )
-        context = await browser.new_context(no_viewport=True)
         await context.add_cookies(cookies)
 
         # 打开首页完成认证跳转

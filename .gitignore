@@ -1,10 +1,34 @@
-﻿__pycache__/
-.claude/
+# Python cache and local environments
+__pycache__/
+*.py[cod]
 .venv/
+
+# Editor and local tooling
 .vscode/
+.claude/
+
+# Local secrets and session state
 .env
 cookies.json
-CLAUDE.md
-*.txt
+credential_meta.json
+
+# Runtime logs and temporary probe files
+log.txt
+tmp_*
+*_probe.txt
+
+# Generated workflow output files
+剩余未看课程链接.txt
+学习课程考试链接.txt
+人工考试链接.txt
+无权限资源链接.txt
+不合规链接.txt
+URL类型链接.txt
+h5课程类型链接.txt
+调研类型链接.txt
+学习主题考试链接.txt
+未知类型链接.txt
+非课程及考试类学习类型链接.txt
+
+# Keep the user-maintained input file tracked
 !学习链接.txt
-!requirements.txt

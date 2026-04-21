@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+MENU_OPTIONS = [
+    "推荐流程 / 继续上次进度",
+    "更新登录凭证 / 切换账号",
+    "查看学习链接状态",
+    "手动选择学习课程",
+    "开始挂课",
+    "AI 自动考试",
+    "人工考试",
+    "查看当前状态与输出文件",
+    "退出",
+]
+
+MANUAL_SELECTION_PROMPTS = [
+    "请粘贴入口链接或学习专区链接。",
+    "如果包含学习专区链接，程序会先询问你是全部学习，还是手动选择学习模块。",
+    "程序会依次打开这些页面，请你手动选择并点击要学习的课程。",
+    "如页面提示需要报名，请先报名，再点击开始学习。",
+    "点击后打开的学习链接会自动记录到 学习链接.txt。",
+]
+
+
+def main() -> None:
+    from core.abort import UserAbortRequested
+    from core.config import setup_logging
+    from core.config import EXAM_URLS_FILE, LEARNING_URLS_FILE, MANUAL_EXAM_FILE
+    import core.ui as ui
+    from core.launcher_controller import (
+        handle_afk,
+        handle_ai_exam,
+        handle_manual_exam,
+        handle_manual_selection,
+        handle_recommended_flow,
+        handle_refresh_credential,
+        handle_show_learning_links,
+        handle_show_output_state,
+    )
+    from core.state import collect_project_state
+
+    setup_logging()
+
+    try:
+        while True:
+            state = collect_project_state()
+            ui.show_title("中国电信挂课统一入口", "登录、挂课、考试统一入口")
+            ui.render_dashboard(state)
+            choice = ui.show_menu(MENU_OPTIONS)
+
+            if choice == 1:
+                handle_recommended_flow(ui)
+            elif choice == 2:
+                handle_refresh_credential(state, ui)
+            elif choice == 3:
+                handle_show_learning_links(LEARNING_URLS_FILE, ui)
+            elif choice == 4:
+                handle_manual_selection(MANUAL_SELECTION_PROMPTS, ui)
+            elif choice == 5:
+                handle_afk(ui)
+            elif choice == 6:
+                handle_ai_exam(ui)
+            elif choice == 7:
+                handle_manual_exam(ui)
+            elif choice == 8:
+                handle_show_output_state(
+                    EXAM_URLS_FILE,
+                    LEARNING_URLS_FILE,
+                    MANUAL_EXAM_FILE,
+                    ui,
+                )
+            elif choice == 9:
+                ui.show_success("已退出统一入口")
+                return 0
+            else:
+                ui.show_error("无效选择，请重试")
+    except UserAbortRequested as exc:
+        ui.show_warning(str(exc))
+        return 0
+    except KeyboardInterrupt:
+        ui.show_warning("已收到 Ctrl+C，程序退出")
+        return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
