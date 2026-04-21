@@ -16,11 +16,21 @@ def choose_learning_zone_mode(learning_zone_urls, prompt_choice_func) -> str:
     return "auto" if choice == 1 else "manual"
 
 
+_FLOW_RESULT_LABELS = {
+    "credential": "凭证不可用，请更新登录凭证",
+    "manual-selection": "未检测到学习链接，请手动选择课程",
+    "afk-only": "挂课完成，未检测到考试链接",
+    "manual-exam-pending": "AI 考试完成，仍有人工考试待处理",
+    "done": "全部流程完成",
+}
+
+
 def handle_recommended_flow(ui) -> None:
     from core.workflows import run_recommended_flow
 
     result = asyncio.run(run_recommended_flow(status_callback=ui.show_info))
-    ui.show_summary("推荐流程结果", [("流程状态", result)])
+    label = _FLOW_RESULT_LABELS.get(result, result)
+    ui.show_summary("推荐流程结果", [("流程状态", label)])
     ui.pause()
 
 

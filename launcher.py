@@ -21,7 +21,7 @@ MANUAL_SELECTION_PROMPTS = [
 ]
 
 
-def main() -> None:
+def main() -> int:
     from core.abort import UserAbortRequested
     from core.config import setup_logging
     from core.config import EXAM_URLS_FILE, LEARNING_URLS_FILE, MANUAL_EXAM_FILE

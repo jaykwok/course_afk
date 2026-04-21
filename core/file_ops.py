@@ -14,9 +14,9 @@ def del_file(filename):
 def save_to_file(filename, url):
     """将链接保存到指定文件"""
 
-    with open(filename, "a+", encoding="utf-8") as wp:
-        logging.info(f"写入{filename}完毕\n")
+    with open(filename, "a", encoding="utf-8") as wp:
         wp.write(f"{url}\n")
+    logging.info(f"写入 {filename} 完毕")
 
 
 _UUID = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
