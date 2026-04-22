@@ -4,6 +4,12 @@ from unittest.mock import patch
 
 
 class LauncherEntryTests(unittest.TestCase):
+    def test_launcher_module_does_not_expose_startup_trace_helpers(self):
+        import launcher
+
+        self.assertFalse(hasattr(launcher, "_append_startup_trace"))
+        self.assertFalse(hasattr(launcher, "_startup_trace_path"))
+
     def test_main_returns_zero_and_shows_warning_when_user_aborts_afk(self):
         import launcher
         from core.abort import UserAbortRequested

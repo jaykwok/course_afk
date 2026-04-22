@@ -8,7 +8,6 @@ import time
 from dataclasses import dataclass
 
 from core.config import (
-    TIMER_DEFAULT_INTERVAL,
     VIDEO_PROGRESS_LONG_INTERVAL,
     VIDEO_PROGRESS_MEDIUM_INTERVAL,
     VIDEO_PROGRESS_MEDIUM_THRESHOLD,
@@ -23,9 +22,9 @@ from core.config import (
 @dataclass(frozen=True)
 class VideoTimingPlan:
     learning_wait_time: int
-    learning_update_interval: int
+    learning_fallback_interval: int
     sync_wait_time: int
-    sync_update_interval: int
+    sync_poll_interval: int
     total_time: int
 
 
@@ -96,8 +95,8 @@ def calculate_video_sync_wait_time(remaining_time: int, total_time: int) -> int:
     return max(0, theoretical_learning_time - remaining_time)
 
 
-def get_video_update_interval(duration: int) -> int:
-    """根据视频时长选择更适合 rich UI 与同步轮询的刷新间隔。"""
+def get_video_status_interval(duration: int) -> int:
+    """根据视频时长选择同步轮询与 fallback 日志的间隔。"""
     duration = max(1, math.ceil(duration))
 
     if duration <= VIDEO_PROGRESS_SHORT_THRESHOLD:
@@ -113,35 +112,33 @@ def build_video_timing_plan(text: str) -> VideoTimingPlan:
     sync_wait_time = calculate_video_sync_wait_time(learning_wait_time, total_time)
     return VideoTimingPlan(
         learning_wait_time=learning_wait_time,
-        learning_update_interval=get_video_update_interval(learning_wait_time),
+        learning_fallback_interval=get_video_status_interval(learning_wait_time),
         sync_wait_time=sync_wait_time,
-        sync_update_interval=(
-            get_video_update_interval(sync_wait_time) if sync_wait_time > 0 else 0
+        sync_poll_interval=(
+            get_video_status_interval(sync_wait_time) if sync_wait_time > 0 else 0
         ),
         total_time=total_time,
     )
 
 
-get_video_progress_interval = get_video_update_interval
-
-
 async def timer(
     duration: int,
-    interval: int = TIMER_DEFAULT_INTERVAL,
+    fallback_interval: int = 30,
     description: str = "学习进度",
 ):
-    """定时器"""
+    """等待指定时长；Rich 进度不可用时按 fallback 间隔输出日志。"""
     duration = math.ceil(duration)
     if duration <= 0:
         return
+    fallback_interval = max(1, math.ceil(fallback_interval))
     logging.info(f"开始时间: {time.ctime()}")
     try:
         from core.ui import wait_with_progress
 
-        await wait_with_progress(duration, description=description, step=interval)
+        await wait_with_progress(duration, description=description)
     except Exception:
-        for elapsed in range(0, duration, interval):
-            wait_seconds = min(interval, duration - elapsed)
+        for elapsed in range(0, duration, fallback_interval):
+            wait_seconds = min(fallback_interval, duration - elapsed)
             await asyncio.sleep(wait_seconds)
             logging.info(f"已学习 {elapsed + wait_seconds} / {duration} (秒)")
     logging.info(f"结束时间: {time.ctime()}")

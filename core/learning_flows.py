@@ -88,7 +88,7 @@ async def subject_learning(page):
                 await learn_item.locator(".inline-block.operation").click()
             page_detail = await page_pop.value
             timer_task = asyncio.create_task(
-                timer(URL_TYPE_WAIT, 1, description="URL 类型学习等待")
+                timer(URL_TYPE_WAIT, fallback_interval=1, description="URL 类型学习等待")
             )
             await page_detail.wait_for_timeout(URL_TYPE_WAIT * 1000)
             await timer_task

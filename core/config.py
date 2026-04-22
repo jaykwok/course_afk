@@ -263,7 +263,7 @@ CLEANUP_FILES = [
 # 视频课程服务端记录学习点的周期，也是播放结束后的额外等待上限
 VIDEO_SYNC_EXTRA_WAIT = 5 * 60  # 5分钟
 
-# 视频学习 UI 与同步轮询的自适应间隔策略
+# 视频同步轮询与 fallback 进度日志的自适应间隔策略
 VIDEO_PROGRESS_SHORT_THRESHOLD = 5 * 60  # 5分钟及以下
 VIDEO_PROGRESS_MEDIUM_THRESHOLD = 30 * 60  # 30分钟及以下
 VIDEO_PROGRESS_SHORT_INTERVAL = 1  # 秒
@@ -277,9 +277,6 @@ DOCUMENT_SYNC_EXTRA_WAIT = 30  # 秒
 
 # URL 学习类型等待时间
 URL_TYPE_WAIT = 10  # 秒
-
-# timer 默认间隔
-TIMER_DEFAULT_INTERVAL = 30  # 秒
 
 # 挂课流程的 slow_mo 参数
 AFK_SLOW_MO = 3000  # 毫秒

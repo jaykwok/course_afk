@@ -34,28 +34,28 @@ class LearningUtilityTests(unittest.TestCase):
             (120, 240),
         )
 
-    def test_get_video_update_interval_uses_dense_updates_for_short_videos(self):
-        from core.learning_common import get_video_update_interval
+    def test_get_video_status_interval_uses_dense_updates_for_short_videos(self):
+        from core.learning_common import get_video_status_interval
 
-        self.assertEqual(get_video_update_interval(180), 1)
-        self.assertEqual(get_video_update_interval(300), 1)
+        self.assertEqual(get_video_status_interval(180), 1)
+        self.assertEqual(get_video_status_interval(300), 1)
 
-    def test_get_video_update_interval_balances_medium_and_long_videos(self):
-        from core.learning_common import get_video_update_interval
+    def test_get_video_status_interval_balances_medium_and_long_videos(self):
+        from core.learning_common import get_video_status_interval
 
-        self.assertEqual(get_video_update_interval(301), 5)
-        self.assertEqual(get_video_update_interval(1800), 5)
-        self.assertEqual(get_video_update_interval(1801), 10)
+        self.assertEqual(get_video_status_interval(301), 5)
+        self.assertEqual(get_video_status_interval(1800), 5)
+        self.assertEqual(get_video_status_interval(1801), 10)
 
-    def test_build_video_timing_plan_uses_independent_learning_and_sync_intervals(self):
+    def test_build_video_timing_plan_uses_distinct_fallback_and_sync_poll_intervals(self):
         from core.learning_common import build_video_timing_plan
 
         plan = build_video_timing_plan("总时长 50:00 剩余 33:31")
 
         self.assertEqual(plan.learning_wait_time, 2040)
-        self.assertEqual(plan.learning_update_interval, 10)
+        self.assertEqual(plan.learning_fallback_interval, 10)
         self.assertEqual(plan.sync_wait_time, 60)
-        self.assertEqual(plan.sync_update_interval, 1)
+        self.assertEqual(plan.sync_poll_interval, 1)
 
     def test_calculate_video_sync_wait_time_uses_theoretical_sync_boundary(self):
         from core.learning_common import calculate_video_sync_wait_time
@@ -73,7 +73,7 @@ class LearningUtilityTests(unittest.TestCase):
         from core.learning_common import timer
 
         with patch("core.ui.wait_with_progress", new_callable=AsyncMock) as wait_with_progress:
-            asyncio.run(timer(0, interval=5, description="视频学习进度"))
+            asyncio.run(timer(0, fallback_interval=5, description="视频学习进度"))
 
         wait_with_progress.assert_not_awaited()
 

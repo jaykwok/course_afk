@@ -61,7 +61,7 @@ BROWSER_CHANNEL=msedge
 
 ## 启动方式
 
-- 双击 `run.bat`（要求当前目录存在 `.venv\Scripts\python.exe`）
+- 双击 `run.bat`（优先使用当前目录的 `.venv\Scripts\python.exe`；如果没有，则回退到 `PATH` 里的 `python`）
 - 或在已激活虚拟环境后执行 `python launcher.py`
 
 ## 统一入口能力

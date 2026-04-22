@@ -1,5 +1,37 @@
 from __future__ import annotations
 
+import ctypes
+import sys
+
+
+# Keep this launcher-local so it runs before importing config/logging code.
+def _disable_windows_console_input_modes_early() -> None:
+    if not sys.platform.startswith("win"):
+        return
+
+    try:
+        kernel32 = ctypes.windll.kernel32
+        stdin_handle = kernel32.GetStdHandle(-10)
+        if stdin_handle in (0, -1):
+            return
+
+        mode = ctypes.c_uint()
+        if not kernel32.GetConsoleMode(stdin_handle, ctypes.byref(mode)):
+            return
+
+        extended_flags = 0x0080
+        quick_edit_mode = 0x0040
+        insert_mode = 0x0020
+        updated_mode = (mode.value | extended_flags) & ~(quick_edit_mode | insert_mode)
+        if updated_mode != mode.value:
+            kernel32.SetConsoleMode(stdin_handle, updated_mode)
+    except Exception:
+        pass
+
+
+_disable_windows_console_input_modes_early()
+
+
 MENU_OPTIONS = [
     "推荐挂课流程（挂课+考试（如有）） / 继续上次进度",
     "仅挂课",

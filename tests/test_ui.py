@@ -29,7 +29,7 @@ class FakeProgress:
 
 
 class UiProgressTests(unittest.TestCase):
-    def test_wait_with_progress_uses_rich_auto_refresh_steps(self):
+    def test_wait_with_progress_uses_one_second_rich_refresh(self):
         from core.ui import wait_with_progress
 
         fake_sleep = AsyncMock()
@@ -44,18 +44,18 @@ class UiProgressTests(unittest.TestCase):
             patch("core.ui.Progress", side_effect=make_progress),
             patch("asyncio.sleep", fake_sleep),
         ):
-            asyncio.run(wait_with_progress(3, description="视频学习进度", step=2))
+            asyncio.run(wait_with_progress(3, description="视频学习进度"))
 
         progress = created_progress[0]
         self.assertTrue(progress.kwargs.get("auto_refresh", False))
-        self.assertEqual(progress.kwargs.get("refresh_per_second"), 10)
+        self.assertEqual(progress.kwargs.get("refresh_per_second"), 1)
         self.assertTrue(progress.kwargs.get("transient"))
         self.assertEqual(progress.add_task_calls, [("视频学习进度", 3)])
-        self.assertEqual(progress.update_calls, [("task-1", 2), ("task-1", 1)])
+        self.assertEqual(progress.update_calls, [("task-1", 1), ("task-1", 1), ("task-1", 1)])
         self.assertEqual(progress.refresh_calls, 0)
         self.assertEqual(
             [call.args[0] for call in fake_sleep.await_args_list],
-            [2, 1],
+            [1, 1, 1],
         )
 
 
