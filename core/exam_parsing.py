@@ -5,7 +5,7 @@ import traceback
 
 from core.question_parser import (
     detect_question_type_by_dom,
-    extract_options,
+    extract_options_with_selector,
     parse_question_type,
 )
 
@@ -17,8 +17,8 @@ async def detect_exam_mode(page):
         await single_btns.wait_for(state="visible", timeout=3000)
         logging.info("检测为单题目模式(有下一题按钮)")
         return "single"
-    except Exception as exc:
-        logging.info(f"检测为多题目模式(无下一题按钮)\n{exc}")
+    except Exception:
+        logging.info("检测为多题目模式(无下一题按钮)")
         return "multi"
 
 
@@ -37,10 +37,15 @@ async def extract_single_question_data(page):
         ).inner_text()
         logging.debug(f"题目内容: {question_text}")
 
-        options = await extract_options(page, question_type)
+        options, option_click_selector = await extract_options_with_selector(
+            page, question_type
+        )
         logging.debug(f"选项: {options}")
 
-        return {"type": question_type, "text": question_text, "options": options}
+        question_data = {"type": question_type, "text": question_text, "options": options}
+        if option_click_selector:
+            question_data["option_click_selector"] = option_click_selector
+        return question_data
     except Exception as exc:
         logging.error(f"提取题目信息出错: {exc}")
         logging.error(traceback.format_exc())
@@ -78,19 +83,22 @@ async def extract_multi_questions_data(page):
                 continue
 
             logging.debug(f"题目 {i+1} 内容: {question_text}")
-            options = await extract_options(question_item, question_type)
+            options, option_click_selector = await extract_options_with_selector(
+                question_item, question_type
+            )
             logging.debug(f"题目 {i+1} 选项: {options}")
 
             item_id = await question_item.get_attribute("data-dynamic-key") or f"item-{i}"
-            all_questions.append(
-                {
-                    "index": i,
-                    "type": question_type,
-                    "text": question_text,
-                    "options": options,
-                    "item_id": item_id,
-                }
-            )
+            question_data = {
+                "index": i,
+                "type": question_type,
+                "text": question_text,
+                "options": options,
+                "item_id": item_id,
+            }
+            if option_click_selector:
+                question_data["option_click_selector"] = option_click_selector
+            all_questions.append(question_data)
 
         return all_questions
     except Exception as exc:

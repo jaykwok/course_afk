@@ -116,7 +116,7 @@ class ManualSelectionWorkflowTests(unittest.IsolatedAsyncioTestCase):
         with TemporaryDirectory() as tmp:
             temp_root = Path(tmp)
             cookies_file = temp_root / "cookies.json"
-            learning_file = temp_root / "学习链接.txt"
+            learning_file = temp_root / "课程链接.txt"
             cookies_file.write_text(json.dumps([]), encoding="utf-8")
             learning_file.write_text("", encoding="utf-8")
 
@@ -152,7 +152,7 @@ class ManualSelectionWorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def test_run_manual_course_selection_auto_parses_learning_zone_urls(self):
         with TemporaryDirectory() as tmp:
             temp_root = Path(tmp)
-            learning_file = temp_root / "学习链接.txt"
+            learning_file = temp_root / "课程链接.txt"
             learning_file.write_text("", encoding="utf-8")
 
             with mock.patch.object(workflows, "LEARNING_URLS_FILE", learning_file):
@@ -192,7 +192,7 @@ class ManualSelectionWorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def test_run_manual_course_selection_manual_mode_opens_learning_zone_urls_manually(self):
         with TemporaryDirectory() as tmp:
             temp_root = Path(tmp)
-            learning_file = temp_root / "学习链接.txt"
+            learning_file = temp_root / "课程链接.txt"
             learning_file.write_text("", encoding="utf-8")
 
             with mock.patch.object(workflows, "LEARNING_URLS_FILE", learning_file):

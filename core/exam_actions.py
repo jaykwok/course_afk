@@ -3,8 +3,28 @@ from __future__ import annotations
 import logging
 import traceback
 
+from core.abort import UserAbortRequested
 from core.config import MANUAL_EXAM_FILE
 from core.file_ops import save_to_file
+
+
+def _get_option_click_selector(question_data) -> str:
+    return question_data.get("option_click_selector", ".preview-list dd")
+
+
+def _is_exam_auto_submitted_error(exc: Exception) -> bool:
+    message = str(exc)
+    return "已超过考试时长" in message and (
+        "自动提交" in message or "自动交卷" in message
+    )
+
+
+def _raise_if_exam_auto_submitted(exc: Exception) -> None:
+    if _is_exam_auto_submitted_error(exc):
+        raise UserAbortRequested(
+            "考试已超过时长，系统已自动交卷，程序退出",
+            save_pending_urls=False,
+        ) from None
 
 
 async def select_answers(page, question_data, answers, course_url, selector_prefix=""):
@@ -19,9 +39,12 @@ async def select_answers(page, question_data, answers, course_url, selector_pref
         log_prefix = f"题目 {question_index + 1}: " if selector_prefix else ""
 
         if not answers:
-            logging.info(
-                f"{log_prefix}没有获取到有效答案, 推测存在填空类型题目, 存入人工考试链接备查"
-            )
+            if question_data["type"] == "fill_blank":
+                logging.info(f"{log_prefix}检测到填空题, 存入人工考试链接备查")
+            else:
+                logging.info(
+                    f"{log_prefix}没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整, 存入人工考试链接备查"
+                )
             save_to_file(MANUAL_EXAM_FILE, course_url)
             return
 
@@ -39,43 +62,42 @@ async def select_answers(page, question_data, answers, course_url, selector_pref
                 await page.fill(selector, answer_sequence)
                 logging.info(f"{log_prefix}已输入排序顺序: {answer_sequence}")
             except Exception as exc:
+                _raise_if_exam_auto_submitted(exc)
                 logging.warning(f"{log_prefix}输入排序顺序失败: {exc}")
             return
 
         if question_data["type"] == "judge":
-            answer_index = 0 if answers[0] == "正确" else 1
+            answer_label = "T" if answers[0] == "正确" else "F"
+            answer_index = next(
+                (
+                    index
+                    for index, option in enumerate(question_data.get("options", []))
+                    if option.get("label") == answer_label
+                ),
+                0 if answer_label == "T" else 1,
+            )
             try:
-                selector = (
-                    f"{selector_prefix}.preview-list dd:nth-child({answer_index + 1})"
-                )
-                await page.locator(selector).click(timeout=2000)
+                selector = f"{selector_prefix}{_get_option_click_selector(question_data)}"
+                await page.locator(selector).nth(answer_index).click(timeout=2000)
                 logging.info(f"{log_prefix}已点击判断题选项: {answers[0]}")
             except Exception as exc:
+                _raise_if_exam_auto_submitted(exc)
                 logging.warning(f"{log_prefix}点击判断题选项失败: {exc}")
-            return
-
-        if question_data["type"] == "single" and selector_prefix:
-            answer = answers[0]
-            option_index = ord(answer) - ord("A")
-            if 0 <= option_index < len(question_data["options"]):
-                try:
-                    selector = f"{selector_prefix}.preview-list dd:nth-child({option_index + 1})"
-                    await page.locator(selector).first.click(timeout=2000)
-                    logging.info(f"{log_prefix}已点击单选题选项: {answer}")
-                except Exception as exc:
-                    logging.warning(f"{log_prefix}点击选项 {answer} 失败: {exc}")
             return
 
         for answer in answers:
             option_index = ord(answer) - ord("A")
             if 0 <= option_index < len(question_data["options"]):
                 try:
-                    selector = f"{selector_prefix}.preview-list dd:nth-child({option_index + 1})"
-                    await page.locator(selector).first.click(timeout=2000)
+                    selector = f"{selector_prefix}{_get_option_click_selector(question_data)}"
+                    await page.locator(selector).nth(option_index).click(timeout=2000)
                     logging.info(f"{log_prefix}已点击选项: {answer}")
                     await page.wait_for_timeout(300)
                 except Exception as exc:
+                    _raise_if_exam_auto_submitted(exc)
                     logging.warning(f"{log_prefix}点击选项 {answer} 失败: {exc}")
+    except UserAbortRequested:
+        raise
     except Exception as exc:
         logging.error(f"选择答案出错: {exc}")
         logging.error(traceback.format_exc())
@@ -101,4 +123,8 @@ async def submit_exam(page):
     await page.wait_for_timeout(1000)
     await page.locator("button:has-text('确 定')").click()
     await page.wait_for_timeout(1000)
-    await page.locator("text=确定").click()
+    close_button = page.locator(
+        "[data-region='modal:modal'] .btn.white.border:has-text('确定')"
+    )
+    if await close_button.count() > 0:
+        await close_button.last.click()

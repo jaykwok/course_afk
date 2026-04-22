@@ -7,7 +7,10 @@ from core import config
 
 class PathConfigTests(unittest.TestCase):
     def test_learning_links_file_is_project_relative(self):
-        self.assertTrue(str(config.LEARNING_URLS_FILE).endswith("学习链接.txt"))
+        self.assertTrue(str(config.LEARNING_URLS_FILE).endswith("课程链接.txt"))
+
+    def test_exam_links_file_is_project_relative(self):
+        self.assertTrue(str(config.EXAM_URLS_FILE).endswith("考试链接.txt"))
 
     def test_cookie_metadata_file_is_defined(self):
         self.assertTrue(

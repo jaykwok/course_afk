@@ -39,7 +39,7 @@ class AfkBatchPreparationTests(unittest.TestCase):
             self.assertFalse(cleanup_one.exists())
             self.assertFalse(cleanup_two.exists())
 
-    def test_prepare_afk_batch_uses_learning_urls_for_fresh_run_and_clears_exam_file(self):
+    def test_prepare_afk_batch_uses_learning_urls_for_fresh_run_without_clearing_exam_file(self):
         from core.afk_runner import prepare_afk_batch
 
         with TemporaryDirectory() as tmp:
@@ -63,7 +63,7 @@ class AfkBatchPreparationTests(unittest.TestCase):
                 batch.urls,
                 ["https://c.example.com/3", "https://d.example.com/4"],
             )
-            self.assertFalse(exam_file.exists())
+            self.assertTrue(exam_file.exists())
 
 
 class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
@@ -288,7 +288,7 @@ class ExamAttemptRoutingTests(unittest.TestCase):
 
 
 class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
-    async def test_run_ai_exam_batch_clears_exam_file_after_processing(self):
+    async def test_run_ai_exam_batch_keeps_empty_exam_queue_file_after_processing(self):
         from core.exam_runner import run_ai_exam_batch
 
         class FakePage:
@@ -334,7 +334,8 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
                 manual_count = await run_ai_exam_batch()
 
             self.assertEqual(manual_count, 0)
-            self.assertFalse(exam_file.exists())
+            self.assertTrue(exam_file.exists())
+            self.assertEqual(exam_file.read_text(encoding="utf-8"), "")
 
     async def test_run_paper_ai_exam_uses_direct_answer_page_without_start_button(self):
         from core.exam_runner import _run_paper_ai_exam
@@ -389,6 +390,191 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
             auto_submit=True,
         )
         mock_save.assert_not_called()
+
+    async def test_run_paper_ai_exam_skips_gracefully_when_attempt_limit_page_is_shown(self):
+        from core.exam_runner import EXAM_ATTEMPT_LIMIT_FILE, _run_paper_ai_exam
+
+        class FakeLocator:
+            def __init__(self, *, count=0, text="", wait_error=None):
+                self._count = count
+                self._text = text
+                self._wait_error = wait_error
+
+            @property
+            def first(self):
+                return self
+
+            async def count(self):
+                return self._count
+
+            async def wait_for(self, timeout=0, state="visible"):
+                if self._wait_error:
+                    raise self._wait_error
+                if self._count <= 0:
+                    raise RuntimeError("wait_for called for missing locator")
+
+            async def inner_text(self):
+                return self._text
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper"
+                self._locators = {
+                    ".question-type-item, .single-title, .single-btns": FakeLocator(
+                        count=0,
+                        wait_error=RuntimeError(
+                            'Locator.wait_for: Timeout 5000ms exceeded.\n'
+                            'Call log:\n'
+                            '  - waiting for locator(".question-type-item, .single-title, .single-btns") to be visible\n'
+                        ),
+                    ),
+                    ".banner-handler-btn.themeColor-border-color.themeColor-background-color": FakeLocator(
+                        count=0,
+                        wait_error=RuntimeError(
+                            'Locator.wait_for: Timeout 5000ms exceeded.\n'
+                            'Call log:\n'
+                            '  - waiting for locator(".banner-handler-btn.themeColor-border-color.themeColor-background-color") to be visible\n'
+                        ),
+                    ),
+                    "[data-region='modal:modal']": FakeLocator(
+                        count=1,
+                        text="当前已触发考试次数限制，不能再次进入考试详情页",
+                    ),
+                    "body": FakeLocator(
+                        count=1,
+                        text="当前已触发考试次数限制，不能再次进入考试详情页",
+                    ),
+                }
+
+            def locator(self, selector):
+                return self._locators[selector]
+
+        page = FakePage()
+
+        with (
+            patch("core.exam_runner.ai_exam", new=AsyncMock(return_value=None)) as mock_ai_exam,
+            patch("core.exam_runner.save_to_file") as mock_save,
+            patch("core.exam_runner.logging.info") as mock_info,
+        ):
+            await _run_paper_ai_exam(page, page.url, object(), "test-model")
+
+        mock_ai_exam.assert_not_awaited()
+        mock_save.assert_called_once_with(EXAM_ATTEMPT_LIMIT_FILE, page.url)
+        self.assertTrue(
+            any("考试次数限制" in call.args[0] for call in mock_info.call_args_list)
+        )
+
+    async def test_run_ai_exam_batch_propagates_user_abort_requested(self):
+        from core.abort import UserAbortRequested
+        from core.exam_runner import run_ai_exam_batch
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper"
+
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exam_file = root / "exam.txt"
+            manual_file = root / "manual.txt"
+            exam_file.write_text(
+                "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch("core.exam_runner.MANUAL_EXAM_FILE", manual_file),
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
+                patch(
+                    "core.exam_runner._run_paper_ai_exam",
+                    new=AsyncMock(
+                        side_effect=UserAbortRequested(
+                            "考试已超过时长，系统已自动交卷，程序退出",
+                            save_pending_urls=False,
+                        )
+                    ),
+                ),
+            ):
+                with self.assertRaises(UserAbortRequested):
+                    await run_ai_exam_batch()
+
+    async def test_run_ai_exam_batch_propagates_exam_ai_configuration_error_without_saving_manual(self):
+        from core.exam_answers import ExamAiConfigurationError
+        from core.exam_runner import run_ai_exam_batch
+
+        class FakePage:
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exam_file = root / "exam.txt"
+            manual_file = root / "manual.txt"
+            exam_file.write_text(
+                "https://kc.zhixueyun.com/#/study/course/detail/test-course\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch("core.exam_runner.MANUAL_EXAM_FILE", manual_file),
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
+                patch(
+                    "core.exam_runner._run_course_ai_exam",
+                    new=AsyncMock(
+                        side_effect=ExamAiConfigurationError("AI 配置错误")
+                    ),
+                ),
+            ):
+                with self.assertRaises(ExamAiConfigurationError):
+                    await run_ai_exam_batch()
+
+            self.assertFalse(manual_file.exists())
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from core.config import EXAM_URLS_FILE, LEARNING_URLS_FILE, MANUAL_EXAM_FILE
 from core.credential import load_credential_metadata, parse_saved_at, is_credential_expired
+from core.file_ops import read_unique_lines
 
 
 @dataclass
@@ -17,11 +18,7 @@ class ProjectState:
 
 
 def read_non_empty_lines(file_path: Path) -> list[str]:
-    try:
-        with open(file_path, "r", encoding="utf-8") as file:
-            return [line.strip() for line in file if line.strip()]
-    except FileNotFoundError:
-        return []
+    return read_unique_lines(file_path)
 
 
 def count_non_empty_lines(file_path: Path) -> int:

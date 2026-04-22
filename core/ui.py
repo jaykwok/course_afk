@@ -109,7 +109,7 @@ def render_dashboard(state: ProjectState) -> None:
 
     table.add_row("账号", Text(account_label, style="bold white"))
     table.add_row("凭证", _credential_display(state, metadata))
-    table.add_row("学习链接", _count_display(state.learning_count))
+    table.add_row("课程链接", _count_display(state.learning_count))
     table.add_row("考试链接", _count_display(state.exam_count))
     table.add_row("人工考试", _count_display(state.manual_exam_count))
     table.add_row(
@@ -163,6 +163,15 @@ def prompt_choice(title: str, options: list[str], prompt: str = "请选择") -> 
         f"\n  [bold cyan]{prompt}[/bold cyan]",
         choices=[str(i) for i in range(1, len(options) + 1)],
     )
+
+
+def prompt_yes_no(message: str, default: str = "N") -> bool:
+    choice = Prompt.ask(
+        f"\n  [bold cyan]{message}[/bold cyan]",
+        choices=["Y", "N", "y", "n"],
+        default=default,
+    )
+    return choice.strip().upper() == "Y"
 
 
 def prompt_multiline_input(messages: list[str]) -> str:
@@ -234,7 +243,7 @@ async def wait_with_progress(
         TimeRemainingColumn(),
         console=console,
         auto_refresh=True,
-        refresh_per_second=1,
+        refresh_per_second=10,
         transient=True,
     ) as progress:
         task = progress.add_task(description, total=duration)

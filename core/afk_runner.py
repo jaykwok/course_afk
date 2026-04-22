@@ -24,9 +24,15 @@ from core.config import (
     RETRY_URLS_FILE,
     URL_TYPE_FILE,
 )
-from core.file_ops import del_file, is_compliant_url_regex, normalize_url, save_to_file
+from core.file_ops import (
+    append_unique_lines,
+    del_file,
+    is_compliant_url_regex,
+    normalize_url,
+    read_unique_lines,
+    save_to_file,
+)
 from core.learning import course_learning, is_subject_url_completed, subject_learning
-from core.state import read_non_empty_lines
 
 
 StatusCallback = Callable[[str], None]
@@ -39,19 +45,11 @@ class AfkBatch:
 
 
 def _read_unique_lines(file_path: Path) -> list[str]:
-    return list(dict.fromkeys(read_non_empty_lines(file_path)))
+    return read_unique_lines(file_path)
 
 
 def _append_unique_lines(file_path: Path, urls: list[str]) -> list[str]:
-    existing = set(read_non_empty_lines(file_path))
-    added: list[str] = []
-    for url in urls:
-        if not url or url in existing:
-            continue
-        save_to_file(file_path, url)
-        existing.add(url)
-        added.append(url)
-    return added
+    return append_unique_lines(file_path, urls)
 
 
 def _is_user_abort_exception(exc: BaseException) -> bool:
@@ -75,7 +73,6 @@ def prepare_afk_batch(
     if retry_urls:
         return AfkBatch(urls=retry_urls, is_retry=True)
 
-    del_file(exam_file)
     return AfkBatch(urls=_read_unique_lines(learning_file), is_retry=False)
 
 
