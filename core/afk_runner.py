@@ -24,9 +24,16 @@ from core.config import (
     RETRY_URLS_FILE,
     URL_TYPE_FILE,
 )
-from core.file_ops import del_file, is_compliant_url_regex, normalize_url, save_to_file
+from core.file_ops import (
+    append_unique_lines,
+    del_file,
+    is_compliant_url_regex,
+    normalize_url,
+    read_unique_lines,
+    save_to_file,
+    write_unique_lines,
+)
 from core.learning import course_learning, is_subject_url_completed, subject_learning
-from core.state import read_non_empty_lines
 
 
 StatusCallback = Callable[[str], None]
@@ -39,19 +46,18 @@ class AfkBatch:
 
 
 def _read_unique_lines(file_path: Path) -> list[str]:
-    return list(dict.fromkeys(read_non_empty_lines(file_path)))
+    return read_unique_lines(file_path)
 
 
 def _append_unique_lines(file_path: Path, urls: list[str]) -> list[str]:
-    existing = set(read_non_empty_lines(file_path))
-    added: list[str] = []
-    for url in urls:
-        if not url or url in existing:
-            continue
-        save_to_file(file_path, url)
-        existing.add(url)
-        added.append(url)
-    return added
+    return append_unique_lines(file_path, urls)
+
+
+def _write_learning_queue(urls: list[str], *, learning_file: Path | None = None) -> None:
+    if learning_file is None:
+        learning_file = LEARNING_URLS_FILE
+    if urls or learning_file.exists():
+        write_unique_lines(learning_file, urls)
 
 
 def _is_user_abort_exception(exc: BaseException) -> bool:
@@ -73,10 +79,12 @@ def prepare_afk_batch(
         del_file(file_path)
 
     if retry_urls:
+        _write_learning_queue(retry_urls, learning_file=learning_file)
         return AfkBatch(urls=retry_urls, is_retry=True)
 
-    del_file(exam_file)
-    return AfkBatch(urls=_read_unique_lines(learning_file), is_retry=False)
+    learning_urls = _read_unique_lines(learning_file)
+    _write_learning_queue(learning_urls, learning_file=learning_file)
+    return AfkBatch(urls=learning_urls, is_retry=False)
 
 
 async def _process_url(context, url: str, handler) -> bool:
@@ -145,13 +153,13 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> bool:
         return False
 
     needs_retry = False
-    normalized_urls = [normalize_url(raw_url.strip()) for raw_url in batch.urls]
-    pending_start_index = 0
+    normalized_urls = list(dict.fromkeys(normalize_url(raw_url.strip()) for raw_url in batch.urls))
+    pending_learning_urls = list(normalized_urls)
+    _write_learning_queue(pending_learning_urls)
 
     try:
         async with create_browser_context(slow_mo=AFK_SLOW_MO) as (_, context):
             for index, url in enumerate(normalized_urls, start=1):
-                pending_start_index = index - 1
                 if status_callback:
                     status_callback(f"挂课 {index}/{len(normalized_urls)}: {url}")
                 logging.info(f"({index}/{len(normalized_urls)})当前学习链接为: {url}")
@@ -159,7 +167,9 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> bool:
                 if not is_compliant_url_regex(url):
                     logging.info("不合规链接, 已存入不合规链接.txt")
                     save_to_file(NON_COMPLIANT_FILE, url)
-                    pending_start_index = index
+                    if url in pending_learning_urls:
+                        pending_learning_urls.remove(url)
+                        _write_learning_queue(pending_learning_urls)
                     continue
 
                 if "subject" in url:
@@ -169,15 +179,20 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> bool:
                 else:
                     logging.info(f"无法识别的学习链接类型: {url}")
                     save_to_file(NON_COMPLIANT_FILE, url)
-                    pending_start_index = index
+                    if url in pending_learning_urls:
+                        pending_learning_urls.remove(url)
+                        _write_learning_queue(pending_learning_urls)
                     continue
 
                 if error:
                     needs_retry = True
-                pending_start_index = index
+                else:
+                    if url in pending_learning_urls:
+                        pending_learning_urls.remove(url)
+                        _write_learning_queue(pending_learning_urls)
 
             await _recheck_url_type_links(context)
-            pending_start_index = len(normalized_urls)
+            _write_learning_queue(pending_learning_urls)
     except BaseException as exc:
         if _is_user_abort_exception(exc):
             if isinstance(exc, KeyboardInterrupt):
@@ -191,7 +206,8 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> bool:
                     else "已关闭浏览器窗口，程序退出"
                 )
             if save_pending_urls:
-                _append_unique_lines(RETRY_URLS_FILE, normalized_urls[pending_start_index:])
+                _append_unique_lines(RETRY_URLS_FILE, pending_learning_urls)
+                _write_learning_queue(pending_learning_urls)
             logging.debug(f"用户主动终止挂课流程: {message}")
             raise UserAbortRequested(
                 message,

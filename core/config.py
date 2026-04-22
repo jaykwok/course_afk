@@ -309,22 +309,21 @@ ZHIXUEYUN_EXAM_PREFIX = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/"
 # ============================================================
 COOKIES_FILE = PROJECT_ROOT / "cookies.json"
 CREDENTIAL_META_FILE = PROJECT_ROOT / "credential_meta.json"
-LEARNING_URLS_FILE = PROJECT_ROOT / "学习链接.txt"
+LEARNING_URLS_FILE = PROJECT_ROOT / "课程链接.txt"
 RETRY_URLS_FILE = PROJECT_ROOT / "剩余未看课程链接.txt"
-EXAM_URLS_FILE = PROJECT_ROOT / "学习课程考试链接.txt"
+EXAM_URLS_FILE = PROJECT_ROOT / "考试链接.txt"
 MANUAL_EXAM_FILE = PROJECT_ROOT / "人工考试链接.txt"
+EXAM_ATTEMPT_LIMIT_FILE = PROJECT_ROOT / "考试次数超限链接.txt"
 NO_PERMISSION_FILE = PROJECT_ROOT / "无权限资源链接.txt"
 NON_COMPLIANT_FILE = PROJECT_ROOT / "不合规链接.txt"
 URL_TYPE_FILE = PROJECT_ROOT / "URL类型链接.txt"
 H5_TYPE_FILE = PROJECT_ROOT / "h5课程类型链接.txt"
 SURVEY_TYPE_FILE = PROJECT_ROOT / "调研类型链接.txt"
-SUBJECT_EXAM_FILE = PROJECT_ROOT / "学习主题考试链接.txt"
 UNKNOWN_TYPE_FILE = PROJECT_ROOT / "未知类型链接.txt"
 OTHER_TYPE_FILE = PROJECT_ROOT / "非课程及考试类学习类型链接.txt"
 
 # 每次全新开始挂课时需要清理的中间文件
 CLEANUP_FILES = [
-    SUBJECT_EXAM_FILE,
     SURVEY_TYPE_FILE,
     URL_TYPE_FILE,
     H5_TYPE_FILE,

@@ -49,14 +49,18 @@ MANUAL_SELECTION_PROMPTS = [
     "如果包含学习专区链接，程序会先询问你是全部学习，还是手动选择学习模块。",
     "程序会依次打开这些页面，请你手动选择并点击要学习的课程。",
     "如页面提示需要报名，请先报名，再点击开始学习。",
-    "点击后打开的学习链接会自动记录到 学习链接.txt。",
+    "点击后打开的学习链接会自动记录到 课程链接.txt。",
 ]
 
 
 def main() -> int:
     from core.abort import UserAbortRequested
     from core.config import setup_logging
-    from core.config import EXAM_URLS_FILE, LEARNING_URLS_FILE, MANUAL_EXAM_FILE
+    from core.config import (
+        EXAM_URLS_FILE,
+        LEARNING_URLS_FILE,
+        MANUAL_EXAM_FILE,
+    )
     import core.ui as ui
     from core.launcher_controller import (
         handle_afk,

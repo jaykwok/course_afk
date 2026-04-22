@@ -123,4 +123,8 @@ async def submit_exam(page):
     await page.wait_for_timeout(1000)
     await page.locator("button:has-text('确 定')").click()
     await page.wait_for_timeout(1000)
-    await page.locator("text=确定").click()
+    close_button = page.locator(
+        "[data-region='modal:modal'] .btn.white.border:has-text('确定')"
+    )
+    if await close_button.count() > 0:
+        await close_button.last.click()

@@ -39,7 +39,7 @@ class AfkBatchPreparationTests(unittest.TestCase):
             self.assertFalse(cleanup_one.exists())
             self.assertFalse(cleanup_two.exists())
 
-    def test_prepare_afk_batch_uses_learning_urls_for_fresh_run_and_clears_exam_file(self):
+    def test_prepare_afk_batch_uses_learning_urls_for_fresh_run_without_clearing_exam_file(self):
         from core.afk_runner import prepare_afk_batch
 
         with TemporaryDirectory() as tmp:
@@ -63,10 +63,53 @@ class AfkBatchPreparationTests(unittest.TestCase):
                 batch.urls,
                 ["https://c.example.com/3", "https://d.example.com/4"],
             )
-            self.assertFalse(exam_file.exists())
+            self.assertTrue(exam_file.exists())
 
 
 class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
+    async def test_run_afk_once_keeps_empty_learning_queue_file_after_processing(self):
+        from core.afk_runner import AfkBatch, run_afk_once
+
+        class FakeContext:
+            pass
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            learning_file = root / "learning.txt"
+            learning_file.write_text(
+                "https://kc.zhixueyun.com/#/study/course/detail/a\n",
+                encoding="utf-8",
+            )
+            batch = AfkBatch(
+                urls=["https://kc.zhixueyun.com/#/study/course/detail/a"],
+                is_retry=False,
+            )
+
+            with (
+                patch("core.afk_runner.LEARNING_URLS_FILE", learning_file),
+                patch("core.afk_runner.prepare_afk_batch", return_value=batch),
+                patch(
+                    "core.afk_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.afk_runner.normalize_url", side_effect=lambda url: url),
+                patch("core.afk_runner.is_compliant_url_regex", return_value=True),
+                patch("core.afk_runner._process_url", new=AsyncMock(return_value=False)),
+                patch("core.afk_runner._recheck_url_type_links", new=AsyncMock()),
+            ):
+                needs_retry = await run_afk_once()
+
+            self.assertFalse(needs_retry)
+            self.assertTrue(learning_file.exists())
+            self.assertEqual(learning_file.read_text(encoding="utf-8"), "")
+
     async def test_run_afk_once_exits_without_saving_retry_urls_on_keyboard_interrupt(self):
         from core.abort import UserAbortRequested
         from core.afk_runner import AfkBatch, run_afk_once
@@ -117,6 +160,70 @@ class AfkGracefulExitTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 retry_file.read_text(encoding="utf-8").splitlines(),
                 ["https://kc.zhixueyun.com/#/study/course/detail/a"],
+            )
+
+    async def test_run_afk_once_updates_learning_queue_to_remaining_urls_on_abort_with_save(self):
+        from core.abort import UserAbortRequested
+        from core.afk_runner import AfkBatch, run_afk_once
+
+        class FakeContext:
+            pass
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            retry_file = root / "retry.txt"
+            learning_file = root / "learning.txt"
+            learning_file.write_text(
+                (
+                    "https://kc.zhixueyun.com/#/study/course/detail/a\n"
+                    "https://kc.zhixueyun.com/#/study/course/detail/b\n"
+                    "https://kc.zhixueyun.com/#/study/course/detail/c\n"
+                ),
+                encoding="utf-8",
+            )
+            batch = AfkBatch(
+                urls=[
+                    "https://kc.zhixueyun.com/#/study/course/detail/a",
+                    "https://kc.zhixueyun.com/#/study/course/detail/b",
+                    "https://kc.zhixueyun.com/#/study/course/detail/c",
+                ],
+                is_retry=False,
+            )
+
+            with (
+                patch("core.afk_runner.RETRY_URLS_FILE", retry_file),
+                patch("core.afk_runner.LEARNING_URLS_FILE", learning_file),
+                patch("core.afk_runner.prepare_afk_batch", return_value=batch),
+                patch(
+                    "core.afk_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.afk_runner.normalize_url", side_effect=lambda url: url),
+                patch("core.afk_runner.is_compliant_url_regex", return_value=True),
+                patch(
+                    "core.afk_runner._process_url",
+                    side_effect=[
+                        False,
+                        UserAbortRequested("已保存当前和剩余学习链接，程序退出"),
+                    ],
+                ),
+            ):
+                with self.assertRaises(UserAbortRequested):
+                    await run_afk_once()
+
+            self.assertEqual(
+                learning_file.read_text(encoding="utf-8").splitlines(),
+                [
+                    "https://kc.zhixueyun.com/#/study/course/detail/b",
+                    "https://kc.zhixueyun.com/#/study/course/detail/c",
+                ],
             )
 
     async def test_run_afk_once_skips_current_url_and_continues_when_only_course_tab_is_closed(self):
@@ -288,7 +395,7 @@ class ExamAttemptRoutingTests(unittest.TestCase):
 
 
 class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
-    async def test_run_ai_exam_batch_clears_exam_file_after_processing(self):
+    async def test_run_ai_exam_batch_keeps_empty_exam_queue_file_after_processing(self):
         from core.exam_runner import run_ai_exam_batch
 
         class FakePage:
@@ -329,12 +436,15 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
                     return_value=FakeBrowserContextManager(),
                 ),
                 patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
-                patch("core.exam_runner._run_course_ai_exam", new=AsyncMock(return_value=None)),
+                patch("core.exam_runner._run_course_ai_exam", new=AsyncMock(return_value=None)) as mock_run_exam,
             ):
-                manual_count = await run_ai_exam_batch()
+                manual_count = await run_ai_exam_batch(auto_submit=False)
 
             self.assertEqual(manual_count, 0)
-            self.assertFalse(exam_file.exists())
+            self.assertTrue(exam_file.exists())
+            self.assertEqual(exam_file.read_text(encoding="utf-8"), "")
+            mock_run_exam.assert_awaited_once()
+            self.assertFalse(mock_run_exam.await_args.kwargs["auto_submit"])
 
     async def test_run_paper_ai_exam_uses_direct_answer_page_without_start_button(self):
         from core.exam_runner import _run_paper_ai_exam
@@ -389,6 +499,79 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
             auto_submit=True,
         )
         mock_save.assert_not_called()
+
+    async def test_run_paper_ai_exam_skips_gracefully_when_attempt_limit_page_is_shown(self):
+        from core.exam_runner import EXAM_ATTEMPT_LIMIT_FILE, _run_paper_ai_exam
+
+        class FakeLocator:
+            def __init__(self, *, count=0, text="", wait_error=None):
+                self._count = count
+                self._text = text
+                self._wait_error = wait_error
+
+            @property
+            def first(self):
+                return self
+
+            async def count(self):
+                return self._count
+
+            async def wait_for(self, timeout=0, state="visible"):
+                if self._wait_error:
+                    raise self._wait_error
+                if self._count <= 0:
+                    raise RuntimeError("wait_for called for missing locator")
+
+            async def inner_text(self):
+                return self._text
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper"
+                self._locators = {
+                    ".question-type-item, .single-title, .single-btns": FakeLocator(
+                        count=0,
+                        wait_error=RuntimeError(
+                            'Locator.wait_for: Timeout 5000ms exceeded.\n'
+                            'Call log:\n'
+                            '  - waiting for locator(".question-type-item, .single-title, .single-btns") to be visible\n'
+                        ),
+                    ),
+                    ".banner-handler-btn.themeColor-border-color.themeColor-background-color": FakeLocator(
+                        count=0,
+                        wait_error=RuntimeError(
+                            'Locator.wait_for: Timeout 5000ms exceeded.\n'
+                            'Call log:\n'
+                            '  - waiting for locator(".banner-handler-btn.themeColor-border-color.themeColor-background-color") to be visible\n'
+                        ),
+                    ),
+                    "[data-region='modal:modal']": FakeLocator(
+                        count=1,
+                        text="当前已触发考试次数限制，不能再次进入考试详情页",
+                    ),
+                    "body": FakeLocator(
+                        count=1,
+                        text="当前已触发考试次数限制，不能再次进入考试详情页",
+                    ),
+                }
+
+            def locator(self, selector):
+                return self._locators[selector]
+
+        page = FakePage()
+
+        with (
+            patch("core.exam_runner.ai_exam", new=AsyncMock(return_value=None)) as mock_ai_exam,
+            patch("core.exam_runner.save_to_file") as mock_save,
+            patch("core.exam_runner.logging.info") as mock_info,
+        ):
+            await _run_paper_ai_exam(page, page.url, object(), "test-model")
+
+        mock_ai_exam.assert_not_awaited()
+        mock_save.assert_called_once_with(EXAM_ATTEMPT_LIMIT_FILE, page.url)
+        self.assertTrue(
+            any("考试次数限制" in call.args[0] for call in mock_info.call_args_list)
+        )
 
     async def test_run_ai_exam_batch_propagates_user_abort_requested(self):
         from core.abort import UserAbortRequested

@@ -31,6 +31,17 @@ def _log_question_snapshot(question_data, *, index: int | None = None) -> None:
     logging.info(f"{option_prefix}:\n{_format_question_options(question_data)}")
 
 
+def _should_disable_auto_submit(question_data, answers) -> bool:
+    return question_data.get("type") == "fill_blank" or not answers
+
+
+def _ensure_manual_submit(auto_submit: bool, question_data, answers) -> bool:
+    if auto_submit and _should_disable_auto_submit(question_data, answers):
+        logging.info("检测到需要人工处理的题目，已自动切换为手动交卷")
+        return False
+    return auto_submit
+
+
 async def ai_exam(client, model, page, course_url, auto_submit=True):
     """AI自动答题主函数"""
     logging.info("AI考试开始")
@@ -58,6 +69,7 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
             _log_question_snapshot(question_data)
 
             answers = await get_ai_answers(client, model, question_data)
+            auto_submit = _ensure_manual_submit(auto_submit, question_data, answers)
             await select_answers(page, question_data, answers, course_url)
 
             next_button = page.locator(".single-btn-next")
@@ -92,6 +104,7 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
             logging.info(f"题目 {question_number} 类型: {question_data['type']}")
             _log_question_snapshot(question_data, index=question_number)
             answers = await get_ai_answers(client, model, question_data)
+            auto_submit = _ensure_manual_submit(auto_submit, question_data, answers)
             item_id = question_data["item_id"]
             await select_answers(
                 page,
@@ -115,11 +128,11 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
     logging.info("考试完成")
 
 
-async def wait_for_finish_test(client, model, page1):
+async def wait_for_finish_test(client, model, page1, auto_submit=True):
     """打开考试弹窗并执行AI考试"""
     async with page1.expect_popup() as page2_info:
         await page1.locator(".btn.new-radius").click()
     page2 = await page2_info.value
     logging.info("等待作答完毕并关闭页面")
-    await ai_exam(client, model, page2, page1.url)
+    await ai_exam(client, model, page2, page1.url, auto_submit=auto_submit)
     await page2.wait_for_event("close", timeout=0)

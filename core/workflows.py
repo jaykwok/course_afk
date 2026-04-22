@@ -229,8 +229,11 @@ async def run_afk_workflow(status_callback: StatusCallback | None = None) -> boo
             status_callback("挂课完成，未检测到考试链接")
     return state.exam_count > 0
 
-
-async def run_ai_exam_workflow(status_callback: StatusCallback | None = None) -> int:
+async def run_ai_exam_workflow(
+    status_callback: StatusCallback | None = None,
+    *,
+    auto_submit: bool = True,
+) -> int:
     state = collect_project_state()
     if state.exam_count == 0:
         if status_callback:
@@ -239,7 +242,10 @@ async def run_ai_exam_workflow(status_callback: StatusCallback | None = None) ->
 
     if status_callback:
         status_callback(f"开始 AI 自动考试，共 {state.exam_count} 条考试链接")
-    manual_count = await run_ai_exam_batch(status_callback=status_callback)
+    manual_count = await run_ai_exam_batch(
+        status_callback=status_callback,
+        auto_submit=auto_submit,
+    )
     if status_callback:
         status_callback(f"AI 自动考试结束，人工处理 {manual_count} 条")
     return manual_count
@@ -260,7 +266,11 @@ async def run_manual_exam_workflow(status_callback: StatusCallback | None = None
     return processed_count
 
 
-async def run_recommended_flow(status_callback: StatusCallback | None = None) -> str:
+async def run_recommended_flow(
+    status_callback: StatusCallback | None = None,
+    *,
+    ask_auto_submit: Callable[[], bool] | None = None,
+) -> str:
     state = collect_project_state()
     if not state.has_credential or state.credential_expired:
         if status_callback:
@@ -278,7 +288,11 @@ async def run_recommended_flow(status_callback: StatusCallback | None = None) ->
             status_callback("未检测到考试链接，本次流程结束")
         return "afk-only"
 
-    manual_count = await run_ai_exam_workflow(status_callback=status_callback)
+    auto_submit = ask_auto_submit() if ask_auto_submit else True
+    manual_count = await run_ai_exam_workflow(
+        status_callback=status_callback,
+        auto_submit=auto_submit,
+    )
     if manual_count > 0:
         if status_callback:
             status_callback("AI 自动考试完成，仍有人工考试待处理")

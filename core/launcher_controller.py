@@ -2,6 +2,41 @@ from __future__ import annotations
 
 import asyncio
 
+
+def _prompt_ai_exam_auto_submit(ui) -> bool:
+    return ui.prompt_yes_no("AI考试是否自动交卷？", default="Y")
+
+
+def _maybe_delete_empty_learning_queue_file(ui) -> None:
+    from core.config import LEARNING_URLS_FILE
+    from core.file_ops import del_file
+    from core.state import read_non_empty_lines
+
+    if not LEARNING_URLS_FILE.exists():
+        return
+    if read_non_empty_lines(LEARNING_URLS_FILE):
+        return
+
+    if ui.prompt_yes_no("课程链接.txt 已空，是否删除该文件？", default="N"):
+        del_file(LEARNING_URLS_FILE)
+        ui.show_success("已删除空的课程链接.txt")
+
+
+def _maybe_delete_empty_exam_queue_file(ui) -> None:
+    from core.config import EXAM_URLS_FILE
+    from core.file_ops import del_file
+    from core.state import read_non_empty_lines
+
+    if not EXAM_URLS_FILE.exists():
+        return
+    if read_non_empty_lines(EXAM_URLS_FILE):
+        return
+
+    if ui.prompt_yes_no("考试链接.txt 已空，是否删除该文件？", default="N"):
+        del_file(EXAM_URLS_FILE)
+        ui.show_success("已删除空的考试链接.txt")
+
+
 def choose_learning_zone_mode(learning_zone_urls, prompt_choice_func) -> str:
     if not learning_zone_urls:
         return "manual"
@@ -28,13 +63,27 @@ _FLOW_RESULT_LABELS = {
 def handle_recommended_flow(ui) -> None:
     from core.exam_answers import ExamAiConfigurationError
     from core.workflows import run_recommended_flow
+    from core.state import read_non_empty_lines
+    from core.config import LEARNING_URLS_FILE, RETRY_URLS_FILE
 
+    had_pending_learning = bool(
+        read_non_empty_lines(LEARNING_URLS_FILE) or read_non_empty_lines(RETRY_URLS_FILE)
+    )
     try:
-        result = asyncio.run(run_recommended_flow(status_callback=ui.show_info))
+        result = asyncio.run(
+            run_recommended_flow(
+                status_callback=ui.show_info,
+                ask_auto_submit=lambda: _prompt_ai_exam_auto_submit(ui),
+            )
+        )
     except ExamAiConfigurationError as exc:
         ui.show_error(str(exc))
         ui.pause()
         return
+
+    if had_pending_learning:
+        _maybe_delete_empty_learning_queue_file(ui)
+    _maybe_delete_empty_exam_queue_file(ui)
     label = _FLOW_RESULT_LABELS.get(result, result)
     ui.show_summary("推荐流程结果", [("流程状态", label)])
     ui.pause()
@@ -55,11 +104,11 @@ def handle_show_learning_links(learning_urls_file, ui) -> None:
 
     links = read_non_empty_lines(learning_urls_file)
     if not links:
-        ui.show_warning("学习链接.txt 当前为空")
+        ui.show_warning("课程链接.txt 当前为空")
     else:
         ui.show_summary(
-            "学习链接状态",
-            [("学习链接总数", str(len(links))), ("首条学习链接", links[0])],
+            "课程链接状态",
+            [("课程链接总数", str(len(links))), ("首条课程链接", links[0])],
         )
     ui.pause()
 
@@ -99,9 +148,16 @@ def handle_manual_selection(prompts, ui) -> None:
 
 
 def handle_afk(ui) -> None:
+    from core.config import LEARNING_URLS_FILE, RETRY_URLS_FILE
+    from core.state import read_non_empty_lines
     from core.workflows import run_afk_workflow
 
+    had_pending_learning = bool(
+        read_non_empty_lines(LEARNING_URLS_FILE) or read_non_empty_lines(RETRY_URLS_FILE)
+    )
     has_exam = asyncio.run(run_afk_workflow(status_callback=ui.show_info))
+    if had_pending_learning:
+        _maybe_delete_empty_learning_queue_file(ui)
     if has_exam:
         ui.show_success("挂课完成，并检测到考试链接")
     else:
@@ -113,12 +169,19 @@ def handle_ai_exam(ui) -> None:
     from core.exam_answers import ExamAiConfigurationError
     from core.workflows import run_ai_exam_workflow
 
+    auto_submit = _prompt_ai_exam_auto_submit(ui)
     try:
-        manual_count = asyncio.run(run_ai_exam_workflow(status_callback=ui.show_info))
+        manual_count = asyncio.run(
+            run_ai_exam_workflow(
+                status_callback=ui.show_info,
+                auto_submit=auto_submit,
+            )
+        )
     except ExamAiConfigurationError as exc:
         ui.show_error(str(exc))
         ui.pause()
         return
+    _maybe_delete_empty_exam_queue_file(ui)
     if manual_count:
         ui.show_warning(f"AI 自动考试结束，剩余人工考试 {manual_count} 条")
     else:
@@ -144,14 +207,16 @@ def handle_manual_exam(ui) -> None:
 
 
 def handle_show_output_state(exam_urls_file, learning_urls_file, manual_exam_file, ui) -> None:
+    from core.config import EXAM_ATTEMPT_LIMIT_FILE
     from core.state import read_non_empty_lines
 
     ui.show_summary(
         "当前输出文件状态",
         [
-            ("学习链接", str(len(read_non_empty_lines(learning_urls_file)))),
+            ("课程链接", str(len(read_non_empty_lines(learning_urls_file)))),
             ("考试链接", str(len(read_non_empty_lines(exam_urls_file)))),
             ("人工考试链接", str(len(read_non_empty_lines(manual_exam_file)))),
+            ("考试次数超限链接", str(len(read_non_empty_lines(EXAM_ATTEMPT_LIMIT_FILE)))),
         ],
     )
     ui.pause()

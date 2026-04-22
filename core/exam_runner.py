@@ -13,6 +13,7 @@ from core.config import (
     COURSE_EXAM_ATTEMPT_THRESHOLD,
     DASHSCOPE_API_KEY,
     DASHSCOPE_BASE_URL,
+    EXAM_ATTEMPT_LIMIT_FILE,
     EXAM_URLS_FILE,
     MANUAL_EXAM_FILE,
     MODEL_NAME,
@@ -20,7 +21,7 @@ from core.config import (
 )
 from core.exam_engine import ai_exam, wait_for_finish_test
 from core.exam_answers import ExamAiConfigurationError
-from core.file_ops import del_file, save_to_file
+from core.file_ops import save_to_file, write_unique_lines
 from core.learning import check_exam_passed, handle_rating_popup
 from core.state import read_non_empty_lines
 
@@ -31,6 +32,14 @@ COURSE_EXAM_BUTTON = ".btn.new-radius"
 PAPER_EXAM_BUTTON = (
     ".banner-handler-btn.themeColor-border-color.themeColor-background-color"
 )
+
+
+def _extract_attempt_limit_message(text: str) -> str | None:
+    for raw_line in text.replace("\r", "\n").split("\n"):
+        line = raw_line.strip()
+        if line and "考试次数限制" in line:
+            return line
+    return None
 
 
 def parse_remaining_attempts(button_text: str) -> int | None:
@@ -65,6 +74,46 @@ async def _is_direct_answer_paper_page(page) -> bool:
         return True
     except Exception:
         return False
+
+
+async def _get_paper_attempt_limit_message(page) -> str | None:
+    for selector in ("[data-region='modal:modal']", "body"):
+        locator = page.locator(selector)
+        try:
+            if await locator.count() <= 0:
+                continue
+            text = (await locator.first.inner_text()).strip()
+        except Exception:
+            continue
+        message = _extract_attempt_limit_message(text)
+        if message:
+            return message
+    return None
+
+
+async def _wait_for_paper_exam_button_or_attempt_limit(
+    page,
+    exam_button,
+    *,
+    timeout_ms: int = 5000,
+    interval_ms: int = 250,
+) -> str | None:
+    last_exc: Exception | None = None
+    checks = max(1, timeout_ms // interval_ms)
+
+    for _ in range(checks):
+        try:
+            await exam_button.wait_for(timeout=interval_ms)
+            return None
+        except Exception as exc:
+            last_exc = exc
+            attempt_limit_message = await _get_paper_attempt_limit_message(page)
+            if attempt_limit_message:
+                return attempt_limit_message
+
+    if last_exc is not None:
+        raise last_exc
+    return None
 
 
 async def _can_continue_ai_exam(
@@ -110,7 +159,14 @@ async def _handle_exam_result(page) -> None:
         logging.info("五星评价完成")
 
 
-async def _run_course_ai_exam(page, url: str, client: OpenAI, model: str) -> None:
+async def _run_course_ai_exam(
+    page,
+    url: str,
+    client: OpenAI,
+    model: str,
+    *,
+    auto_submit: bool = True,
+) -> None:
     while True:
         await _open_course_exam_tab(page)
 
@@ -132,18 +188,32 @@ async def _run_course_ai_exam(page, url: str, client: OpenAI, model: str) -> Non
             return
 
         logging.info("开始 AI 自动考试")
-        await wait_for_finish_test(client, model, page)
+        await wait_for_finish_test(client, model, page, auto_submit=auto_submit)
         await _handle_exam_result(page)
 
 
-async def _run_paper_ai_exam(page, url: str, client: OpenAI, model: str) -> None:
+async def _run_paper_ai_exam(
+    page,
+    url: str,
+    client: OpenAI,
+    model: str,
+    *,
+    auto_submit: bool = True,
+) -> None:
     if await _is_direct_answer_paper_page(page):
         logging.info("试卷页已直接进入答题页, 继续 AI 自动考试")
-        await ai_exam(client, model, page, page.url, auto_submit=True)
+        await ai_exam(client, model, page, page.url, auto_submit=auto_submit)
         return
 
     exam_button = page.locator(PAPER_EXAM_BUTTON)
-    await exam_button.wait_for(timeout=5000)
+    attempt_limit_message = await _wait_for_paper_exam_button_or_attempt_limit(
+        page,
+        exam_button,
+    )
+    if attempt_limit_message:
+        save_to_file(EXAM_ATTEMPT_LIMIT_FILE, url.strip())
+        logging.info(f"检测到考试次数限制提示, 跳过当前考试: {attempt_limit_message}")
+        return
 
     can_continue = await _can_continue_ai_exam(
         exam_button,
@@ -157,14 +227,19 @@ async def _run_paper_ai_exam(page, url: str, client: OpenAI, model: str) -> None
     async with page.expect_popup() as popup_info:
         await exam_button.click()
     popup = await popup_info.value
-    await ai_exam(client, model, popup, page.url, auto_submit=False)
+    await ai_exam(client, model, popup, page.url, auto_submit=auto_submit)
 
 
-async def run_ai_exam_batch(status_callback: StatusCallback | None = None) -> int:
+async def run_ai_exam_batch(
+    status_callback: StatusCallback | None = None,
+    *,
+    auto_submit: bool = True,
+) -> int:
     urls = list(dict.fromkeys(read_non_empty_lines(EXAM_URLS_FILE)))
     if not urls:
         return 0
 
+    pending_urls = list(urls)
     client, model = _build_exam_client()
     async with create_browser_context() as (_, context):
         for index, url in enumerate(urls, start=1):
@@ -177,15 +252,29 @@ async def run_ai_exam_batch(status_callback: StatusCallback | None = None) -> in
                 await page.wait_for_load_state("load")
 
                 if "course" in url:
-                    await _run_course_ai_exam(page, url, client, model)
+                    await _run_course_ai_exam(
+                        page,
+                        url,
+                        client,
+                        model,
+                        auto_submit=auto_submit,
+                    )
                 elif "exam" in url:
-                    await _run_paper_ai_exam(page, url, client, model)
+                    await _run_paper_ai_exam(
+                        page,
+                        url,
+                        client,
+                        model,
+                        auto_submit=auto_submit,
+                    )
                 else:
                     logging.info("未知考试链接类型, 转为人工考试")
                     save_to_file(MANUAL_EXAM_FILE, url)
             except UserAbortRequested:
+                write_unique_lines(EXAM_URLS_FILE, pending_urls)
                 raise
             except ExamAiConfigurationError:
+                write_unique_lines(EXAM_URLS_FILE, pending_urls)
                 raise
             except Exception as exc:
                 logging.error(f"AI 自动考试失败: {exc}")
@@ -193,8 +282,9 @@ async def run_ai_exam_batch(status_callback: StatusCallback | None = None) -> in
                 save_to_file(MANUAL_EXAM_FILE, url)
             finally:
                 await page.close()
+            pending_urls.pop(0)
 
-    del_file(EXAM_URLS_FILE)
+    write_unique_lines(EXAM_URLS_FILE, pending_urls)
     return len(read_non_empty_lines(MANUAL_EXAM_FILE))
 
 

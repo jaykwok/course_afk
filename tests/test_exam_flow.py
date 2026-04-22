@@ -103,6 +103,69 @@ class ExamFlowLoggingTests(unittest.IsolatedAsyncioTestCase):
         mock_info.assert_any_call("处理题目 1: 测试多题")
         mock_info.assert_any_call("题目 1 选项:\nA. 甲\nB. 乙")
 
+    async def test_ai_exam_disables_auto_submit_for_single_fill_blank_question(self):
+        from core.exam_flow import ai_exam
+
+        question_data = {
+            "type": "fill_blank",
+            "text": "测试填空题",
+            "options": [],
+        }
+        page = _FakePage()
+        page.wait_for_event = AsyncMock(return_value=None)
+
+        with (
+            patch("core.exam_flow.close_exam_notice_if_present", new=AsyncMock()),
+            patch("core.exam_flow.detect_exam_mode", new=AsyncMock(return_value="single")),
+            patch(
+                "core.exam_flow.extract_single_question_data",
+                new=AsyncMock(return_value=question_data),
+            ),
+            patch("core.exam_flow.get_ai_answers", new=AsyncMock(return_value=[])),
+            patch("core.exam_flow.select_answers", new=AsyncMock()),
+            patch("core.exam_flow.submit_exam", new=AsyncMock()) as mock_submit_exam,
+            patch("core.exam_flow.logging.info") as mock_info,
+        ):
+            await ai_exam(object(), "test-model", page, "https://example.com/exam", auto_submit=True)
+
+        mock_submit_exam.assert_not_awaited()
+        page.wait_for_event.assert_awaited_once_with("close", timeout=0)
+        mock_info.assert_any_call("检测到需要人工处理的题目，已自动切换为手动交卷")
+
+    async def test_ai_exam_disables_auto_submit_for_multi_question_without_valid_answers(self):
+        from core.exam_flow import ai_exam
+
+        question_data = {
+            "index": 0,
+            "item_id": "item-1",
+            "type": "single",
+            "text": "测试多题",
+            "options": [
+                {"label": "A", "text": "甲"},
+                {"label": "B", "text": "乙"},
+            ],
+        }
+        page = _FakePage()
+        page.wait_for_event = AsyncMock(return_value=None)
+
+        with (
+            patch("core.exam_flow.close_exam_notice_if_present", new=AsyncMock()),
+            patch("core.exam_flow.detect_exam_mode", new=AsyncMock(return_value="multi")),
+            patch(
+                "core.exam_flow.extract_multi_questions_data",
+                new=AsyncMock(return_value=[question_data]),
+            ),
+            patch("core.exam_flow.get_ai_answers", new=AsyncMock(return_value=[])),
+            patch("core.exam_flow.select_answers", new=AsyncMock()),
+            patch("core.exam_flow.submit_exam", new=AsyncMock()) as mock_submit_exam,
+            patch("core.exam_flow.logging.info") as mock_info,
+        ):
+            await ai_exam(object(), "test-model", page, "https://example.com/exam", auto_submit=True)
+
+        mock_submit_exam.assert_not_awaited()
+        page.wait_for_event.assert_awaited_once_with("close", timeout=0)
+        mock_info.assert_any_call("检测到需要人工处理的题目，已自动切换为手动交卷")
+
 
 if __name__ == "__main__":
     unittest.main()

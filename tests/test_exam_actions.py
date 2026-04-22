@@ -17,6 +17,22 @@ class _FakeClickTarget:
         self._clicks.append(timeout)
 
 
+class _FakeSubmitClickTarget:
+    def __init__(self, selector, click_calls):
+        self._selector = selector
+        self._click_calls = click_calls
+
+    @property
+    def last(self):
+        return self
+
+    async def click(self, timeout=0):
+        self._click_calls.append((self._selector, timeout))
+
+    async def count(self):
+        return 1
+
+
 class _FakeCollectionLocator:
     def __init__(self, selector, calls, error=None):
         self._selector = selector
@@ -40,6 +56,19 @@ class _FakePage:
             self.locator_calls,
             error=self._click_error,
         )
+
+    async def wait_for_timeout(self, _milliseconds):
+        return None
+
+
+class _FakeSubmitPage:
+    def __init__(self):
+        self.locator_calls = []
+        self.click_calls = []
+
+    def locator(self, selector):
+        self.locator_calls.append(selector)
+        return _FakeSubmitClickTarget(selector, self.click_calls)
 
     async def wait_for_timeout(self, _milliseconds):
         return None
@@ -129,6 +158,23 @@ class ExamActionTests(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertIn("自动交卷", str(ctx.exception))
+
+    async def test_submit_exam_uses_modal_close_button_instead_of_broad_text_selector(self):
+        from core.exam_actions import submit_exam
+
+        page = _FakeSubmitPage()
+
+        await submit_exam(page)
+
+        self.assertEqual(
+            page.locator_calls,
+            [
+                "text=我要交卷",
+                "button:has-text('确 定')",
+                "[data-region='modal:modal'] .btn.white.border:has-text('确定')",
+            ],
+        )
+        self.assertNotIn("text=确定", page.locator_calls)
 
 
 if __name__ == "__main__":
