@@ -44,17 +44,17 @@ async def handle_video(box, page):
     timing_plan = build_video_timing_plan(section_text)
     logging.info(f"课程总时长: {timing_plan.total_time} 秒")
     logging.info(f"还需学习: {timing_plan.learning_wait_time} 秒")
-    logging.info(f"视频进度条刷新间隔: {timing_plan.learning_update_interval} 秒")
+    logging.info(f"fallback 进度日志间隔: {timing_plan.learning_fallback_interval} 秒")
     logging.info(f"预计额外等待同步: {timing_plan.sync_wait_time} 秒")
     if timing_plan.sync_wait_time > 0:
         logging.info(
-            f"同步确认轮询间隔: {timing_plan.sync_update_interval} 秒"
+            f"同步确认轮询间隔: {timing_plan.sync_poll_interval} 秒"
         )
 
     timer_task = asyncio.create_task(
         timer(
             timing_plan.learning_wait_time,
-            interval=timing_plan.learning_update_interval,
+            fallback_interval=timing_plan.learning_fallback_interval,
             description="视频学习进度",
         )
     )
@@ -83,7 +83,7 @@ async def handle_video(box, page):
             return
 
         wait_seconds = min(
-            timing_plan.sync_update_interval,
+            timing_plan.sync_poll_interval,
             timing_plan.sync_wait_time - elapsed_sync_wait,
         )
         logging.info(
@@ -103,7 +103,7 @@ async def handle_video(box, page):
 async def handle_document(page, box):
     """处理文档、网页类型课程"""
     await page.locator("[class*='fullScreen-content']").first.wait_for()
-    await timer(DOCUMENT_INITIAL_WAIT, 1, description="文档学习进度")
+    await timer(DOCUMENT_INITIAL_WAIT, fallback_interval=1, description="文档学习进度")
 
     logging.info("课程学习完毕, 确认课程进度同步状态...")
     current_text = await box.locator(".section-item-wrapper").inner_text()

@@ -25,7 +25,7 @@ async def handle_rating_popup(page):
                 "document.querySelector('ul.ant-rate').scrollIntoView({block: 'center'})"
             )
             await fifth_star.click(force=True)
-            logging.info("已点击第五颗星星")
+            logging.info("已五星评价")
         except Exception as exc:
             logging.warning(f"点击星星失败: {exc}")
 

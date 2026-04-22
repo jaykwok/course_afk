@@ -219,14 +219,12 @@ def show_summary(title: str, rows: list[tuple[str, str]]) -> None:
 async def wait_with_progress(
     duration: int,
     description: str = "处理中",
-    step: int = 1,
 ) -> None:
     import asyncio
 
     duration = int(duration)
     if duration <= 0:
         return
-    step = max(1, int(step))
     with Progress(
         SpinnerColumn(spinner_name="dots"),
         TextColumn("[progress.description]{task.description}"),
@@ -236,13 +234,10 @@ async def wait_with_progress(
         TimeRemainingColumn(),
         console=console,
         auto_refresh=True,
-        refresh_per_second=10,
+        refresh_per_second=1,
         transient=True,
     ) as progress:
         task = progress.add_task(description, total=duration)
-        completed = 0
-        while completed < duration:
-            advance = min(step, duration - completed)
-            await asyncio.sleep(advance)
-            completed += advance
-            progress.update(task, advance=advance)
+        for _ in range(duration):
+            await asyncio.sleep(1)
+            progress.update(task, advance=1)
