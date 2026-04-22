@@ -31,7 +31,6 @@ from core.file_ops import (
     normalize_url,
     read_unique_lines,
     save_to_file,
-    write_unique_lines,
 )
 from core.learning import course_learning, is_subject_url_completed, subject_learning
 
@@ -51,13 +50,6 @@ def _read_unique_lines(file_path: Path) -> list[str]:
 
 def _append_unique_lines(file_path: Path, urls: list[str]) -> list[str]:
     return append_unique_lines(file_path, urls)
-
-
-def _write_learning_queue(urls: list[str], *, learning_file: Path | None = None) -> None:
-    if learning_file is None:
-        learning_file = LEARNING_URLS_FILE
-    if urls or learning_file.exists():
-        write_unique_lines(learning_file, urls)
 
 
 def _is_user_abort_exception(exc: BaseException) -> bool:
@@ -82,9 +74,7 @@ def prepare_afk_batch(
         _write_learning_queue(retry_urls, learning_file=learning_file)
         return AfkBatch(urls=retry_urls, is_retry=True)
 
-    learning_urls = _read_unique_lines(learning_file)
-    _write_learning_queue(learning_urls, learning_file=learning_file)
-    return AfkBatch(urls=learning_urls, is_retry=False)
+    return AfkBatch(urls=_read_unique_lines(learning_file), is_retry=False)
 
 
 async def _process_url(context, url: str, handler) -> bool:

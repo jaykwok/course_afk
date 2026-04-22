@@ -166,14 +166,10 @@ def prompt_choice(title: str, options: list[str], prompt: str = "请选择") -> 
 
 
 def prompt_yes_no(message: str, default: str = "N") -> bool:
-    normalized_default = (default or "N").strip().upper()
-    if normalized_default not in {"Y", "N"}:
-        normalized_default = "N"
     choice = Prompt.ask(
         f"\n  [bold cyan]{message}[/bold cyan]",
-        choices=["Y", "N"],
-        case_sensitive=False,
-        default=normalized_default,
+        choices=["Y", "N", "y", "n"],
+        default=default,
     )
     return choice.strip().upper() == "Y"
 

@@ -443,8 +443,6 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(manual_count, 0)
             self.assertTrue(exam_file.exists())
             self.assertEqual(exam_file.read_text(encoding="utf-8"), "")
-            mock_run_exam.assert_awaited_once()
-            self.assertFalse(mock_run_exam.await_args.kwargs["auto_submit"])
 
     async def test_run_paper_ai_exam_uses_direct_answer_page_without_start_button(self):
         from core.exam_runner import _run_paper_ai_exam

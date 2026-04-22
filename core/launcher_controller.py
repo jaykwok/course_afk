@@ -3,25 +3,6 @@ from __future__ import annotations
 import asyncio
 
 
-def _prompt_ai_exam_auto_submit(ui) -> bool:
-    return ui.prompt_yes_no("AI考试是否自动交卷？", default="Y")
-
-
-def _maybe_delete_empty_learning_queue_file(ui) -> None:
-    from core.config import LEARNING_URLS_FILE
-    from core.file_ops import del_file
-    from core.state import read_non_empty_lines
-
-    if not LEARNING_URLS_FILE.exists():
-        return
-    if read_non_empty_lines(LEARNING_URLS_FILE):
-        return
-
-    if ui.prompt_yes_no("课程链接.txt 已空，是否删除该文件？", default="N"):
-        del_file(LEARNING_URLS_FILE)
-        ui.show_success("已删除空的课程链接.txt")
-
-
 def _maybe_delete_empty_exam_queue_file(ui) -> None:
     from core.config import EXAM_URLS_FILE
     from core.file_ops import del_file
@@ -66,23 +47,12 @@ def handle_recommended_flow(ui) -> None:
     from core.state import read_non_empty_lines
     from core.config import LEARNING_URLS_FILE, RETRY_URLS_FILE
 
-    had_pending_learning = bool(
-        read_non_empty_lines(LEARNING_URLS_FILE) or read_non_empty_lines(RETRY_URLS_FILE)
-    )
     try:
-        result = asyncio.run(
-            run_recommended_flow(
-                status_callback=ui.show_info,
-                ask_auto_submit=lambda: _prompt_ai_exam_auto_submit(ui),
-            )
-        )
+        result = asyncio.run(run_recommended_flow(status_callback=ui.show_info))
     except ExamAiConfigurationError as exc:
         ui.show_error(str(exc))
         ui.pause()
         return
-
-    if had_pending_learning:
-        _maybe_delete_empty_learning_queue_file(ui)
     _maybe_delete_empty_exam_queue_file(ui)
     label = _FLOW_RESULT_LABELS.get(result, result)
     ui.show_summary("推荐流程结果", [("流程状态", label)])
@@ -169,14 +139,8 @@ def handle_ai_exam(ui) -> None:
     from core.exam_answers import ExamAiConfigurationError
     from core.workflows import run_ai_exam_workflow
 
-    auto_submit = _prompt_ai_exam_auto_submit(ui)
     try:
-        manual_count = asyncio.run(
-            run_ai_exam_workflow(
-                status_callback=ui.show_info,
-                auto_submit=auto_submit,
-            )
-        )
+        manual_count = asyncio.run(run_ai_exam_workflow(status_callback=ui.show_info))
     except ExamAiConfigurationError as exc:
         ui.show_error(str(exc))
         ui.pause()

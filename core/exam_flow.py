@@ -31,17 +31,6 @@ def _log_question_snapshot(question_data, *, index: int | None = None) -> None:
     logging.info(f"{option_prefix}:\n{_format_question_options(question_data)}")
 
 
-def _should_disable_auto_submit(question_data, answers) -> bool:
-    return question_data.get("type") == "fill_blank" or not answers
-
-
-def _ensure_manual_submit(auto_submit: bool, question_data, answers) -> bool:
-    if auto_submit and _should_disable_auto_submit(question_data, answers):
-        logging.info("检测到需要人工处理的题目，已自动切换为手动交卷")
-        return False
-    return auto_submit
-
-
 async def ai_exam(client, model, page, course_url, auto_submit=True):
     """AI自动答题主函数"""
     logging.info("AI考试开始")
