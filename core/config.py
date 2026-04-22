@@ -1,7 +1,7 @@
 """
-统一配置文件 - 所有可调参数集中管理。
+统一配置与日志工具。
 
-修改参数时只需编辑本文件，无需改动业务代码。
+运行时配置主要从 .env 读取，本文件负责集中定义默认值、路径和日志行为。
 """
 
 import ctypes
@@ -37,6 +37,75 @@ _NOISY_LOGGER_NAMES = (
     "urllib3",
     "websockets",
 )
+
+
+def _sanitize_console_message(message: str) -> str:
+    if not message:
+        return message
+
+    normalized = message.replace("\r\n", "\n").replace("\r", "\n")
+    if normalized.lstrip().startswith("Traceback (most recent call last):"):
+        return ""
+
+    sanitized_lines: list[str] = []
+    skipping_call_log = False
+
+    for line in normalized.split("\n"):
+        stripped = line.strip()
+
+        if stripped.startswith("Call log:"):
+            skipping_call_log = True
+            continue
+
+        if skipping_call_log:
+            if not stripped:
+                continue
+            if line.lstrip().startswith("- "):
+                continue
+            skipping_call_log = False
+
+        sanitized_lines.append(line)
+
+    collapsed_lines: list[str] = []
+    previous_blank = False
+    for line in sanitized_lines:
+        is_blank = not line.strip()
+        if is_blank and previous_blank:
+            continue
+        collapsed_lines.append(line)
+        previous_blank = is_blank
+
+    return "\n".join(collapsed_lines).strip("\n")
+
+
+class _SanitizedConsoleFormatter(logging.Formatter):
+    def format(self, record):
+        return _sanitize_console_message(super().format(record))
+
+
+class _SanitizedConsoleFilter(logging.Filter):
+    def filter(self, record):
+        return bool(_sanitize_console_message(record.getMessage()).strip())
+
+
+def summarize_exception_message(exc: Exception, fallback: str) -> str:
+    sanitized = _sanitize_console_message(str(exc)).strip()
+    if not sanitized:
+        return fallback
+
+    lines = [line.strip() for line in sanitized.splitlines() if line.strip()]
+    if not lines:
+        return fallback
+
+    first_line = lines[0]
+    noisy_prefixes = (
+        "Locator.",
+        "Traceback ",
+        "playwright.",
+    )
+    if first_line.startswith(noisy_prefixes):
+        return fallback
+    return f"{fallback}: {first_line}"
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -143,7 +212,8 @@ def _build_console_handler():
     if handler is None:
         handler = logging.StreamHandler()
     handler.setLevel(_get_console_log_level())
-    handler.setFormatter(logging.Formatter(CONSOLE_LOG_FORMAT))
+    handler.addFilter(_SanitizedConsoleFilter())
+    handler.setFormatter(_SanitizedConsoleFormatter(CONSOLE_LOG_FORMAT))
     return handler
 
 
@@ -200,7 +270,12 @@ def setup_logging(show_startup_banner: bool | None = None):
 DASHSCOPE_BASE_URL = os.getenv("DASHSCOPE_BASE_URL")
 DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME")
+AI_REQUEST_TYPE = (_env_text("AI_REQUEST_TYPE", "responses") or "responses").lower()
 AI_ENABLE_WEB_SEARCH = _env_flag("AI_ENABLE_WEB_SEARCH", False)
+AI_ENABLE_THINKING = _env_flag("AI_ENABLE_THINKING", False)
+AI_REASONING_EFFORT = _env_text("AI_REASONING_EFFORT")
+if AI_REASONING_EFFORT:
+    AI_REASONING_EFFORT = AI_REASONING_EFFORT.lower()
 AI_RESPONSE_TOOLS = [{"type": "web_search"}] if AI_ENABLE_WEB_SEARCH else None
 
 # AI 考试参数

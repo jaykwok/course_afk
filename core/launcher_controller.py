@@ -26,9 +26,15 @@ _FLOW_RESULT_LABELS = {
 
 
 def handle_recommended_flow(ui) -> None:
+    from core.exam_answers import ExamAiConfigurationError
     from core.workflows import run_recommended_flow
 
-    result = asyncio.run(run_recommended_flow(status_callback=ui.show_info))
+    try:
+        result = asyncio.run(run_recommended_flow(status_callback=ui.show_info))
+    except ExamAiConfigurationError as exc:
+        ui.show_error(str(exc))
+        ui.pause()
+        return
     label = _FLOW_RESULT_LABELS.get(result, result)
     ui.show_summary("推荐流程结果", [("流程状态", label)])
     ui.pause()
@@ -104,9 +110,15 @@ def handle_afk(ui) -> None:
 
 
 def handle_ai_exam(ui) -> None:
+    from core.exam_answers import ExamAiConfigurationError
     from core.workflows import run_ai_exam_workflow
 
-    manual_count = asyncio.run(run_ai_exam_workflow(status_callback=ui.show_info))
+    try:
+        manual_count = asyncio.run(run_ai_exam_workflow(status_callback=ui.show_info))
+    except ExamAiConfigurationError as exc:
+        ui.show_error(str(exc))
+        ui.pause()
+        return
     if manual_count:
         ui.show_warning(f"AI 自动考试结束，剩余人工考试 {manual_count} 条")
     else:

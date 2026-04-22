@@ -19,7 +19,8 @@ class ProjectState:
 def read_non_empty_lines(file_path: Path) -> list[str]:
     try:
         with open(file_path, "r", encoding="utf-8") as file:
-            return [line.strip() for line in file if line.strip()]
+            lines = [line.strip() for line in file if line.strip()]
+            return list(dict.fromkeys(lines))
     except FileNotFoundError:
         return []
 

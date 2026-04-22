@@ -31,6 +31,7 @@ from core.links import extract_urls_from_text, split_manual_selection_urls
 from core.file_ops import is_compliant_url_regex, normalize_url
 from core.login import login_and_save_credential
 from core.state import collect_project_state, read_non_empty_lines
+from core.config import summarize_exception_message
 
 
 StatusCallback = Callable[[str], None]
@@ -65,6 +66,10 @@ def _track_background_task(task: asyncio.Task, pending_tasks: set[asyncio.Task])
             logging.debug(f"后台任务结束时读取异常失败: {exc}")
 
     task.add_done_callback(_cleanup)
+
+
+def _format_status_error_message(action: str, exc: Exception) -> str:
+    return summarize_exception_message(exc, action)
 
 
 async def resolve_account_profile_from_cookies() -> AccountProfile:
@@ -129,7 +134,7 @@ async def collect_learning_links_from_entry_urls(
             await new_page.close()
         except Exception as exc:
             if status_callback:
-                status_callback(f"记录新页面链接失败: {exc}")
+                status_callback(_format_status_error_message("记录新页面链接失败", exc))
             try:
                 await new_page.close()
             except Exception:

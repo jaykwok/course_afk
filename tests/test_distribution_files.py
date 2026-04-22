@@ -13,8 +13,13 @@ class DistributionFilesTests(unittest.TestCase):
         self.assertIn("DASHSCOPE_BASE_URL=", content)
         self.assertIn("DASHSCOPE_API_KEY=your_api_key_here", content)
         self.assertIn("MODEL_NAME=qwen3.6-plus", content)
+        self.assertIn("AI_REQUEST_TYPE=responses", content)
         self.assertIn("AI_ENABLE_WEB_SEARCH=1", content)
+        self.assertIn("AI_ENABLE_THINKING=0", content)
+        self.assertIn("AI_REASONING_EFFORT=medium", content)
         self.assertIn("默认关闭", content)
+        self.assertIn("chat / responses", content)
+        self.assertIn("联网搜索，默认关闭", content)
         self.assertIn("DEBUG_MODE=1", content)
         self.assertIn("SUPPRESS_STARTUP_BANNER=1", content)
 
@@ -45,6 +50,10 @@ class DistributionFilesTests(unittest.TestCase):
 
         self.assertIn("run.bat", readme)
         self.assertIn("python launcher.py", readme)
+        self.assertIn("AI_REQUEST_TYPE=responses", readme)
+        self.assertIn("AI_REQUEST_TYPE=chat", readme)
+        self.assertIn("AI_ENABLE_THINKING=0", readme)
+        self.assertIn("AI_REASONING_EFFORT=none|minimal|low|medium|high", readme)
         self.assertNotIn("run.ps1", readme)
 
 

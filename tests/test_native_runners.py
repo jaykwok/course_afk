@@ -390,6 +390,118 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
         )
         mock_save.assert_not_called()
 
+    async def test_run_ai_exam_batch_propagates_user_abort_requested(self):
+        from core.abort import UserAbortRequested
+        from core.exam_runner import run_ai_exam_batch
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper"
+
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exam_file = root / "exam.txt"
+            manual_file = root / "manual.txt"
+            exam_file.write_text(
+                "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch("core.exam_runner.MANUAL_EXAM_FILE", manual_file),
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
+                patch(
+                    "core.exam_runner._run_paper_ai_exam",
+                    new=AsyncMock(
+                        side_effect=UserAbortRequested(
+                            "考试已超过时长，系统已自动交卷，程序退出",
+                            save_pending_urls=False,
+                        )
+                    ),
+                ),
+            ):
+                with self.assertRaises(UserAbortRequested):
+                    await run_ai_exam_batch()
+
+    async def test_run_ai_exam_batch_propagates_exam_ai_configuration_error_without_saving_manual(self):
+        from core.exam_answers import ExamAiConfigurationError
+        from core.exam_runner import run_ai_exam_batch
+
+        class FakePage:
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exam_file = root / "exam.txt"
+            manual_file = root / "manual.txt"
+            exam_file.write_text(
+                "https://kc.zhixueyun.com/#/study/course/detail/test-course\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch("core.exam_runner.MANUAL_EXAM_FILE", manual_file),
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
+                patch(
+                    "core.exam_runner._run_course_ai_exam",
+                    new=AsyncMock(
+                        side_effect=ExamAiConfigurationError("AI 配置错误")
+                    ),
+                ),
+            ):
+                with self.assertRaises(ExamAiConfigurationError):
+                    await run_ai_exam_batch()
+
+            self.assertFalse(manual_file.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

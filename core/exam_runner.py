@@ -7,6 +7,7 @@ from typing import Callable
 
 from openai import OpenAI
 
+from core.abort import UserAbortRequested
 from core.browser import create_browser_context
 from core.config import (
     COURSE_EXAM_ATTEMPT_THRESHOLD,
@@ -18,6 +19,7 @@ from core.config import (
     PAPER_EXAM_ATTEMPT_THRESHOLD,
 )
 from core.exam_engine import ai_exam, wait_for_finish_test
+from core.exam_answers import ExamAiConfigurationError
 from core.file_ops import del_file, save_to_file
 from core.learning import check_exam_passed, handle_rating_popup
 from core.state import read_non_empty_lines
@@ -181,6 +183,10 @@ async def run_ai_exam_batch(status_callback: StatusCallback | None = None) -> in
                 else:
                     logging.info("未知考试链接类型, 转为人工考试")
                     save_to_file(MANUAL_EXAM_FILE, url)
+            except UserAbortRequested:
+                raise
+            except ExamAiConfigurationError:
+                raise
             except Exception as exc:
                 logging.error(f"AI 自动考试失败: {exc}")
                 logging.error(traceback.format_exc())

@@ -119,6 +119,66 @@ class LoggingConfigTests(unittest.TestCase):
         self.assertEqual(stdout.errors, "replace")
         self.assertEqual(stderr.errors, "replace")
 
+    def test_sanitize_console_message_removes_playwright_call_log_block(self):
+        raw_message = (
+            "Locator.wait_for: Timeout 3000ms exceeded.\n"
+            "Call log:\n"
+            '  - waiting for locator(".single-btns") to be visible\n'
+            "  - element is visible\n"
+            "\n"
+            "后续普通日志"
+        )
+
+        cleaned = config._sanitize_console_message(raw_message)
+
+        self.assertEqual(
+            cleaned,
+            "Locator.wait_for: Timeout 3000ms exceeded.\n后续普通日志",
+        )
+
+    def test_console_formatter_uses_sanitized_message(self):
+        formatter = config._SanitizedConsoleFormatter("%(message)s")
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname=__file__,
+            lineno=1,
+            msg=(
+                "主日志\n"
+                "Call log:\n"
+                "  - step 1\n"
+                "  - step 2\n"
+                "下一行"
+            ),
+            args=(),
+            exc_info=None,
+        )
+
+        rendered = formatter.format(record)
+
+        self.assertEqual(rendered, "主日志\n下一行")
+
+    def test_sanitize_console_message_drops_traceback_only_records(self):
+        cleaned = config._sanitize_console_message(
+            "Traceback (most recent call last):\n"
+            '  File "x.py", line 1, in <module>\n'
+            "RuntimeError: boom\n"
+        )
+
+        self.assertEqual(cleaned, "")
+
+    def test_summarize_exception_message_falls_back_for_raw_playwright_locator_error(self):
+        summarized = config.summarize_exception_message(
+            RuntimeError(
+                "Locator.wait_for: Timeout 3000ms exceeded.\n"
+                "Call log:\n"
+                '  - waiting for locator(".single-btns") to be visible\n'
+            ),
+            "处理失败",
+        )
+
+        self.assertEqual(summarized, "处理失败")
+
     def test_disable_windows_console_input_modes_clears_quick_edit_and_insert(self):
         class FakeKernel32:
             def __init__(self):
