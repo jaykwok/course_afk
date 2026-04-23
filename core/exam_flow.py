@@ -10,6 +10,10 @@ from core.exam_parsing import (
     extract_single_question_data,
 )
 
+MANUAL_SUBMIT_RESULT_CLOSE_SELECTOR = (
+    "[data-region='modal:modal'] .btn.white.border:has-text('确定')"
+)
+
 
 def _format_question_options(question_data) -> str:
     options = question_data.get("options") or []
@@ -40,6 +44,36 @@ def _ensure_manual_submit(auto_submit: bool, question_data, answers) -> bool:
         logging.info("检测到需要人工处理的题目，已自动切换为手动交卷")
         return False
     return auto_submit
+
+
+def _page_is_closed(page) -> bool:
+    checker = getattr(page, "is_closed", None)
+    if not callable(checker):
+        return False
+    try:
+        return bool(checker())
+    except Exception:
+        return False
+
+
+async def _wait_for_manual_submit_completion(page) -> None:
+    while True:
+        if _page_is_closed(page):
+            return
+
+        try:
+            close_button = page.locator(MANUAL_SUBMIT_RESULT_CLOSE_SELECTOR)
+            if await close_button.count() > 0:
+                logging.info("检测到交卷结果弹窗, 准备关闭")
+                await close_button.last.click()
+                await page.wait_for_timeout(500)
+                return
+        except Exception as exc:
+            if _page_is_closed(page):
+                return
+            logging.debug(f"等待手动交卷完成时检查结果弹窗失败: {exc}")
+
+        await page.wait_for_timeout(500)
 
 
 async def ai_exam(client, model, page, course_url, auto_submit=True):
@@ -81,8 +115,8 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
                     await submit_exam(page)
                 else:
                     logging.info("自动交卷已取消, 请手动交卷")
-                    logging.info("页面将保持打开状态, 等待手动操作...")
-                    await page.wait_for_event("close", timeout=0)
+                    logging.info("页面将保持打开状态, 等待手动交卷完成...")
+                    await _wait_for_manual_submit_completion(page)
                 break
 
             logging.info("点击下一题")
@@ -122,8 +156,8 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
                 logging.error(f"点击交卷按钮失败: {exc}")
         else:
             logging.info("自动交卷已取消, 请手动交卷")
-            logging.info("页面将保持打开状态, 等待手动操作...")
-            await page.wait_for_event("close", timeout=0)
+            logging.info("页面将保持打开状态, 等待手动交卷完成...")
+            await _wait_for_manual_submit_completion(page)
 
     logging.info("考试完成")
 
@@ -135,4 +169,6 @@ async def wait_for_finish_test(client, model, page1, auto_submit=True):
     page2 = await page2_info.value
     logging.info("等待作答完毕并关闭页面")
     await ai_exam(client, model, page2, page1.url, auto_submit=auto_submit)
+    if _page_is_closed(page2):
+        return
     await page2.wait_for_event("close", timeout=0)

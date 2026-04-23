@@ -21,7 +21,7 @@ from core.config import (
 )
 from core.exam_engine import ai_exam, wait_for_finish_test
 from core.exam_answers import ExamAiConfigurationError
-from core.file_ops import save_to_file, write_unique_lines
+from core.file_ops import del_file, save_to_file, write_unique_lines
 from core.learning import check_exam_passed, handle_rating_popup
 from core.state import read_non_empty_lines
 
@@ -89,6 +89,16 @@ async def _get_paper_attempt_limit_message(page) -> str | None:
         if message:
             return message
     return None
+
+
+async def _handle_attempt_limit_if_present(page, url: str) -> bool:
+    attempt_limit_message = await _get_paper_attempt_limit_message(page)
+    if not attempt_limit_message:
+        return False
+
+    save_to_file(EXAM_ATTEMPT_LIMIT_FILE, url.strip())
+    logging.info(f"检测到考试次数限制提示, 跳过当前考试: {attempt_limit_message}")
+    return True
 
 
 async def _wait_for_paper_exam_button_or_attempt_limit(
@@ -188,7 +198,12 @@ async def _run_course_ai_exam(
             return
 
         logging.info("开始 AI 自动考试")
-        await wait_for_finish_test(client, model, page, auto_submit=auto_submit)
+        try:
+            await wait_for_finish_test(client, model, page, auto_submit=auto_submit)
+        except Exception:
+            if await _handle_attempt_limit_if_present(page, url):
+                return
+            raise
         await _handle_exam_result(page)
 
 
@@ -211,8 +226,7 @@ async def _run_paper_ai_exam(
         exam_button,
     )
     if attempt_limit_message:
-        save_to_file(EXAM_ATTEMPT_LIMIT_FILE, url.strip())
-        logging.info(f"检测到考试次数限制提示, 跳过当前考试: {attempt_limit_message}")
+        await _handle_attempt_limit_if_present(page, url)
         return
 
     can_continue = await _can_continue_ai_exam(

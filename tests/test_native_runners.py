@@ -685,6 +685,102 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
             self.assertFalse(manual_file.exists())
 
+    async def test_run_course_ai_exam_marks_attempt_limit_when_start_exam_shows_limit_modal(self):
+        from core.exam_runner import EXAM_ATTEMPT_LIMIT_FILE, _run_course_ai_exam
+
+        class FakeLocator:
+            def __init__(self, *, count=0, text=""):
+                self._count = count
+                self._text = text
+
+            @property
+            def first(self):
+                return self
+
+            async def count(self):
+                return self._count
+
+            async def inner_text(self):
+                return self._text
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://kc.zhixueyun.com/#/study/course/detail/test-course"
+                self._locators = {
+                    ".btn.new-radius": FakeLocator(count=1, text="开始考试"),
+                    ".neer-status": FakeLocator(count=0),
+                    "[data-region='modal:modal']": FakeLocator(
+                        count=1,
+                        text="您好，当前已触发考试次数限制，不能再次进入考试详情页",
+                    ),
+                    "body": FakeLocator(
+                        count=1,
+                        text="您好，当前已触发考试次数限制，不能再次进入考试详情页",
+                    ),
+                }
+
+            def locator(self, selector):
+                return self._locators[selector]
+
+        page = FakePage()
+
+        with (
+            patch("core.exam_runner._open_course_exam_tab", new=AsyncMock()),
+            patch("core.exam_runner.wait_for_finish_test", new=AsyncMock(side_effect=RuntimeError("Popup timeout"))),
+            patch("core.exam_runner.save_to_file") as mock_save,
+            patch("core.exam_runner.logging.info") as mock_info,
+        ):
+            await _run_course_ai_exam(page, page.url, object(), "test-model")
+
+        mock_save.assert_called_once_with(EXAM_ATTEMPT_LIMIT_FILE, page.url)
+        self.assertTrue(
+            any("考试次数限制" in call.args[0] for call in mock_info.call_args_list)
+        )
+
+    async def test_run_manual_exam_batch_deletes_manual_exam_file_when_all_processed(self):
+        from core.exam_runner import run_manual_exam_batch
+
+        class FakePage:
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            manual_file = Path(tmp) / "manual.txt"
+            manual_file.write_text(
+                "https://kc.zhixueyun.com/#/study/course/detail/test-course\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._run_manual_course_exam", new=AsyncMock(return_value=None)),
+                patch("core.exam_runner.del_file") as mock_del_file,
+            ):
+                processed = await run_manual_exam_batch(manual_exam_file=manual_file)
+
+        self.assertEqual(processed, 1)
+        mock_del_file.assert_called_once_with(manual_file)
+
 
 if __name__ == "__main__":
     unittest.main()

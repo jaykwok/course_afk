@@ -6,6 +6,7 @@ __pycache__/
 # Editor and local tooling
 .vscode/
 .claude/
+.idea/
 
 # Local secrets and session state
 .env
@@ -16,6 +17,11 @@ credential_meta.json
 log.txt
 tmp_*
 *_probe.txt
+.coverage
+.pytest_cache/
+htmlcov/
+build/
+dist/
 
 # Generated workflow output files
 课程链接.txt
