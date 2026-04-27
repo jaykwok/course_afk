@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+from core.config import run_async
 
 
 def _prompt_ai_exam_auto_submit(ui) -> bool:
@@ -70,7 +70,7 @@ def handle_recommended_flow(ui) -> None:
         read_non_empty_lines(LEARNING_URLS_FILE) or read_non_empty_lines(RETRY_URLS_FILE)
     )
     try:
-        result = asyncio.run(
+        result = run_async(
             run_recommended_flow(
                 status_callback=ui.show_info,
                 ask_auto_submit=lambda: _prompt_ai_exam_auto_submit(ui),
@@ -125,7 +125,7 @@ def handle_manual_selection(prompts, ui) -> None:
         learning_zone_urls,
         prompt_choice_func=ui.prompt_choice,
     )
-    result = asyncio.run(
+    result = run_async(
         run_manual_course_selection(
             input_text,
             learning_zone_mode=learning_zone_mode,
@@ -155,7 +155,7 @@ def handle_afk(ui) -> None:
     had_pending_learning = bool(
         read_non_empty_lines(LEARNING_URLS_FILE) or read_non_empty_lines(RETRY_URLS_FILE)
     )
-    has_exam = asyncio.run(run_afk_workflow(status_callback=ui.show_info))
+    has_exam = run_async(run_afk_workflow(status_callback=ui.show_info))
     if had_pending_learning:
         _maybe_delete_empty_learning_queue_file(ui)
     if has_exam:
@@ -171,7 +171,7 @@ def handle_ai_exam(ui) -> None:
 
     auto_submit = _prompt_ai_exam_auto_submit(ui)
     try:
-        manual_count = asyncio.run(
+        manual_count = run_async(
             run_ai_exam_workflow(
                 status_callback=ui.show_info,
                 auto_submit=auto_submit,
@@ -193,7 +193,7 @@ def handle_manual_exam(ui) -> None:
     from core.state import collect_project_state
     from core.workflows import run_manual_exam_workflow
 
-    count = asyncio.run(run_manual_exam_workflow(status_callback=ui.show_info))
+    count = run_async(run_manual_exam_workflow(status_callback=ui.show_info))
     state = collect_project_state()
     if count and state.manual_exam_count == 0:
         ui.show_success(f"人工考试流程结束，共处理 {count} 条")

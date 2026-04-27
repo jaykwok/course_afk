@@ -42,6 +42,18 @@ class ExamAnswerTests(unittest.TestCase):
         self.assertEqual(normalize_ai_answer_text("single", "答案是 b"), ["B"])
         self.assertEqual(normalize_ai_answer_text("multiple", "我选 ac"), ["A", "C"])
 
+    def test_normalize_ai_answer_text_keeps_only_final_single_choice_from_reasoning(self):
+        from core.exam_answers import normalize_ai_answer_text
+
+        self.assertEqual(
+            normalize_ai_answer_text("single", "A 不符合题意，B 才是正确答案。"),
+            ["B"],
+        )
+        self.assertEqual(
+            normalize_ai_answer_text("single", "A 看起来相关，B 也可排除，最终答案仍是 A。"),
+            ["A"],
+        )
+
 
 class ExamAnswerResponsesApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_get_ai_answers_raises_configuration_error_for_unsupported_model(self):
@@ -229,6 +241,7 @@ class ExamAnswerChatApiTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(exam_answers, "AI_REQUEST_TYPE", "chat"),
             patch.object(exam_answers, "AI_ENABLE_WEB_SEARCH", True),
+            patch.object(exam_answers, "AI_ENABLE_THINKING", False),
         ):
             answers = await exam_answers.get_ai_answers(client, "qwen3.6-max-preview", question_data)
 
@@ -237,7 +250,7 @@ class ExamAnswerChatApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(create.call_args.kwargs["model"], "qwen3.6-max-preview")
         self.assertEqual(
             create.call_args.kwargs["extra_body"],
-            {"enable_search": True},
+            {"enable_thinking": False, "enable_search": True},
         )
         self.assertTrue(create.call_args.kwargs["stream"])
         self.assertEqual(
@@ -249,7 +262,7 @@ class ExamAnswerChatApiTests(unittest.IsolatedAsyncioTestCase):
             "user",
         )
 
-    async def test_get_ai_answers_omits_chat_web_search_body_when_disabled(self):
+    async def test_get_ai_answers_sends_chat_thinking_disabled_when_configured(self):
         from core import exam_answers
 
         create = Mock(
@@ -278,12 +291,16 @@ class ExamAnswerChatApiTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(exam_answers, "AI_REQUEST_TYPE", "chat"),
             patch.object(exam_answers, "AI_ENABLE_WEB_SEARCH", False),
+            patch.object(exam_answers, "AI_ENABLE_THINKING", False),
         ):
             answers = await exam_answers.get_ai_answers(client, "qwen3.6-max-preview", question_data)
 
         self.assertEqual(answers, ["A"])
         create.assert_called_once()
-        self.assertNotIn("extra_body", create.call_args.kwargs)
+        self.assertEqual(
+            create.call_args.kwargs["extra_body"],
+            {"enable_thinking": False},
+        )
         self.assertTrue(create.call_args.kwargs["stream"])
 
     async def test_get_ai_answers_uses_chat_enable_thinking_and_search_together(self):

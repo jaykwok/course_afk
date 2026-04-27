@@ -179,6 +179,107 @@ class LoggingConfigTests(unittest.TestCase):
 
         self.assertEqual(summarized, "处理失败")
 
+    def test_asyncio_exception_handler_suppresses_unretrieved_target_closed_call_log(self):
+        class TargetClosedError(Exception):
+            pass
+
+        default_calls = []
+
+        class FakeLoop:
+            def default_exception_handler(self, context):
+                default_calls.append(context)
+
+        handler = config._make_asyncio_exception_handler(previous_handler=None)
+        handler(
+            FakeLoop(),
+            {
+                "message": "Future exception was never retrieved",
+                "exception": TargetClosedError(
+                    "Target page, context or browser has been closed\n"
+                    "Call log:\n"
+                    '  - navigating to "https://example.test", waiting until "load"\n'
+                ),
+            },
+        )
+
+        self.assertEqual(default_calls, [])
+
+    def test_asyncio_exception_handler_keeps_unexpected_future_errors(self):
+        previous_calls = []
+
+        def previous_handler(loop, context):
+            previous_calls.append((loop, context))
+
+        loop = object()
+        context = {
+            "message": "Future exception was never retrieved",
+            "exception": RuntimeError("boom"),
+        }
+        handler = config._make_asyncio_exception_handler(previous_handler)
+
+        handler(loop, context)
+
+        self.assertEqual(previous_calls, [(loop, context)])
+
+    def test_run_async_keeps_target_closed_filter_during_runner_shutdown(self):
+        class TargetClosedError(Exception):
+            pass
+
+        default_calls = []
+        previous_calls = []
+
+        def previous_handler(loop, context):
+            previous_calls.append((loop, context))
+
+        class FakeLoop:
+            def __init__(self):
+                self.handler = None
+
+            def get_exception_handler(self):
+                return previous_handler
+
+            def set_exception_handler(self, handler):
+                self.handler = handler
+
+            def default_exception_handler(self, context):
+                default_calls.append(context)
+
+        class FakeRunner:
+            def __init__(self):
+                self.loop = FakeLoop()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                self.loop.handler(
+                    self.loop,
+                    {
+                        "message": "Future exception was never retrieved",
+                        "exception": TargetClosedError(
+                            "Target page, context or browser has been closed"
+                        ),
+                    },
+                )
+                return False
+
+            def get_loop(self):
+                return self.loop
+
+            def run(self, awaitable):
+                awaitable.close()
+                return "runner-result"
+
+        async def noop():
+            return "coroutine-result"
+
+        with patch.object(config.asyncio, "Runner", return_value=FakeRunner()):
+            result = config.run_async(noop())
+
+        self.assertEqual(result, "runner-result")
+        self.assertEqual(default_calls, [])
+        self.assertEqual(previous_calls, [])
+
     def test_disable_windows_console_input_modes_clears_quick_edit_and_insert(self):
         class FakeKernel32:
             def __init__(self):

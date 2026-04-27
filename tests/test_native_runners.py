@@ -395,6 +395,69 @@ class ExamAttemptRoutingTests(unittest.TestCase):
 
 
 class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
+    def test_build_exam_client_uses_openai_completion_config(self):
+        from core import exam_runner
+
+        with (
+            patch("core.exam_runner.OPENAI_COMPLETION_BASE_URL", "https://openai-compatible.example/v1"),
+            patch("core.exam_runner.OPENAI_COMPLETION_API_KEY", "test-key"),
+            patch("core.exam_runner.MODEL_NAME", "test-model"),
+            patch("core.exam_runner.OpenAI") as mock_openai,
+        ):
+            client, model = exam_runner._build_exam_client()
+
+        mock_openai.assert_called_once_with(
+            api_key="test-key",
+            base_url="https://openai-compatible.example/v1",
+        )
+        self.assertEqual(client, mock_openai.return_value)
+        self.assertEqual(model, "test-model")
+
+    async def test_run_course_ai_exam_continues_ai_when_course_exam_is_in_progress(self):
+        from core.exam_runner import _run_course_ai_exam
+
+        class FakeLocator:
+            def __init__(self, *, count=0, text=""):
+                self._count = count
+                self._text = text
+
+            async def count(self):
+                return self._count
+
+            async def inner_text(self):
+                return self._text
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://kc.zhixueyun.com/#/study/course/detail/test-course"
+                self.status_text = "考试中"
+                self._exam_button = FakeLocator(count=1, text="继续考试")
+
+            def locator(self, selector):
+                if selector == ".btn.new-radius":
+                    return self._exam_button
+                if selector == ".neer-status":
+                    return FakeLocator(count=1, text=self.status_text)
+                raise KeyError(selector)
+
+        page = FakePage()
+
+        async def finish_exam(*args, **kwargs):
+            page.status_text = "已通过"
+
+        with (
+            patch("core.exam_runner._open_course_exam_tab", new=AsyncMock()),
+            patch("core.exam_runner.check_exam_passed", new=AsyncMock(return_value=True)) as mock_check_passed,
+            patch("core.exam_runner.wait_for_finish_test", new=AsyncMock(side_effect=finish_exam)) as mock_wait,
+            patch("core.exam_runner._handle_exam_result", new=AsyncMock()),
+            patch("core.exam_runner.save_to_file") as mock_save,
+        ):
+            await _run_course_ai_exam(page, page.url, object(), "test-model")
+
+        mock_wait.assert_awaited_once()
+        mock_check_passed.assert_awaited_once()
+        mock_save.assert_not_called()
+
     async def test_run_ai_exam_batch_keeps_empty_exam_queue_file_after_processing(self):
         from core.exam_runner import run_ai_exam_batch
 
@@ -685,6 +748,119 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
             self.assertFalse(manual_file.exists())
 
+    async def test_run_ai_exam_batch_saves_pending_when_browser_closed_before_new_page(self):
+        from core.abort import UserAbortRequested
+        from core.exam_runner import run_ai_exam_batch
+
+        class TargetClosedError(Exception):
+            pass
+
+        class FakeBrowser:
+            def is_connected(self):
+                return False
+
+        class FakeContext:
+            def __init__(self):
+                self.browser = FakeBrowser()
+
+            async def new_page(self):
+                raise TargetClosedError("Target page, context or browser has been closed")
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            exam_file = Path(tmp) / "exam.txt"
+            urls = [
+                "https://kc.zhixueyun.com/#/study/course/detail/test-course-a",
+                "https://kc.zhixueyun.com/#/study/course/detail/test-course-b",
+            ]
+            exam_file.write_text("\n".join(urls) + "\n", encoding="utf-8")
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
+            ):
+                with self.assertRaises(UserAbortRequested) as ctx:
+                    await run_ai_exam_batch()
+
+            self.assertEqual(str(ctx.exception), "已关闭浏览器窗口，程序退出")
+            self.assertEqual(exam_file.read_text(encoding="utf-8").splitlines(), urls)
+
+    async def test_run_ai_exam_batch_ignores_close_error_after_closed_exam_tab_skip(self):
+        from core.exam_runner import run_ai_exam_batch
+
+        class TargetClosedError(Exception):
+            pass
+
+        class FakeBrowser:
+            def is_connected(self):
+                return True
+
+        class FakePage:
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                raise TargetClosedError("Target page, context or browser has been closed")
+
+        class FakeContext:
+            def __init__(self):
+                self.browser = FakeBrowser()
+
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exam_file = root / "exam.txt"
+            manual_file = root / "manual.txt"
+            exam_file.write_text(
+                "https://kc.zhixueyun.com/#/study/course/detail/test-course\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch("core.exam_runner.MANUAL_EXAM_FILE", manual_file),
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
+                patch(
+                    "core.exam_runner._run_course_ai_exam",
+                    new=AsyncMock(
+                        side_effect=TargetClosedError(
+                            "Target page, context or browser has been closed"
+                        )
+                    ),
+                ),
+            ):
+                manual_count = await run_ai_exam_batch()
+
+            self.assertEqual(manual_count, 0)
+            self.assertEqual(exam_file.read_text(encoding="utf-8"), "")
+            self.assertFalse(manual_file.exists())
+
     async def test_run_course_ai_exam_marks_attempt_limit_when_start_exam_shows_limit_modal(self):
         from core.exam_runner import EXAM_ATTEMPT_LIMIT_FILE, _run_course_ai_exam
 
@@ -780,6 +956,89 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(processed, 1)
         mock_del_file.assert_called_once_with(manual_file)
+
+    async def test_run_manual_exam_batch_keeps_unknown_urls_for_later(self):
+        from core.exam_runner import run_manual_exam_batch
+
+        class FakePage:
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            manual_file = Path(tmp) / "manual.txt"
+            unknown_url = "https://invalid.local/unknown"
+            manual_file.write_text(f"{unknown_url}\n", encoding="utf-8")
+
+            with patch(
+                "core.exam_runner.create_browser_context",
+                return_value=FakeBrowserContextManager(),
+            ):
+                processed = await run_manual_exam_batch(manual_exam_file=manual_file)
+
+            self.assertEqual(processed, 0)
+            self.assertEqual(manual_file.read_text(encoding="utf-8").splitlines(), [unknown_url])
+
+    async def test_run_manual_exam_batch_keeps_failed_urls_and_continues(self):
+        from core.exam_runner import run_manual_exam_batch
+
+        class FakePage:
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            manual_file = Path(tmp) / "manual.txt"
+            failed_url = "https://kc.zhixueyun.com/#/study/course/detail/test-course-a"
+            passed_url = "https://kc.zhixueyun.com/#/study/course/detail/test-course-b"
+            manual_file.write_text(f"{failed_url}\n{passed_url}\n", encoding="utf-8")
+
+            with (
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch(
+                    "core.exam_runner._run_manual_course_exam",
+                    new=AsyncMock(side_effect=[RuntimeError("boom"), None]),
+                ),
+            ):
+                processed = await run_manual_exam_batch(manual_exam_file=manual_file)
+
+            self.assertEqual(processed, 1)
+            self.assertEqual(manual_file.read_text(encoding="utf-8").splitlines(), [failed_url])
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ _disable_windows_console_input_modes_early()
 MENU_OPTIONS = [
     "推荐挂课流程（挂课+考试（如有）） / 继续上次进度",
     "仅挂课",
-    "更新登录凭证 / 切换账号",
+    "切换账号 / 更新登录凭证",
     "手动选择学习课程",
     "AI 自动考试",
     "人工考试",

@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from core.config import EXAM_URLS_FILE, LEARNING_URLS_FILE, MANUAL_EXAM_FILE
-from core.credential import load_credential_metadata, parse_saved_at, is_credential_expired
+from core.credential import (
+    load_credential_metadata,
+    parse_saved_at,
+    is_credential_expired,
+)
 from core.file_ops import read_unique_lines
 
 
@@ -52,7 +56,7 @@ def recommend_next_step(
     manual_exam_count: int,
 ) -> str:
     if not has_credential:
-        return "更新登录凭证 / 切换账号"
+        return "切换账号 / 更新登录凭证"
     if learning_count == 0:
         return "手动选择学习课程"
     if exam_count > 0:

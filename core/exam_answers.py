@@ -253,8 +253,12 @@ def normalize_ai_answer_text(question_type: str, answer_text: str) -> list[str]:
 
     grouped_answers = re.findall(r"(?<![A-Z])[A-Z]+(?![A-Z])", normalized_upper)
     answers = [char for group in grouped_answers for char in group]
+    if question_type in {"single", "reading"} and answers:
+        return [answers[-1]]
+
     seen = set()
-    return [x for x in answers if not (x in seen or seen.add(x))]
+    unique_answers = [x for x in answers if not (x in seen or seen.add(x))]
+    return unique_answers
 
 
 async def get_ai_answers(client, model, question_data):

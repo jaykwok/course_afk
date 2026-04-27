@@ -4,6 +4,7 @@
 运行时配置主要从 .env 读取，本文件负责集中定义默认值、路径和日志行为。
 """
 
+import asyncio
 import ctypes
 import logging
 import os
@@ -106,6 +107,45 @@ def summarize_exception_message(exc: Exception, fallback: str) -> str:
     if first_line.startswith(noisy_prefixes):
         return fallback
     return f"{fallback}: {first_line}"
+
+
+def _is_unretrieved_target_closed_context(context: dict) -> bool:
+    message = str(context.get("message", ""))
+    if "Future exception was never retrieved" not in message:
+        return False
+
+    exc = context.get("exception")
+    if exc is None:
+        return False
+
+    exc_text = str(exc).lower()
+    return exc.__class__.__name__ == "TargetClosedError" or any(
+        marker in exc_text
+        for marker in (
+            "target page, context or browser has been closed",
+            "browser has been closed",
+        )
+    )
+
+
+def _make_asyncio_exception_handler(previous_handler=None):
+    def _handle_asyncio_exception(loop, context):
+        if _is_unretrieved_target_closed_context(context):
+            return
+        if previous_handler is not None:
+            previous_handler(loop, context)
+            return
+        loop.default_exception_handler(context)
+
+    return _handle_asyncio_exception
+
+
+def run_async(awaitable):
+    with asyncio.Runner() as runner:
+        loop = runner.get_loop()
+        previous_handler = loop.get_exception_handler()
+        loop.set_exception_handler(_make_asyncio_exception_handler(previous_handler))
+        return runner.run(awaitable)
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -265,10 +305,10 @@ def setup_logging(show_startup_banner: bool | None = None):
 
 
 # ============================================================
-# DashScope / AI 模型配置（从 .env 读取）
+# OpenAI 兼容 AI 模型配置（从 .env 读取）
 # ============================================================
-DASHSCOPE_BASE_URL = os.getenv("DASHSCOPE_BASE_URL")
-DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
+OPENAI_COMPLETION_BASE_URL = os.getenv("OPENAI_COMPLETION_BASE_URL")
+OPENAI_COMPLETION_API_KEY = os.getenv("OPENAI_COMPLETION_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME")
 AI_REQUEST_TYPE = (_env_text("AI_REQUEST_TYPE", "responses") or "responses").lower()
 AI_ENABLE_WEB_SEARCH = _env_flag("AI_ENABLE_WEB_SEARCH", False)
