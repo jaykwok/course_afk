@@ -8,7 +8,7 @@ from typing import Callable
 from openai import OpenAI
 
 from core.abort import UserAbortRequested
-from core.browser import create_browser_context
+from core.browser import create_browser_context, is_browser_connected, is_target_closed_exception
 from core.config import (
     COURSE_EXAM_ATTEMPT_THRESHOLD,
     DASHSCOPE_API_KEY,
@@ -255,48 +255,65 @@ async def run_ai_exam_batch(
 
     pending_urls = list(urls)
     client, model = _build_exam_client()
-    async with create_browser_context() as (_, context):
-        for index, url in enumerate(urls, start=1):
-            page = await context.new_page()
-            try:
-                if status_callback:
-                    status_callback(f"AI 考试 {index}/{len(urls)}: {url}")
-                logging.info(f"当前考试链接为: {url}")
-                await page.goto(url)
-                await page.wait_for_load_state("load")
+    try:
+        async with create_browser_context() as (_, context):
+            for index, url in enumerate(urls, start=1):
+                page = await context.new_page()
+                try:
+                    if status_callback:
+                        status_callback(f"AI 考试 {index}/{len(urls)}: {url}")
+                    logging.info(f"当前考试链接为: {url}")
+                    await page.goto(url)
+                    await page.wait_for_load_state("load")
 
-                if "course" in url:
-                    await _run_course_ai_exam(
-                        page,
-                        url,
-                        client,
-                        model,
-                        auto_submit=auto_submit,
-                    )
-                elif "exam" in url:
-                    await _run_paper_ai_exam(
-                        page,
-                        url,
-                        client,
-                        model,
-                        auto_submit=auto_submit,
-                    )
-                else:
-                    logging.info("未知考试链接类型, 转为人工考试")
-                    save_to_file(MANUAL_EXAM_FILE, url)
-            except UserAbortRequested:
-                write_unique_lines(EXAM_URLS_FILE, pending_urls)
-                raise
-            except ExamAiConfigurationError:
-                write_unique_lines(EXAM_URLS_FILE, pending_urls)
-                raise
-            except Exception as exc:
-                logging.error(f"AI 自动考试失败: {exc}")
-                logging.error(traceback.format_exc())
-                save_to_file(MANUAL_EXAM_FILE, url)
-            finally:
-                await page.close()
-            pending_urls.pop(0)
+                    if "course" in url:
+                        await _run_course_ai_exam(
+                            page,
+                            url,
+                            client,
+                            model,
+                            auto_submit=auto_submit,
+                        )
+                    elif "exam" in url:
+                        await _run_paper_ai_exam(
+                            page,
+                            url,
+                            client,
+                            model,
+                            auto_submit=auto_submit,
+                        )
+                    else:
+                        logging.info("未知考试链接类型, 转为人工考试")
+                        save_to_file(MANUAL_EXAM_FILE, url)
+                except (UserAbortRequested, ExamAiConfigurationError):
+                    write_unique_lines(EXAM_URLS_FILE, pending_urls)
+                    raise
+                except Exception as exc:
+                    if is_target_closed_exception(exc):
+                        if is_browser_connected(context):
+                            logging.info(f"考试标签页已关闭，跳过当前链接: {url}")
+                            pending_urls.pop(0)
+                            continue
+                        else:
+                            write_unique_lines(EXAM_URLS_FILE, pending_urls)
+                            raise UserAbortRequested(
+                                "已关闭浏览器窗口，程序退出",
+                                save_pending_urls=False,
+                            ) from None
+                    else:
+                        logging.error(f"AI 自动考试失败: {exc}")
+                        logging.error(traceback.format_exc())
+                        save_to_file(MANUAL_EXAM_FILE, url)
+                finally:
+                    await page.close()
+                pending_urls.pop(0)
+    except BaseException as exc:
+        if isinstance(exc, (UserAbortRequested, ExamAiConfigurationError)):
+            raise
+        if not isinstance(exc, Exception):
+            write_unique_lines(EXAM_URLS_FILE, pending_urls)
+            raise UserAbortRequested("已收到 Ctrl+C，程序退出", save_pending_urls=False) from None
+        raise
 
     write_unique_lines(EXAM_URLS_FILE, pending_urls)
     return len(read_non_empty_lines(MANUAL_EXAM_FILE))
@@ -353,37 +370,62 @@ async def run_manual_exam_batch(
         return 0
 
     processed = 0
-    remaining_urls: list[str] = []
-    async with create_browser_context() as (_, context):
-        for index, url in enumerate(urls, start=1):
-            page = await context.new_page()
-            try:
-                if status_callback:
-                    status_callback(f"人工考试 {index}/{len(urls)}: {url}")
-                logging.info(f"当前人工考试链接为: {url}")
-                await page.goto(url)
-                await page.wait_for_load_state("load")
+    pending_urls = list(urls)
+    try:
+        async with create_browser_context() as (_, context):
+            for index, url in enumerate(urls, start=1):
+                page = await context.new_page()
+                try:
+                    if status_callback:
+                        status_callback(f"人工考试 {index}/{len(urls)}: {url}")
+                    logging.info(f"当前人工考试链接为: {url}")
+                    await page.goto(url)
+                    await page.wait_for_load_state("load")
 
-                if "course" in url:
-                    await _run_manual_course_exam(page, url)
-                elif "exam" in url:
-                    await _run_manual_paper_exam(page, url)
-                else:
-                    logging.info("未知人工考试链接类型, 保留待处理")
-                    remaining_urls.append(url)
-                    continue
+                    if "course" in url:
+                        await _run_manual_course_exam(page, url)
+                    elif "exam" in url:
+                        await _run_manual_paper_exam(page, url)
+                    else:
+                        logging.info("未知人工考试链接类型, 保留待处理")
+                        pending_urls.pop(0)
+                        continue
 
-                processed += 1
-            except Exception as exc:
-                logging.error(f"人工考试流程失败: {exc}")
-                logging.error(traceback.format_exc())
-                remaining_urls.append(url)
-            finally:
-                await page.close()
+                    processed += 1
+                except UserAbortRequested:
+                    write_unique_lines(manual_exam_file, pending_urls)
+                    raise
+                except Exception as exc:
+                    if is_target_closed_exception(exc):
+                        if is_browser_connected(context):
+                            logging.info(f"考试标签页已关闭，跳过当前链接: {url}")
+                            pending_urls.pop(0)
+                            continue
+                        else:
+                            write_unique_lines(manual_exam_file, pending_urls)
+                            raise UserAbortRequested(
+                                "已关闭浏览器窗口，程序退出",
+                                save_pending_urls=False,
+                            ) from None
+                    else:
+                        logging.error(f"人工考试流程失败: {exc}")
+                        logging.error(traceback.format_exc())
+                        pending_urls.pop(0)
+                        continue
+                finally:
+                    await page.close()
+                pending_urls.pop(0)
+    except BaseException as exc:
+        if isinstance(exc, UserAbortRequested):
+            raise
+        if not isinstance(exc, Exception):
+            write_unique_lines(manual_exam_file, pending_urls)
+            raise UserAbortRequested("已收到 Ctrl+C，程序退出", save_pending_urls=False) from None
+        raise
 
-    if remaining_urls:
+    if pending_urls:
         with open(manual_exam_file, "w", encoding="utf-8") as file:
-            for url in remaining_urls:
+            for url in pending_urls:
                 file.write(f"{url}\n")
     else:
         del_file(manual_exam_file)

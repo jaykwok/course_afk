@@ -66,26 +66,31 @@ def _extract_chat_message_text(completion) -> str:
     return str(content or "")
 
 
-def _extract_chat_delta_text(delta) -> str:
-    content = getattr(delta, "content", None)
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if isinstance(item, str):
-                parts.append(item)
-                continue
-            if isinstance(item, dict):
-                text = item.get("text")
+def _extract_chat_delta_text(delta) -> tuple[str, str]:
+    """返回 (content_part, reasoning_part)"""
+    def _read_field(value) -> str:
+        if isinstance(value, str):
+            return value
+        if isinstance(value, list):
+            parts = []
+            for item in value:
+                if isinstance(item, str):
+                    parts.append(item)
+                    continue
+                if isinstance(item, dict):
+                    text = item.get("text")
+                    if text:
+                        parts.append(str(text))
+                    continue
+                text = getattr(item, "text", None)
                 if text:
                     parts.append(str(text))
-                continue
-            text = getattr(item, "text", None)
-            if text:
-                parts.append(str(text))
-        return "".join(parts)
-    return ""
+            return "".join(parts)
+        return ""
+
+    content = _read_field(getattr(delta, "content", None))
+    reasoning = _read_field(getattr(delta, "reasoning_content", None))
+    return content, reasoning
 
 
 def _close_stream_if_possible(stream_or_response) -> None:
@@ -124,20 +129,26 @@ def _extract_chat_stream_text(stream_or_completion) -> str:
     if hasattr(stream_or_completion, "choices"):
         return _extract_chat_message_text(stream_or_completion)
 
-    parts: list[str] = []
+    content_parts: list[str] = []
+    reasoning_parts: list[str] = []
     try:
         for chunk in stream_or_completion:
             for choice in getattr(chunk, "choices", None) or []:
                 delta = getattr(choice, "delta", None)
                 if delta is None:
                     continue
-                text = _extract_chat_delta_text(delta)
-                if text:
-                    parts.append(text)
+                content, reasoning = _extract_chat_delta_text(delta)
+                if content:
+                    content_parts.append(content)
+                if reasoning:
+                    reasoning_parts.append(reasoning)
     finally:
         _close_stream_if_possible(stream_or_completion)
 
-    return "".join(parts)
+    content_text = "".join(content_parts)
+    if content_text:
+        return content_text
+    return "".join(reasoning_parts)
 
 
 def _build_responses_request(model: str, prompt: str) -> dict:
@@ -167,13 +178,10 @@ def _build_chat_request(model: str, prompt: str) -> dict:
         "stream": True,
         "temperature": AI_TEMPERATURE,
     }
-    extra_body = {}
+    extra_body: dict = {"enable_thinking": AI_ENABLE_THINKING}
     if AI_ENABLE_WEB_SEARCH:
         extra_body["enable_search"] = True
-    if AI_ENABLE_THINKING:
-        extra_body["enable_thinking"] = True
-    if extra_body:
-        request_kwargs["extra_body"] = extra_body
+    request_kwargs["extra_body"] = extra_body
     return request_kwargs
 
 
