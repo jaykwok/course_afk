@@ -58,7 +58,21 @@ class DistributionFilesTests(unittest.TestCase):
         self.assertNotIn("DASHSCOPE_", readme)
         self.assertIn("AI_ENABLE_THINKING=0", readme)
         self.assertIn("AI_REASONING_EFFORT=none|minimal|low|medium|high", readme)
+        self.assertIn("考试链接.json", readme)
+        self.assertIn("ai_failed_model_configs", readme)
+        self.assertIn("\"request_type\"", readme)
+        self.assertIn("\"web_search\"", readme)
+        self.assertIn("\"thinking\"", readme)
+        self.assertIn("\"reasoning_effort\"", readme)
+        self.assertIn("开启联网搜索、开启思考模式、切换请求方式或调整推理强度", readme)
         self.assertNotIn("run.ps1", readme)
+
+    def test_generated_exam_queue_is_ignored(self):
+        gitignore = (config.PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
+        ignored_lines = set(gitignore.splitlines())
+
+        self.assertIn("考试链接.json", ignored_lines)
+        self.assertNotIn("考试链接.txt", ignored_lines)
 
 
 if __name__ == "__main__":

@@ -32,9 +32,9 @@ def _maybe_delete_empty_exam_queue_file(ui) -> None:
     if read_non_empty_lines(EXAM_URLS_FILE):
         return
 
-    if ui.prompt_yes_no("考试链接.txt 已空，是否删除该文件？", default="N"):
+    if ui.prompt_yes_no("考试链接.json 已空，是否删除该文件？", default="N"):
         del_file(EXAM_URLS_FILE)
-        ui.show_success("已删除空的考试链接.txt")
+        ui.show_success("已删除空的考试链接.json")
 
 
 def choose_learning_zone_mode(learning_zone_urls, prompt_choice_func) -> str:

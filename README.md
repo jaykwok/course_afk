@@ -168,7 +168,7 @@ BROWSER_CHANNEL=msedge
 - `credential_meta.json`：登录凭证时间和账号信息
 - `课程链接.txt`：待挂课的学习链接
 - `剩余未看课程链接.txt`：中断后保留下来的剩余课程链接
-- `考试链接.txt`：待 AI 自动考试的考试链接队列
+- `考试链接.json`：待 AI 自动考试的考试链接队列，并记录每条链接已未通过的 AI 模型配置列表（模型名、请求方式、联网搜索、思考模式、推理强度）
 - `人工考试链接.txt`：需要手动处理的考试链接
 - `考试次数超限链接.txt`：因考试次数限制而跳过的考试链接
 - `无权限资源链接.txt`：无权限访问的学习资源链接
@@ -179,3 +179,24 @@ BROWSER_CHANNEL=msedge
 - `未知类型链接.txt`：暂未识别出具体学习类型的链接
 - `非课程及考试类学习类型链接.txt`：非课程/考试类的其他学习链接
 - `log.txt`：完整运行日志
+
+`考试链接.json` 示例：
+
+```json
+[
+  {
+    "url": "https://kc.zhixueyun.com/#/study/course/detail/...",
+    "ai_failed_model_configs": [
+      {
+        "model": "qwen3.6-max-preview",
+        "request_type": "chat",
+        "web_search": false,
+        "thinking": false,
+        "reasoning_effort": null
+      }
+    ]
+  }
+]
+```
+
+AI 自动考试跳过逻辑按整组配置匹配：同一链接如果当前模型名、`AI_REQUEST_TYPE`、`AI_ENABLE_WEB_SEARCH`、`AI_ENABLE_THINKING`、`AI_REASONING_EFFORT` 都已记录为未通过，会提示更换模型或人工考试并跳过；只要其中一项不同，例如开启联网搜索、开启思考模式、切换请求方式或调整推理强度，就会继续尝试考试。如果再次未通过，会把新的配置追加到该链接的 `ai_failed_model_configs`。

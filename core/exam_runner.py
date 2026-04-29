@@ -10,6 +10,10 @@ from openai import OpenAI
 from core.abort import UserAbortRequested
 from core.browser import create_browser_context, is_browser_connected, is_target_closed_exception
 from core.config import (
+    AI_ENABLE_THINKING,
+    AI_ENABLE_WEB_SEARCH,
+    AI_REASONING_EFFORT,
+    AI_REQUEST_TYPE,
     COURSE_EXAM_ATTEMPT_THRESHOLD,
     EXAM_ATTEMPT_LIMIT_FILE,
     EXAM_URLS_FILE,
@@ -21,6 +25,12 @@ from core.config import (
 )
 from core.exam_engine import ai_exam, wait_for_finish_test
 from core.exam_answers import ExamAiConfigurationError
+from core.exam_queue import (
+    has_ai_failed_model_config,
+    read_exam_urls,
+    record_ai_failed_model_config,
+    write_exam_urls,
+)
 from core.file_ops import del_file, save_to_file, write_unique_lines
 from core.learning import check_exam_passed, handle_rating_popup
 from core.state import read_non_empty_lines
@@ -64,6 +74,16 @@ def _build_exam_client() -> tuple[OpenAI, str]:
         base_url=OPENAI_COMPLETION_BASE_URL,
     )
     return client, MODEL_NAME
+
+
+def _build_ai_exam_model_config(model: str) -> dict[str, object]:
+    return {
+        "model": model,
+        "request_type": AI_REQUEST_TYPE,
+        "web_search": AI_ENABLE_WEB_SEARCH,
+        "thinking": AI_ENABLE_THINKING,
+        "reasoning_effort": AI_REASONING_EFFORT,
+    }
 
 
 async def _is_direct_answer_paper_page(page) -> bool:
@@ -194,6 +214,7 @@ async def _run_course_ai_exam(
     *,
     auto_submit: bool = True,
 ) -> None:
+    ai_attempted = False
     while True:
         await _open_course_exam_tab(page)
 
@@ -212,10 +233,17 @@ async def _run_course_ai_exam(
                 logging.info("课程考试正在进行中, 继续 AI 自动考试")
             elif await check_exam_passed(page):
                 return
-            else:
-                logging.info("AI 自动考试未通过, 转为人工考试")
+            elif ai_attempted:
+                logging.info("AI 自动考试仍未通过, 转为人工考试")
+                model_config = _build_ai_exam_model_config(model)
+                record_ai_failed_model_config(url, model_config, file_path=EXAM_URLS_FILE)
+                logging.info(f"记录 AI 考试未通过模型配置: {model_config}, 考试链接: {url.strip()}")
                 save_to_file(MANUAL_EXAM_FILE, url.strip())
                 return
+            else:
+                logging.info(
+                    "考试结果未通过但剩余次数满足 AI 考试条件, 继续 AI 自动考试一次"
+                )
 
         logging.info("开始 AI 自动考试")
         try:
@@ -224,6 +252,7 @@ async def _run_course_ai_exam(
             if await _handle_attempt_limit_if_present(page, url):
                 return
             raise
+        ai_attempted = True
         await _handle_exam_result(page)
 
 
@@ -269,16 +298,28 @@ async def run_ai_exam_batch(
     *,
     auto_submit: bool = True,
 ) -> int:
-    urls = list(dict.fromkeys(read_non_empty_lines(EXAM_URLS_FILE)))
+    urls = read_exam_urls(EXAM_URLS_FILE)
     if not urls:
         return 0
 
     pending_urls = list(urls)
     client, model = _build_exam_client()
+    model_config = _build_ai_exam_model_config(model)
+    retained_urls: list[str] = []
     try:
         async with create_browser_context() as (_, context):
             for index, url in enumerate(urls, start=1):
                 page = None
+                if has_ai_failed_model_config(url, model_config, file_path=EXAM_URLS_FILE):
+                    message = (
+                        f"当前模型配置 {model_config} 已记录为该链接 AI 考试未通过，"
+                        f"请更换模型后再运行 AI 自动考试，或改走人工考试；跳过当前链接: {url}"
+                    )
+                    logging.info(message)
+                    retained_urls.append(url)
+                    pending_urls.pop(0)
+                    continue
+
                 try:
                     page = await context.new_page()
                     if status_callback:
@@ -308,10 +349,10 @@ async def run_ai_exam_batch(
                         save_to_file(MANUAL_EXAM_FILE, url)
                 except UserAbortRequested as exc:
                     if getattr(exc, "save_pending_urls", True):
-                        write_unique_lines(EXAM_URLS_FILE, pending_urls)
+                        write_exam_urls(retained_urls + pending_urls, file_path=EXAM_URLS_FILE)
                     raise
                 except ExamAiConfigurationError:
-                    write_unique_lines(EXAM_URLS_FILE, pending_urls)
+                    write_exam_urls(retained_urls + pending_urls, file_path=EXAM_URLS_FILE)
                     raise
                 except Exception as exc:
                     if is_target_closed_exception(exc):
@@ -320,7 +361,7 @@ async def run_ai_exam_batch(
                             pending_urls.pop(0)
                             continue
                         else:
-                            write_unique_lines(EXAM_URLS_FILE, pending_urls)
+                            write_exam_urls(retained_urls + pending_urls, file_path=EXAM_URLS_FILE)
                             raise UserAbortRequested(
                                 "已关闭浏览器窗口，程序退出",
                                 save_pending_urls=False,
@@ -336,11 +377,11 @@ async def run_ai_exam_batch(
         if isinstance(exc, (UserAbortRequested, ExamAiConfigurationError)):
             raise
         if not isinstance(exc, Exception):
-            write_unique_lines(EXAM_URLS_FILE, pending_urls)
+            write_exam_urls(retained_urls + pending_urls, file_path=EXAM_URLS_FILE)
             raise UserAbortRequested("已收到 Ctrl+C，程序退出", save_pending_urls=False) from None
         raise
 
-    write_unique_lines(EXAM_URLS_FILE, pending_urls)
+    write_exam_urls(retained_urls + pending_urls, file_path=EXAM_URLS_FILE)
     return len(read_non_empty_lines(MANUAL_EXAM_FILE))
 
 

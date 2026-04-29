@@ -196,7 +196,7 @@ class LearningExamTests(unittest.IsolatedAsyncioTestCase):
             patch("core.learning_flows._is_course_completed", new=AsyncMock(return_value=False)),
             patch("core.learning_flows.check_exam_passed", new=mock_check),
             patch("core.learning_exam.check_exam_passed", new=mock_check),
-            patch("core.learning_exam.save_to_file"),
+            patch("core.learning_exam.append_exam_url"),
         ):
             await course_learning(page)
 
@@ -209,14 +209,13 @@ class LearningExamTests(unittest.IsolatedAsyncioTestCase):
         exam_url = "https://kc.zhixueyun.com/#/exam/exam/answer-paper/subject-exam"
 
         with (
-            patch("core.learning_flows.EXAM_URLS_FILE", "DUMMY"),
             patch("core.learning_flows.get_course_url", new=AsyncMock(return_value=exam_url)),
-            patch("core.learning_flows.save_to_file") as mock_save,
+            patch("core.learning_flows.append_exam_url") as mock_append,
         ):
             result = await handle_subject_exam_item(learn_item)
 
         self.assertEqual(result, exam_url)
-        mock_save.assert_called_once_with("DUMMY", exam_url)
+        mock_append.assert_called_once_with(exam_url)
 
     async def test_handle_subject_exam_item_skips_completed_exam(self):
         from core.learning_flows import handle_subject_exam_item
@@ -224,14 +223,13 @@ class LearningExamTests(unittest.IsolatedAsyncioTestCase):
         learn_item = FakeSubjectExamItem(status_texts=["已完成"])
 
         with (
-            patch("core.learning_flows.EXAM_URLS_FILE", "DUMMY"),
             patch("core.learning_flows.get_course_url", new=AsyncMock()),
-            patch("core.learning_flows.save_to_file") as mock_save,
+            patch("core.learning_flows.append_exam_url") as mock_append,
         ):
             result = await handle_subject_exam_item(learn_item)
 
         self.assertIsNone(result)
-        mock_save.assert_not_called()
+        mock_append.assert_not_called()
 
 
 if __name__ == "__main__":

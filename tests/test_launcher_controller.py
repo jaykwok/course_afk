@@ -50,15 +50,15 @@ class LauncherControllerTests(unittest.TestCase):
                 self.messages.append(message)
 
         with TemporaryDirectory() as tmp:
-            exam_file = Path(tmp) / "考试链接.txt"
-            exam_file.write_text("", encoding="utf-8")
+            exam_file = Path(tmp) / "考试链接.json"
+            exam_file.write_text("[]", encoding="utf-8")
             ui = FakeUi()
 
             with patch("core.config.EXAM_URLS_FILE", exam_file):
                 _maybe_delete_empty_exam_queue_file(ui)
 
             self.assertTrue(exam_file.exists())
-            self.assertIn(("考试链接.txt 已空，是否删除该文件？", "N"), ui.messages)
+            self.assertIn(("考试链接.json 已空，是否删除该文件？", "N"), ui.messages)
 
     def test_maybe_delete_empty_exam_queue_file_deletes_file_when_user_confirms(self):
         from core.launcher_controller import _maybe_delete_empty_exam_queue_file
@@ -75,15 +75,15 @@ class LauncherControllerTests(unittest.TestCase):
                 self.messages.append(message)
 
         with TemporaryDirectory() as tmp:
-            exam_file = Path(tmp) / "考试链接.txt"
-            exam_file.write_text("", encoding="utf-8")
+            exam_file = Path(tmp) / "考试链接.json"
+            exam_file.write_text("[]", encoding="utf-8")
             ui = FakeUi()
 
             with patch("core.config.EXAM_URLS_FILE", exam_file):
                 _maybe_delete_empty_exam_queue_file(ui)
 
             self.assertFalse(exam_file.exists())
-            self.assertIn("已删除空的考试链接.txt", ui.messages)
+            self.assertIn("已删除空的考试链接.json", ui.messages)
 
     def test_maybe_delete_empty_learning_queue_file_keeps_file_by_default(self):
         from core.launcher_controller import _maybe_delete_empty_learning_queue_file

@@ -6,7 +6,6 @@ import traceback
 
 from core.browser import is_page_browser_connected, is_target_closed_exception
 from core.config import (
-    EXAM_URLS_FILE,
     NO_PERMISSION_FILE,
     OTHER_TYPE_FILE,
     RETRY_URLS_FILE,
@@ -15,6 +14,7 @@ from core.config import (
     URL_TYPE_FILE,
     URL_TYPE_WAIT,
 )
+from core.exam_queue import append_exam_url
 from core.file_ops import save_to_file
 from core.learning_common import check_permission, get_course_url, is_learned, timer
 from core.learning_exam import check_exam_passed, handle_examination
@@ -35,7 +35,7 @@ async def handle_subject_exam_item(learn_item) -> str | None:
 
     exam_url = await get_course_url(learn_item, section_type="exam")
     logging.info("学习主题考试类型, 存入考试链接")
-    save_to_file(EXAM_URLS_FILE, exam_url)
+    append_exam_url(exam_url)
     return exam_url
 
 

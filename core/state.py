@@ -9,6 +9,7 @@ from core.credential import (
     parse_saved_at,
     is_credential_expired,
 )
+from core.exam_queue import count_exam_urls, read_exam_urls
 from core.file_ops import read_unique_lines
 
 
@@ -22,6 +23,8 @@ class ProjectState:
 
 
 def read_non_empty_lines(file_path: Path) -> list[str]:
+    if file_path == EXAM_URLS_FILE or file_path.suffix.lower() == ".json":
+        return read_exam_urls(file_path)
     return read_unique_lines(file_path)
 
 
@@ -43,7 +46,7 @@ def collect_project_state() -> ProjectState:
         has_credential=has_credential,
         credential_expired=credential_expired,
         learning_count=count_non_empty_lines(LEARNING_URLS_FILE),
-        exam_count=count_non_empty_lines(EXAM_URLS_FILE),
+        exam_count=count_exam_urls(EXAM_URLS_FILE),
         manual_exam_count=count_non_empty_lines(MANUAL_EXAM_FILE),
     )
 

@@ -1,4 +1,5 @@
 import unittest
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -41,7 +42,7 @@ class WorkflowStateTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             learning_file = root / "learning.txt"
-            exam_file = root / "exam.txt"
+            exam_file = root / "exam.json"
             manual_exam_file = root / "manual.txt"
 
             learning_file.write_text(
@@ -49,7 +50,23 @@ class WorkflowStateTests(unittest.TestCase):
                 encoding="utf-8",
             )
             exam_file.write_text(
-                "https://example.com/exam/1\nhttps://example.com/exam/1\nhttps://example.com/exam/2\n",
+                json.dumps(
+                    [
+                        {
+                            "url": "https://example.com/exam/1",
+                            "ai_failed_model_configs": [],
+                        },
+                        {
+                            "url": "https://example.com/exam/1",
+                            "ai_failed_model_configs": [],
+                        },
+                        {
+                            "url": "https://example.com/exam/2",
+                            "ai_failed_model_configs": [],
+                        },
+                    ],
+                    ensure_ascii=False,
+                ),
                 encoding="utf-8",
             )
             manual_exam_file.write_text(

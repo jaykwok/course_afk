@@ -14,7 +14,6 @@ from core.afk_runner import run_afk_until_complete
 from core.browser import build_browser_context_options, launch_async_browser
 from core.config import (
     COOKIES_FILE,
-    EXAM_URLS_FILE,
     LEARNING_URLS_FILE,
     MANUAL_EXAM_FILE,
     ZHIXUEYUN_HOME,

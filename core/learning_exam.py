@@ -3,8 +3,7 @@ from __future__ import annotations
 import logging
 import re
 
-from core.config import EXAM_URLS_FILE
-from core.file_ops import save_to_file
+from core.exam_queue import append_exam_url
 from core.learning_common import get_course_url
 
 
@@ -101,10 +100,10 @@ async def handle_examination(page, learn_item=None, exam_passed: bool | None = N
     logging.info("学习课程考试类型, 存入文档")
     if learn_item:
         course_url = await get_course_url(learn_item)
-        save_to_file(EXAM_URLS_FILE, course_url)
+        append_exam_url(course_url)
         logging.info(f"链接: {course_url}\n")
     else:
-        save_to_file(EXAM_URLS_FILE, page.url)
+        append_exam_url(page.url)
         logging.info(f"链接: {page.url}\n")
 
 

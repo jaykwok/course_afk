@@ -1,7 +1,47 @@
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import AsyncMock, patch
+
+
+def _model_config(
+    model="test-model",
+    *,
+    request_type="responses",
+    web_search=False,
+    thinking=False,
+    reasoning_effort=None,
+):
+    return {
+        "model": model,
+        "request_type": request_type,
+        "web_search": web_search,
+        "thinking": thinking,
+        "reasoning_effort": reasoning_effort,
+    }
+
+
+def _exam_entries(urls, failed_model_configs_by_url=None):
+    failed_model_configs_by_url = failed_model_configs_by_url or {}
+    return [
+        {
+            "url": url,
+            "ai_failed_model_configs": failed_model_configs_by_url.get(url, []),
+        }
+        for url in urls
+    ]
+
+
+def _write_exam_queue_fixture(file_path, urls, failed_model_configs_by_url=None):
+    file_path.write_text(
+        json.dumps(_exam_entries(urls, failed_model_configs_by_url), ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def _read_exam_queue_urls(file_path):
+    return [entry["url"] for entry in json.loads(file_path.read_text(encoding="utf-8"))]
 
 
 class AfkBatchPreparationTests(unittest.TestCase):
@@ -458,6 +498,66 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
         mock_check_passed.assert_awaited_once()
         mock_save.assert_not_called()
 
+    async def test_run_course_ai_exam_retries_failed_result_once_then_records_model_and_manual(self):
+        from core.exam_runner import _run_course_ai_exam
+
+        class FakeLocator:
+            def __init__(self, *, count=0, text=""):
+                self._count = count
+                self._text = text
+
+            async def count(self):
+                return self._count
+
+            async def inner_text(self):
+                return self._text
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://kc.zhixueyun.com/#/study/course/detail/test-course"
+                self._exam_button = FakeLocator(count=1, text="继续考试 剩余2次")
+                self._status = FakeLocator(count=1, text="未通过")
+
+            def locator(self, selector):
+                if selector == ".btn.new-radius":
+                    return self._exam_button
+                if selector == ".neer-status":
+                    return self._status
+                raise KeyError(selector)
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manual_file = root / "manual.txt"
+            exam_file = root / "exam.json"
+            page = FakePage()
+            _write_exam_queue_fixture(exam_file, [page.url])
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch("core.exam_runner.MANUAL_EXAM_FILE", manual_file),
+                patch("core.exam_runner.AI_REQUEST_TYPE", "responses"),
+                patch("core.exam_runner.AI_ENABLE_WEB_SEARCH", False),
+                patch("core.exam_runner.AI_ENABLE_THINKING", False),
+                patch("core.exam_runner.AI_REASONING_EFFORT", None),
+                patch("core.exam_runner._open_course_exam_tab", new=AsyncMock()),
+                patch(
+                    "core.exam_runner.check_exam_passed",
+                    new=AsyncMock(side_effect=[False, False]),
+                ) as mock_check_passed,
+                patch("core.exam_runner.wait_for_finish_test", new=AsyncMock()) as mock_wait,
+                patch("core.exam_runner._handle_exam_result", new=AsyncMock()),
+            ):
+                await _run_course_ai_exam(page, page.url, object(), "test-model")
+
+            mock_wait.assert_awaited_once()
+            self.assertEqual(mock_check_passed.await_count, 2)
+            self.assertEqual(manual_file.read_text(encoding="utf-8").splitlines(), [page.url])
+            entries = json.loads(exam_file.read_text(encoding="utf-8"))
+            self.assertEqual(
+                entries[0]["ai_failed_model_configs"],
+                [_model_config()],
+            )
+
     async def test_run_ai_exam_batch_keeps_empty_exam_queue_file_after_processing(self):
         from core.exam_runner import run_ai_exam_batch
 
@@ -484,11 +584,11 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            exam_file = root / "exam.txt"
+            exam_file = root / "exam.json"
             manual_file = root / "manual.txt"
-            exam_file.write_text(
-                "https://kc.zhixueyun.com/#/study/course/detail/test-course\n",
-                encoding="utf-8",
+            _write_exam_queue_fixture(
+                exam_file,
+                ["https://kc.zhixueyun.com/#/study/course/detail/test-course"],
             )
 
             with (
@@ -505,9 +605,69 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(manual_count, 0)
             self.assertTrue(exam_file.exists())
-            self.assertEqual(exam_file.read_text(encoding="utf-8"), "")
+            self.assertEqual(json.loads(exam_file.read_text(encoding="utf-8")), [])
             mock_run_exam.assert_awaited_once()
             self.assertFalse(mock_run_exam.await_args.kwargs["auto_submit"])
+
+    async def test_run_ai_exam_batch_skips_link_when_current_model_already_failed_it(self):
+        from core.exam_runner import run_ai_exam_batch
+
+        class FakePage:
+            async def goto(self, url):
+                return None
+
+            async def wait_for_load_state(self, state):
+                return None
+
+            async def close(self):
+                return None
+
+        class FakeContext:
+            async def new_page(self):
+                return FakePage()
+
+        class FakeBrowserContextManager:
+            async def __aenter__(self):
+                return None, FakeContext()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exam_file = root / "exam.json"
+            manual_file = root / "manual.txt"
+            url = "https://kc.zhixueyun.com/#/study/course/detail/test-course"
+            _write_exam_queue_fixture(exam_file, [url], {url: [_model_config()]})
+
+            with (
+                patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
+                patch("core.exam_runner.MANUAL_EXAM_FILE", manual_file),
+                patch("core.exam_runner.AI_REQUEST_TYPE", "responses"),
+                patch("core.exam_runner.AI_ENABLE_WEB_SEARCH", False),
+                patch("core.exam_runner.AI_ENABLE_THINKING", False),
+                patch("core.exam_runner.AI_REASONING_EFFORT", None),
+                patch(
+                    "core.exam_runner.create_browser_context",
+                    return_value=FakeBrowserContextManager(),
+                ),
+                patch("core.exam_runner._build_exam_client", return_value=(object(), "test-model")),
+                patch("core.exam_runner._run_course_ai_exam", new=AsyncMock()) as mock_run_exam,
+                patch("core.exam_runner.logging.info") as mock_info,
+            ):
+                status_messages: list[str] = []
+                manual_count = await run_ai_exam_batch(status_callback=status_messages.append)
+
+            self.assertEqual(manual_count, 0)
+            self.assertEqual(_read_exam_queue_urls(exam_file), [url])
+            self.assertFalse(manual_file.exists())
+            mock_run_exam.assert_not_awaited()
+            self.assertFalse(
+                any("更换模型" in message for message in status_messages)
+            )
+            self.assertTrue(
+                any("更换模型" in call.args[0] for call in mock_info.call_args_list)
+            )
 
     async def test_run_paper_ai_exam_uses_direct_answer_page_without_start_button(self):
         from core.exam_runner import _run_paper_ai_exam
@@ -666,11 +826,11 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            exam_file = root / "exam.txt"
+            exam_file = root / "exam.json"
             manual_file = root / "manual.txt"
-            exam_file.write_text(
-                "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper\n",
-                encoding="utf-8",
+            _write_exam_queue_fixture(
+                exam_file,
+                ["https://kc.zhixueyun.com/#/exam/exam/answer-paper/test-paper"],
             )
 
             with (
@@ -721,11 +881,11 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            exam_file = root / "exam.txt"
+            exam_file = root / "exam.json"
             manual_file = root / "manual.txt"
-            exam_file.write_text(
-                "https://kc.zhixueyun.com/#/study/course/detail/test-course\n",
-                encoding="utf-8",
+            _write_exam_queue_fixture(
+                exam_file,
+                ["https://kc.zhixueyun.com/#/study/course/detail/test-course"],
             )
 
             with (
@@ -774,12 +934,12 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
                 return False
 
         with TemporaryDirectory() as tmp:
-            exam_file = Path(tmp) / "exam.txt"
+            exam_file = Path(tmp) / "exam.json"
             urls = [
                 "https://kc.zhixueyun.com/#/study/course/detail/test-course-a",
                 "https://kc.zhixueyun.com/#/study/course/detail/test-course-b",
             ]
-            exam_file.write_text("\n".join(urls) + "\n", encoding="utf-8")
+            _write_exam_queue_fixture(exam_file, urls)
 
             with (
                 patch("core.exam_runner.EXAM_URLS_FILE", exam_file),
@@ -793,7 +953,7 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
                     await run_ai_exam_batch()
 
             self.assertEqual(str(ctx.exception), "已关闭浏览器窗口，程序退出")
-            self.assertEqual(exam_file.read_text(encoding="utf-8").splitlines(), urls)
+            self.assertEqual(_read_exam_queue_urls(exam_file), urls)
 
     async def test_run_ai_exam_batch_ignores_close_error_after_closed_exam_tab_skip(self):
         from core.exam_runner import run_ai_exam_batch
@@ -831,11 +991,11 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            exam_file = root / "exam.txt"
+            exam_file = root / "exam.json"
             manual_file = root / "manual.txt"
-            exam_file.write_text(
-                "https://kc.zhixueyun.com/#/study/course/detail/test-course\n",
-                encoding="utf-8",
+            _write_exam_queue_fixture(
+                exam_file,
+                ["https://kc.zhixueyun.com/#/study/course/detail/test-course"],
             )
 
             with (
@@ -858,7 +1018,7 @@ class AiExamRunnerTests(unittest.IsolatedAsyncioTestCase):
                 manual_count = await run_ai_exam_batch()
 
             self.assertEqual(manual_count, 0)
-            self.assertEqual(exam_file.read_text(encoding="utf-8"), "")
+            self.assertEqual(json.loads(exam_file.read_text(encoding="utf-8")), [])
             self.assertFalse(manual_file.exists())
 
     async def test_run_course_ai_exam_marks_attempt_limit_when_start_exam_shows_limit_modal(self):
