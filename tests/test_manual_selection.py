@@ -96,6 +96,10 @@ class FakeAsyncPlaywrightManager:
         return False
 
 
+def _read_learning_queue_urls(file_path):
+    return [entry["url"] for entry in json.loads(file_path.read_text(encoding="utf-8"))]
+
+
 class ManualSelectionTests(unittest.TestCase):
     def test_parse_manual_selection_input_returns_empty_for_blank_text(self):
         self.assertEqual(parse_manual_selection_input(" \n\t "), [])
@@ -116,9 +120,9 @@ class ManualSelectionWorkflowTests(unittest.IsolatedAsyncioTestCase):
         with TemporaryDirectory() as tmp:
             temp_root = Path(tmp)
             cookies_file = temp_root / "cookies.json"
-            learning_file = temp_root / "课程链接.txt"
+            learning_file = temp_root / "课程链接.json"
             cookies_file.write_text(json.dumps([]), encoding="utf-8")
-            learning_file.write_text("", encoding="utf-8")
+            learning_file.write_text("[]", encoding="utf-8")
 
             fake_context = FakeManualSelectionContext()
             with mock.patch.object(workflows, "COOKIES_FILE", cookies_file):
@@ -152,8 +156,8 @@ class ManualSelectionWorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def test_run_manual_course_selection_auto_parses_learning_zone_urls(self):
         with TemporaryDirectory() as tmp:
             temp_root = Path(tmp)
-            learning_file = temp_root / "课程链接.txt"
-            learning_file.write_text("", encoding="utf-8")
+            learning_file = temp_root / "课程链接.json"
+            learning_file.write_text("[]", encoding="utf-8")
 
             with mock.patch.object(workflows, "LEARNING_URLS_FILE", learning_file):
                 with mock.patch.object(
@@ -177,23 +181,29 @@ class ManualSelectionWorkflowTests(unittest.IsolatedAsyncioTestCase):
                             learning_zone_mode="auto",
                         )
 
-        parse_zone.assert_awaited_once_with(
-            ["https://kc.zhixueyun.com/#/topic/专区001"],
-            status_callback=None,
-        )
-        collect_entry.assert_awaited_once_with(
-            ["https://example.com/entry"],
-            status_callback=None,
-        )
-        self.assertEqual(result["direct_learning_count"], 1)
-        self.assertEqual(result["learning_zone_parsed_count"], 2)
-        self.assertEqual(result["entry_url_count"], 1)
+            parse_zone.assert_awaited_once_with(
+                ["https://kc.zhixueyun.com/#/topic/专区001"],
+                status_callback=None,
+            )
+            collect_entry.assert_awaited_once_with(
+                ["https://example.com/entry"],
+                status_callback=None,
+            )
+            self.assertEqual(result["direct_learning_count"], 1)
+            self.assertEqual(result["learning_zone_parsed_count"], 2)
+            self.assertEqual(result["entry_url_count"], 1)
+            self.assertEqual(
+                _read_learning_queue_urls(learning_file),
+                [
+                    "https://kc.zhixueyun.com/#/study/course/detail/12345678-1234-1234-1234-123456789abc"
+                ],
+            )
 
     async def test_run_manual_course_selection_manual_mode_opens_learning_zone_urls_manually(self):
         with TemporaryDirectory() as tmp:
             temp_root = Path(tmp)
-            learning_file = temp_root / "课程链接.txt"
-            learning_file.write_text("", encoding="utf-8")
+            learning_file = temp_root / "课程链接.json"
+            learning_file.write_text("[]", encoding="utf-8")
 
             with mock.patch.object(workflows, "LEARNING_URLS_FILE", learning_file):
                 with mock.patch.object(

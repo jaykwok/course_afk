@@ -28,6 +28,7 @@ from core.exam_runner import run_ai_exam_batch, run_manual_exam_batch
 from core.learning_zone import collect_learning_links_from_learning_zone_urls
 from core.links import extract_urls_from_text, split_manual_selection_urls
 from core.file_ops import is_compliant_url_regex, normalize_url
+from core.learning_queue import append_learning_urls, read_learning_urls
 from core.login import login_and_save_credential
 from core.state import collect_project_state, read_non_empty_lines
 from core.config import summarize_exception_message
@@ -38,18 +39,6 @@ StatusCallback = Callable[[str], None]
 
 def parse_manual_selection_input(text: str) -> list[str]:
     return extract_urls_from_text(text)
-
-
-def append_unique_lines(file_path: Path, urls: list[str]) -> list[str]:
-    existing = set(read_non_empty_lines(file_path))
-    added: list[str] = []
-    with open(file_path, "a", encoding="utf-8") as file:
-        for url in urls:
-            if url not in existing:
-                file.write(f"{url}\n")
-                existing.add(url)
-                added.append(url)
-    return added
 
 
 def _track_background_task(task: asyncio.Task, pending_tasks: set[asyncio.Task]) -> None:
@@ -111,7 +100,7 @@ async def collect_learning_links_from_entry_urls(
     with open(COOKIES_FILE, "r", encoding="utf-8") as file:
         cookies = json.load(file)
 
-    collected_urls = set(read_non_empty_lines(LEARNING_URLS_FILE))
+    collected_urls = set(read_learning_urls(LEARNING_URLS_FILE))
     new_popup_count = 0
     popup_tasks: set[asyncio.Task] = set()
 
@@ -124,7 +113,7 @@ async def collect_learning_links_from_entry_urls(
             await new_page.wait_for_timeout(1000)
             url = normalize_url(new_page.url.strip())
             if url and url != "about:blank" and is_compliant_url_regex(url):
-                added = append_unique_lines(LEARNING_URLS_FILE, [url])
+                added = append_learning_urls([url], file_path=LEARNING_URLS_FILE)
                 if added:
                     collected_urls.update(added)
                     new_popup_count += len(added)
@@ -185,7 +174,10 @@ async def run_manual_course_selection(
         urls
     )
 
-    added_learning = append_unique_lines(LEARNING_URLS_FILE, direct_learning_urls)
+    added_learning = append_learning_urls(
+        direct_learning_urls,
+        file_path=LEARNING_URLS_FILE,
+    )
     if status_callback and added_learning:
         status_callback(f"已直接写入 {len(added_learning)} 条学习链接")
 
@@ -212,7 +204,7 @@ async def run_manual_course_selection(
         "learning_zone_parsed_count": learning_zone_parsed_count,
         "entry_url_count": len(manual_entry_urls),
         "manual_record_count": manual_record_count,
-        "learning_total": len(read_non_empty_lines(LEARNING_URLS_FILE)),
+        "learning_total": len(read_learning_urls(LEARNING_URLS_FILE)),
     }
 
 

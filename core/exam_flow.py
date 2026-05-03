@@ -76,7 +76,7 @@ async def _wait_for_manual_submit_completion(page) -> None:
         await page.wait_for_timeout(500)
 
 
-async def ai_exam(client, model, page, course_url, auto_submit=True):
+async def ai_exam(client, model, page, course_url, auto_submit=True, ai_model_config=None):
     """AI自动答题主函数"""
     logging.info("AI考试开始")
 
@@ -104,7 +104,13 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
 
             answers = await get_ai_answers(client, model, question_data)
             auto_submit = _ensure_manual_submit(auto_submit, question_data, answers)
-            await select_answers(page, question_data, answers, course_url)
+            await select_answers(
+                page,
+                question_data,
+                answers,
+                course_url,
+                ai_model_config=ai_model_config,
+            )
 
             next_button = page.locator(".single-btn-next")
             next_button_classes = await next_button.get_attribute("class") or ""
@@ -146,6 +152,7 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
                 answers,
                 course_url,
                 selector_prefix=f"[data-dynamic-key='{item_id}'] ",
+                ai_model_config=ai_model_config,
             )
             await page.wait_for_timeout(500)
 
@@ -162,13 +169,20 @@ async def ai_exam(client, model, page, course_url, auto_submit=True):
     logging.info("考试完成")
 
 
-async def wait_for_finish_test(client, model, page1, auto_submit=True):
+async def wait_for_finish_test(client, model, page1, auto_submit=True, ai_model_config=None):
     """打开考试弹窗并执行AI考试"""
     async with page1.expect_popup() as page2_info:
         await page1.locator(".btn.new-radius").click()
     page2 = await page2_info.value
     logging.info("等待作答完毕并关闭页面")
-    await ai_exam(client, model, page2, page1.url, auto_submit=auto_submit)
+    await ai_exam(
+        client,
+        model,
+        page2,
+        page1.url,
+        auto_submit=auto_submit,
+        ai_model_config=ai_model_config,
+    )
     if _page_is_closed(page2):
         return
     await page2.wait_for_event("close", timeout=0)

@@ -286,6 +286,7 @@ class ExamFlowLoggingTests(unittest.IsolatedAsyncioTestCase):
             popup,
             page.url,
             auto_submit=False,
+            ai_model_config=None,
         )
         popup.wait_for_event.assert_not_awaited()
 

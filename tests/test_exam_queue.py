@@ -134,6 +134,29 @@ class ExamQueueTests(unittest.TestCase):
                 )
             )
 
+    def test_read_exam_queue_rejects_invalid_json(self):
+        from core.exam_queue import read_exam_queue
+
+        with TemporaryDirectory() as tmp:
+            exam_file = Path(tmp) / "exam.json"
+            exam_file.write_text("https://example.com/exam/1\n", encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                read_exam_queue(file_path=exam_file)
+
+    def test_read_exam_queue_rejects_non_list_json(self):
+        from core.exam_queue import read_exam_queue
+
+        with TemporaryDirectory() as tmp:
+            exam_file = Path(tmp) / "exam.json"
+            exam_file.write_text(
+                json.dumps({"url": "https://example.com/exam/1"}),
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(ValueError):
+                read_exam_queue(file_path=exam_file)
+
 
 if __name__ == "__main__":
     unittest.main()

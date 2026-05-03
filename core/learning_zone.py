@@ -5,9 +5,9 @@ from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
 
 from core.browser import create_browser_context
-from core.config import LEARNING_URLS_FILE, ZHIXUEYUN_COURSE_PREFIX, ZHIXUEYUN_SUBJECT_PREFIX
+from core.config import ZHIXUEYUN_COURSE_PREFIX, ZHIXUEYUN_SUBJECT_PREFIX
 from core.file_ops import is_compliant_url_regex, normalize_url
-from core.state import read_non_empty_lines
+from core.learning_queue import append_learning_urls
 
 
 def _unique_urls(urls: list[str]) -> list[str]:
@@ -18,18 +18,6 @@ def _unique_urls(urls: list[str]) -> list[str]:
             results.append(url)
             seen.add(url)
     return results
-
-
-def _append_unique_lines(file_path, urls: list[str]) -> list[str]:
-    existing = set(read_non_empty_lines(file_path))
-    added: list[str] = []
-    with open(file_path, "a", encoding="utf-8") as file:
-        for url in urls:
-            if url not in existing:
-                file.write(f"{url}\n")
-                existing.add(url)
-                added.append(url)
-    return added
 
 
 def _extract_query_params_from_app_href(href: str) -> dict[str, list[str]]:
@@ -96,7 +84,7 @@ async def collect_learning_links_from_learning_zone_urls(
                 learning_links = extract_learning_links_from_learning_zone_html(
                     await page.content()
                 )
-                added = _append_unique_lines(LEARNING_URLS_FILE, learning_links)
+                added = append_learning_urls(learning_links)
                 total_added += len(added)
                 if status_callback:
                     status_callback(

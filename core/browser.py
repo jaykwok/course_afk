@@ -19,6 +19,8 @@ from core.config import (
 
 
 _CONTROLLER_PAGES: dict[int, object] = {}
+_CONTEXT_HEADLESS: dict[int, bool] = {}
+_START_MAXIMIZED_ARG = "--start-maximized"
 
 
 def _get_browser_launcher(playwright):
@@ -38,6 +40,8 @@ def build_browser_launch_options(
 
     if BROWSER_TYPE == "chromium":
         args = list(BROWSER_ARGS)
+        if not headless and _START_MAXIMIZED_ARG not in args:
+            args.append(_START_MAXIMIZED_ARG)
         if extra_args:
             for arg in extra_args:
                 if arg not in args:
@@ -50,6 +54,24 @@ def build_browser_launch_options(
     if slow_mo is not None:
         options["slow_mo"] = slow_mo
     return options
+
+
+async def maximize_browser_window_for_page(page, *, headless: bool) -> None:
+    if headless or BROWSER_TYPE != "chromium":
+        return
+
+    try:
+        client = await page.context.new_cdp_session(page)
+        window_info = await client.send("Browser.getWindowForTarget")
+        await client.send(
+            "Browser.setWindowBounds",
+            {
+                "windowId": window_info["windowId"],
+                "bounds": {"windowState": "maximized"},
+            },
+        )
+    except Exception:
+        pass
 
 
 def build_browser_context_options(*, headless: bool) -> dict[str, object]:
@@ -142,8 +164,9 @@ def _is_page_closed(page) -> bool:
     return False
 
 
-async def _open_controller_page(context, *, authenticate: bool = False):
+async def _open_controller_page(context, *, authenticate: bool = False, headless: bool = False):
     page = await context.new_page()
+    await maximize_browser_window_for_page(page, headless=headless)
     if authenticate:
         await page.goto(ZHIXUEYUN_HOME)
         await page.wait_for_url(re.compile(ZHIXUEYUN_HOME_PATTERN), timeout=0)
@@ -166,7 +189,10 @@ async def _restore_controller_page_if_needed(context, closed_page) -> None:
     if not is_browser_connected(context):
         return
     try:
-        replacement_page = await _open_controller_page(context)
+        replacement_page = await _open_controller_page(
+            context,
+            headless=_CONTEXT_HEADLESS.get(id(context), False),
+        )
     except Exception:
         return
     _remember_controller_page(context, replacement_page)
@@ -185,13 +211,17 @@ async def ensure_controller_page(context):
         return controller_page
     if not is_browser_connected(context):
         return None
-    controller_page = await _open_controller_page(context)
+    controller_page = await _open_controller_page(
+        context,
+        headless=_CONTEXT_HEADLESS.get(id(context), False),
+    )
     _remember_controller_page(context, controller_page)
     return controller_page
 
 
 def release_controller_page(context) -> None:
     _CONTROLLER_PAGES.pop(id(context), None)
+    _CONTEXT_HEADLESS.pop(id(context), None)
 
 
 @asynccontextmanager
@@ -208,10 +238,15 @@ async def create_browser_context(
         context = await browser.new_context(
             **build_browser_context_options(headless=headless)
         )
+        _CONTEXT_HEADLESS[id(context)] = headless
         await context.add_cookies(cookies)
 
         # 保留一个常驻主控页，避免课程页关闭后浏览器直接退出。
-        controller_page = await _open_controller_page(context, authenticate=True)
+        controller_page = await _open_controller_page(
+            context,
+            authenticate=True,
+            headless=headless,
+        )
         _remember_controller_page(context, controller_page)
 
         try:

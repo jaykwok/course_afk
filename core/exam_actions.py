@@ -5,7 +5,7 @@ import traceback
 
 from core.abort import UserAbortRequested
 from core.config import MANUAL_EXAM_FILE
-from core.file_ops import save_to_file
+from core.manual_exam_queue import append_manual_exam_entry
 
 
 def _get_option_click_selector(question_data) -> str:
@@ -27,7 +27,14 @@ def _raise_if_exam_auto_submitted(exc: Exception) -> None:
         ) from None
 
 
-async def select_answers(page, question_data, answers, course_url, selector_prefix=""):
+async def select_answers(
+    page,
+    question_data,
+    answers,
+    course_url,
+    selector_prefix="",
+    ai_model_config: dict[str, object] | None = None,
+):
     """
     根据AI答案选择选项(统一处理单题目和多题目模式)。
 
@@ -41,11 +48,23 @@ async def select_answers(page, question_data, answers, course_url, selector_pref
         if not answers:
             if question_data["type"] == "fill_blank":
                 logging.info(f"{log_prefix}检测到填空题, 存入人工考试链接备查")
+                reason = "fill_blank"
+                reason_text = f"{log_prefix}检测到填空题"
             else:
                 logging.info(
                     f"{log_prefix}没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整, 存入人工考试链接备查"
                 )
-            save_to_file(MANUAL_EXAM_FILE, course_url)
+                reason = "ai_no_answer"
+                reason_text = (
+                    f"{log_prefix}没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整"
+                )
+            append_manual_exam_entry(
+                course_url,
+                reason=reason,
+                reason_text=reason_text,
+                ai_failed_model_config=ai_model_config,
+                file_path=MANUAL_EXAM_FILE,
+            )
             return
 
         logging.info(f"{log_prefix}选择答案: {answers}")

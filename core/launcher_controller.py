@@ -10,26 +10,26 @@ def _prompt_ai_exam_auto_submit(ui) -> bool:
 def _maybe_delete_empty_learning_queue_file(ui) -> None:
     from core.config import LEARNING_URLS_FILE
     from core.file_ops import del_file
-    from core.state import read_non_empty_lines
+    from core.learning_queue import read_learning_urls
 
     if not LEARNING_URLS_FILE.exists():
         return
-    if read_non_empty_lines(LEARNING_URLS_FILE):
+    if read_learning_urls(LEARNING_URLS_FILE):
         return
 
-    if ui.prompt_yes_no("课程链接.txt 已空，是否删除该文件？", default="N"):
+    if ui.prompt_yes_no("课程链接.json 已空，是否删除该文件？", default="N"):
         del_file(LEARNING_URLS_FILE)
-        ui.show_success("已删除空的课程链接.txt")
+        ui.show_success("已删除空的课程链接.json")
 
 
 def _maybe_delete_empty_exam_queue_file(ui) -> None:
     from core.config import EXAM_URLS_FILE
+    from core.exam_queue import read_exam_urls
     from core.file_ops import del_file
-    from core.state import read_non_empty_lines
 
     if not EXAM_URLS_FILE.exists():
         return
-    if read_non_empty_lines(EXAM_URLS_FILE):
+    if read_exam_urls(EXAM_URLS_FILE):
         return
 
     if ui.prompt_yes_no("考试链接.json 已空，是否删除该文件？", default="N"):
@@ -63,12 +63,10 @@ _FLOW_RESULT_LABELS = {
 def handle_recommended_flow(ui) -> None:
     from core.exam_answers import ExamAiConfigurationError
     from core.workflows import run_recommended_flow
-    from core.state import read_non_empty_lines
-    from core.config import LEARNING_URLS_FILE, RETRY_URLS_FILE
+    from core.learning_queue import read_learning_urls
+    from core.config import LEARNING_URLS_FILE
 
-    had_pending_learning = bool(
-        read_non_empty_lines(LEARNING_URLS_FILE) or read_non_empty_lines(RETRY_URLS_FILE)
-    )
+    had_pending_learning = bool(read_learning_urls(LEARNING_URLS_FILE))
     try:
         result = run_async(
             run_recommended_flow(
@@ -100,11 +98,11 @@ def handle_refresh_credential(state, ui) -> None:
 
 
 def handle_show_learning_links(learning_urls_file, ui) -> None:
-    from core.state import read_non_empty_lines
+    from core.learning_queue import read_learning_urls
 
-    links = read_non_empty_lines(learning_urls_file)
+    links = read_learning_urls(learning_urls_file)
     if not links:
-        ui.show_warning("课程链接.txt 当前为空")
+        ui.show_warning("课程链接.json 当前为空")
     else:
         ui.show_summary(
             "课程链接状态",
@@ -148,13 +146,11 @@ def handle_manual_selection(prompts, ui) -> None:
 
 
 def handle_afk(ui) -> None:
-    from core.config import LEARNING_URLS_FILE, RETRY_URLS_FILE
-    from core.state import read_non_empty_lines
+    from core.config import LEARNING_URLS_FILE
+    from core.learning_queue import read_learning_urls
     from core.workflows import run_afk_workflow
 
-    had_pending_learning = bool(
-        read_non_empty_lines(LEARNING_URLS_FILE) or read_non_empty_lines(RETRY_URLS_FILE)
-    )
+    had_pending_learning = bool(read_learning_urls(LEARNING_URLS_FILE))
     has_exam = run_async(run_afk_workflow(status_callback=ui.show_info))
     if had_pending_learning:
         _maybe_delete_empty_learning_queue_file(ui)
@@ -207,16 +203,17 @@ def handle_manual_exam(ui) -> None:
 
 
 def handle_show_output_state(exam_urls_file, learning_urls_file, manual_exam_file, ui) -> None:
-    from core.config import EXAM_ATTEMPT_LIMIT_FILE
-    from core.state import read_non_empty_lines
+    from core.exam_queue import read_exam_urls
+    from core.learning_queue import read_learning_failures, read_learning_urls
+    from core.manual_exam_queue import read_manual_exam_urls
 
     ui.show_summary(
         "当前输出文件状态",
         [
-            ("课程链接", str(len(read_non_empty_lines(learning_urls_file)))),
-            ("考试链接", str(len(read_non_empty_lines(exam_urls_file)))),
-            ("人工考试链接", str(len(read_non_empty_lines(manual_exam_file)))),
-            ("考试次数超限链接", str(len(read_non_empty_lines(EXAM_ATTEMPT_LIMIT_FILE)))),
+            ("课程链接", str(len(read_learning_urls(learning_urls_file)))),
+            ("挂课失败链接", str(len(read_learning_failures()))),
+            ("考试链接", str(len(read_exam_urls(exam_urls_file)))),
+            ("人工考试链接", str(len(read_manual_exam_urls(manual_exam_file)))),
         ],
     )
     ui.pause()

@@ -125,12 +125,12 @@ class SubjectLearningFlowTests(unittest.IsolatedAsyncioTestCase):
                     ]
                 ),
             ) as mock_course_learning,
-            patch("core.learning_flows.save_to_file") as mock_save_to_file,
+            patch("core.learning_flows.record_learning_failure") as mock_record_failure,
         ):
             await subject_learning(subject_page)
 
         self.assertEqual(mock_course_learning.await_count, 2)
-        self.assertFalse(mock_save_to_file.called)
+        self.assertFalse(mock_record_failure.called)
         self.assertTrue(all(page.closed for page in popup_pages))
 
 

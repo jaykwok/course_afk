@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -77,9 +76,17 @@ def _unique_model_configs(raw_configs) -> list[dict[str, object]]:
     return list(configs_by_key.values())
 
 
+def normalize_model_config(raw_config) -> dict[str, object] | None:
+    return _normalize_model_config(raw_config)
+
+
+def unique_model_configs(raw_configs) -> list[dict[str, object]]:
+    return _unique_model_configs(raw_configs)
+
+
 def _normalize_entries(raw_entries) -> list[ExamQueueEntry]:
     if not isinstance(raw_entries, list):
-        return []
+        raise ValueError("考试链接队列必须是 JSON 数组")
 
     entries_by_url: dict[str, ExamQueueEntry] = {}
     for raw_entry in raw_entries:
@@ -123,10 +130,10 @@ def read_exam_queue(file_path: Path = EXAM_URLS_FILE) -> list[ExamQueueEntry]:
         return []
 
     try:
-        return _normalize_entries(json.loads(content))
+        raw_entries = json.loads(content)
     except json.JSONDecodeError as exc:
-        logging.warning(f"考试链接 JSON 解析失败，忽略当前队列: {exc}")
-        return []
+        raise ValueError(f"考试链接队列不是有效 JSON: {exc}") from exc
+    return _normalize_entries(raw_entries)
 
 
 def write_exam_queue(

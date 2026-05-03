@@ -6,16 +6,14 @@ import logging
 from core.config import (
     DOCUMENT_INITIAL_WAIT,
     DOCUMENT_SYNC_EXTRA_WAIT,
-    H5_TYPE_FILE,
-    UNKNOWN_TYPE_FILE,
 )
-from core.file_ops import save_to_file
 from core.learning_common import (
     build_video_timing_plan,
     get_course_url,
     is_learned,
     timer,
 )
+from core.learning_queue import record_learning_failure
 from core.learning_popups import check_and_handle_rating_popup, check_rating_popup_periodically
 
 
@@ -125,5 +123,10 @@ async def handle_document(page, box):
 
 async def handle_h5(page, learn_item):
     """处理h5类型课程"""
-    logging.info("h5课程类型, 存入文档")
-    save_to_file(H5_TYPE_FILE, await get_course_url(learn_item))
+    logging.info("h5课程类型, 记录为需要人工处理")
+    record_learning_failure(
+        await get_course_url(learn_item),
+        reason="h5_manual_required",
+        reason_text="H5 课程类型需要人工处理",
+        detail={"source": "course_chapter"},
+    )

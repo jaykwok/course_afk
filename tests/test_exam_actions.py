@@ -90,11 +90,17 @@ class ExamActionTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch("core.exam_actions.logging.info") as mock_info,
-            patch("core.exam_actions.save_to_file") as mock_save,
+            patch("core.exam_actions.append_manual_exam_entry") as mock_append_manual,
         ):
             await select_answers(object(), question_data, [], "https://example.com/exam")
 
-        mock_save.assert_called_once_with(MANUAL_EXAM_FILE, "https://example.com/exam")
+        mock_append_manual.assert_called_once_with(
+            "https://example.com/exam",
+            reason="ai_no_answer",
+            reason_text="没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整",
+            ai_failed_model_config=None,
+            file_path=MANUAL_EXAM_FILE,
+        )
         messages = [call.args[0] for call in mock_info.call_args_list]
         self.assertTrue(any("没有获取到有效答案" in message for message in messages))
         self.assertFalse(any("填空" in message for message in messages))

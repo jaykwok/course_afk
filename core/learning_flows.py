@@ -6,19 +6,13 @@ import traceback
 
 from core.browser import is_page_browser_connected, is_target_closed_exception
 from core.config import (
-    NO_PERMISSION_FILE,
-    OTHER_TYPE_FILE,
-    RETRY_URLS_FILE,
-    SURVEY_TYPE_FILE,
-    UNKNOWN_TYPE_FILE,
-    URL_TYPE_FILE,
     URL_TYPE_WAIT,
 )
 from core.exam_queue import append_exam_url
-from core.file_ops import save_to_file
 from core.learning_common import check_permission, get_course_url, is_learned, timer
 from core.learning_exam import check_exam_passed, handle_examination
 from core.learning_handlers import handle_document, handle_h5, handle_video
+from core.learning_queue import record_learning_failure
 from core.learning_popups import handle_rating_popup
 
 
@@ -73,17 +67,33 @@ async def subject_learning(page):
                     raise
                 logging.error(f"发生错误: {str(exc)}")
                 logging.error(traceback.format_exc())
+                course_url = await get_course_url(learn_item)
                 if str(exc) == "无权限查看该资源":
-                    save_to_file(NO_PERMISSION_FILE, await get_course_url(learn_item))
+                    record_learning_failure(
+                        course_url,
+                        reason="no_permission",
+                        reason_text="无权限访问该学习资源",
+                        detail={"source": "subject_course"},
+                    )
                 else:
-                    save_to_file(RETRY_URLS_FILE, await get_course_url(learn_item))
+                    record_learning_failure(
+                        course_url,
+                        reason="retryable_error",
+                        reason_text=f"主题内课程处理失败，后续可重新加入课程链接: {exc}",
+                        detail={"source": "subject_course"},
+                    )
                     raise
             finally:
                 await page_detail.close()
 
         elif section_type == "URL":
-            logging.info("URL学习类型, 存入文档单独审查")
-            save_to_file(URL_TYPE_FILE, page.url)
+            logging.info("URL学习类型, 记录为待复查")
+            record_learning_failure(
+                page.url,
+                reason="url_type_pending",
+                reason_text="URL 类型学习等待后续复查",
+                detail={"source": "subject", "section_type": section_type},
+            )
             async with page.expect_popup() as page_pop:
                 await learn_item.locator(".inline-block.operation").click()
             page_detail = await page_pop.value
@@ -98,12 +108,22 @@ async def subject_learning(page):
             await handle_subject_exam_item(learn_item)
 
         elif section_type == "调研":
-            logging.info("调研学习类型, 存入文档单独审查")
-            save_to_file(SURVEY_TYPE_FILE, await get_course_url(learn_item))
+            logging.info("调研学习类型, 记录为需要人工处理")
+            record_learning_failure(
+                await get_course_url(learn_item),
+                reason="survey_manual_required",
+                reason_text="调研类型学习需要人工处理",
+                detail={"source": "subject", "section_type": section_type},
+            )
 
         else:
-            logging.info("非课程及考试类学习类型, 存入文档单独审查")
-            save_to_file(OTHER_TYPE_FILE, page.url)
+            logging.info("非课程及考试类学习类型, 记录为需要人工处理")
+            record_learning_failure(
+                page.url,
+                reason="other_learning_type",
+                reason_text=f"非课程及考试类学习类型: {section_type}",
+                detail={"source": "subject", "section_type": section_type},
+            )
 
 
 async def course_learning(page_detail, learn_item=None):
@@ -185,11 +205,14 @@ async def course_learning(page_detail, learn_item=None):
                 else:
                     await handle_examination(page_detail, exam_passed=exam_passed)
             else:
-                logging.info("未知课程学习类型, 存入文档单独审查")
-                if learn_item:
-                    save_to_file(UNKNOWN_TYPE_FILE, await get_course_url(learn_item))
-                else:
-                    save_to_file(UNKNOWN_TYPE_FILE, page_detail.url)
+                logging.info("未知课程学习类型, 记录为需要人工处理")
+                failure_url = await get_course_url(learn_item) if learn_item else page_detail.url
+                record_learning_failure(
+                    failure_url,
+                    reason="unknown_learning_type",
+                    reason_text=f"未知课程学习类型: {section_type}",
+                    detail={"source": "course_chapter", "section_type": section_type},
+                )
                 continue
         except Exception as exc:
             logging.error(f"课程{count+1}学习失败: {str(exc)}")

@@ -10,9 +10,7 @@ class BrowserLaunchConfigTests(unittest.TestCase):
         with (
             unittest.mock.patch.object(browser, "BROWSER_TYPE", "chromium"),
             unittest.mock.patch.object(browser, "BROWSER_CHANNEL", "msedge"),
-            unittest.mock.patch.object(
-                browser, "BROWSER_ARGS", ["--mute-audio", "--start-maximized"]
-            ),
+            unittest.mock.patch.object(browser, "BROWSER_ARGS", ["--mute-audio"]),
         ):
             options = browser.build_browser_launch_options(headless=False, slow_mo=300)
 
@@ -41,6 +39,16 @@ class BrowserLaunchConfigTests(unittest.TestCase):
 
     def test_build_browser_context_options_keeps_headless_context_default(self):
         self.assertEqual(browser.build_browser_context_options(headless=True), {})
+
+    def test_build_browser_launch_options_does_not_force_maximized_for_headless(self):
+        with (
+            unittest.mock.patch.object(browser, "BROWSER_TYPE", "chromium"),
+            unittest.mock.patch.object(browser, "BROWSER_CHANNEL", "msedge"),
+            unittest.mock.patch.object(browser, "BROWSER_ARGS", ["--mute-audio"]),
+        ):
+            options = browser.build_browser_launch_options(headless=True)
+
+        self.assertEqual(options["args"], ["--mute-audio"])
 
     def test_launch_async_browser_uses_selected_browser_type(self):
         fake_browser = object()

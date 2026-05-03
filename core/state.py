@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from core.config import EXAM_URLS_FILE, LEARNING_URLS_FILE, MANUAL_EXAM_FILE
+from core.config import (
+    EXAM_URLS_FILE,
+    LEARNING_FAILURES_FILE,
+    LEARNING_URLS_FILE,
+    MANUAL_EXAM_FILE,
+)
 from core.credential import (
     load_credential_metadata,
     parse_saved_at,
@@ -11,6 +16,12 @@ from core.credential import (
 )
 from core.exam_queue import count_exam_urls, read_exam_urls
 from core.file_ops import read_unique_lines
+from core.learning_queue import (
+    count_learning_failures,
+    count_learning_urls,
+    read_learning_urls,
+)
+from core.manual_exam_queue import count_manual_exam_urls, read_manual_exam_urls
 
 
 @dataclass
@@ -18,13 +29,18 @@ class ProjectState:
     has_credential: bool
     credential_expired: bool
     learning_count: int
+    learning_failure_count: int
     exam_count: int
     manual_exam_count: int
 
 
 def read_non_empty_lines(file_path: Path) -> list[str]:
-    if file_path == EXAM_URLS_FILE or file_path.suffix.lower() == ".json":
+    if file_path == EXAM_URLS_FILE:
         return read_exam_urls(file_path)
+    if file_path == MANUAL_EXAM_FILE:
+        return read_manual_exam_urls(file_path)
+    if file_path == LEARNING_URLS_FILE:
+        return read_learning_urls(file_path)
     return read_unique_lines(file_path)
 
 
@@ -45,9 +61,10 @@ def collect_project_state() -> ProjectState:
     return ProjectState(
         has_credential=has_credential,
         credential_expired=credential_expired,
-        learning_count=count_non_empty_lines(LEARNING_URLS_FILE),
+        learning_count=count_learning_urls(LEARNING_URLS_FILE),
+        learning_failure_count=count_learning_failures(LEARNING_FAILURES_FILE),
         exam_count=count_exam_urls(EXAM_URLS_FILE),
-        manual_exam_count=count_non_empty_lines(MANUAL_EXAM_FILE),
+        manual_exam_count=count_manual_exam_urls(MANUAL_EXAM_FILE),
     )
 
 

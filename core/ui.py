@@ -110,6 +110,7 @@ def render_dashboard(state: ProjectState) -> None:
     table.add_row("账号", Text(account_label, style="bold white"))
     table.add_row("凭证", _credential_display(state, metadata))
     table.add_row("课程链接", _count_display(state.learning_count))
+    table.add_row("挂课失败", _count_display(state.learning_failure_count))
     table.add_row("考试链接", _count_display(state.exam_count))
     table.add_row("人工考试", _count_display(state.manual_exam_count))
     table.add_row(
