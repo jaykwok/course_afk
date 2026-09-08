@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from core.queues.learning import record_learning_failure, remove_learning_failure, remember_discovery_entries
+from core.runtime import close_safely
+
 import logging
 import re
 from urllib.parse import unquote
@@ -155,7 +158,9 @@ def _chapter_ids_from_payload(payload: object) -> list[str]:
 
 def _items_from_activity_payload(payload: object) -> list[dict]:
     if isinstance(payload, dict):
-        items = payload.get("items") or []
+        if "items" not in payload or not isinstance(payload["items"], list):
+            raise ValueError("培训活动响应缺少 items 列表")
+        items = payload["items"]
     elif isinstance(payload, list):
         items = payload
     else:
@@ -217,10 +222,13 @@ async def _fetch_all_activities_for_chapter(
             )
 
         # 末页不足 pageSize，或本页没有新数据 → 结束（对齐 UI 点完更多）
-        if len(items) < _ACTIVITY_PAGE_SIZE or new_count == 0:
+        if len(items) < _ACTIVITY_PAGE_SIZE:
             break
+        if new_count == 0:
+            raise RuntimeError("培训活动分页重复，收集未完成")
         page_no += 1
-
+    else:
+        raise RuntimeError("培训活动达到分页上限，收集未完成")
     return all_items
 
 
@@ -254,7 +262,7 @@ async def collect_learning_links_from_class_page(
         empty_message="培训班页面未拿到登录令牌，请确认 cookies 仍有效",
     )
     if not auth_header:
-        return []
+        raise ValueError("培训班缺少登录凭证，未完成收集")
 
     headers = {
         "Authorization": auth_header,
@@ -271,8 +279,10 @@ async def collect_learning_links_from_class_page(
         logging.error(f"读取培训班章节失败 classId={class_id}: {exc}")
         if status_callback:
             status_callback(f"读取培训班章节失败: {exc}")
-        return []
+        raise
 
+    if not isinstance(chapters_payload, list) and not (isinstance(chapters_payload, dict) and any(isinstance(chapters_payload.get(key), list) for key in ("items", "datas", "data", "chapters"))):
+        raise ValueError("培训班章节响应结构不完整")
     chapter_ids = _chapter_ids_from_payload(chapters_payload)
     if not chapter_ids:
         if status_callback:
@@ -300,7 +310,8 @@ async def collect_learning_links_from_class_page(
                 f"读取培训班活动失败 classId={class_id} chapterId={chapter_id}: {exc}"
             )
             if status_callback:
-                status_callback(f"读取阶段活动失败，已跳过该阶段: {exc}")
+                status_callback(f"读取阶段活动失败，已保留入口供重试: {exc}")
+            raise
 
     learning_links = extract_learning_links_from_activity_items(all_activities)
     mapped_count = sum(
@@ -331,6 +342,7 @@ async def collect_learning_links_from_train_class_urls(
     if not train_class_urls:
         return 0
 
+    remember_discovery_entries(train_class_urls)
     total_added = 0
 
     async def _run_with_context(active_context) -> None:
@@ -354,6 +366,7 @@ async def collect_learning_links_from_train_class_urls(
                     source_label="培训班",
                 )
                 total_added += enqueue["learning_added"]
+                remove_learning_failure(url, keep_file=True)
                 if status_callback:
                     if learning_links:
                         status_callback(
@@ -367,12 +380,16 @@ async def collect_learning_links_from_train_class_urls(
                             "该培训班暂未识别到可挂机课程/主题链接；"
                             "请确认班级活动含 course/subject 类型"
                         )
-            except Exception as exc:
+            except BaseException as exc:
+                record_learning_failure(url, reason="discovery_incomplete", reason_text=f"培训班收集未完成（{type(exc).__name__}），请重新解析入口", detail={"source": "train_class"})
+                if not isinstance(exc, Exception):
+                    raise
                 logging.error(f"解析培训班失败 {url}: {exc}")
                 if status_callback:
                     status_callback(f"解析培训班失败: {exc}")
+                raise
             finally:
-                await page.close()
+                await close_safely(page.close(), label="training class page")
 
     if context is not None:
         await _run_with_context(context)

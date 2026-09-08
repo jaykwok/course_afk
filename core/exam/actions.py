@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 import logging
-import traceback
 
-from core.abort import UserAbortRequested
-from core.config import (
-    EXAM_OPTION_GAP_MAX,
-    EXAM_OPTION_GAP_MIN,
-    EXAM_SUBMIT_GAP_MAX,
-    EXAM_SUBMIT_GAP_MIN,
-    MANUAL_EXAM_FILE,
-)
+from core.abort import UserAbortRequested, UserCancelRequested
+from core.config import EXAM_OPTION_GAP_MAX, EXAM_OPTION_GAP_MIN, EXAM_SUBMIT_GAP_MAX, EXAM_SUBMIT_GAP_MIN, MANUAL_EXAM_FILE
+from core.exam.contracts import valid_answers
 from core.humanize import pause_between
 from core.queues.manual_exam import append_manual_exam_entry
+
+SELECTED_STATE_SCRIPT = """
+element => {
+  const root = element.closest(".preview-list dd, .option-item, .answer-item") || element;
+  const input = root.matches("input") ? root : root.querySelector("input[type=checkbox], input[type=radio]");
+  if (input) return Boolean(input.checked);
+  for (const node of [element, root, ...root.querySelectorAll("[aria-checked]")]) {
+    const aria = node.getAttribute("aria-checked");
+    if (aria === "true" || aria === "false") return aria === "true";
+  }
+  const selected = ".selected, .checked, .active, .ant-checkbox-checked, .ant-radio-checked, .is-checked";
+  return root.matches(selected) || Boolean(root.querySelector(selected));
+}
+"""
 
 
 def _get_option_click_selector(question_data) -> str:
@@ -21,146 +29,78 @@ def _get_option_click_selector(question_data) -> str:
 
 def _is_exam_auto_submitted_error(exc: Exception) -> bool:
     message = str(exc)
-    return "已超过考试时长" in message and (
-        "自动提交" in message or "自动交卷" in message
-    )
+    return "已超过考试时长" in message and ("自动提交" in message or "自动交卷" in message)
 
 
 def _raise_if_exam_auto_submitted(exc: Exception) -> None:
     if _is_exam_auto_submitted_error(exc):
-        raise UserAbortRequested(
-            "考试已超过时长，系统已自动交卷，程序退出",
-            save_pending_urls=False,
-        ) from None
+        raise UserCancelRequested("考试已超时自动交卷，已保留待办供核对结果") from None
 
 
-async def select_answers(
-    page,
-    question_data,
-    answers,
-    course_url,
-    selector_prefix="",
-    ai_model_config: dict[str, object] | None = None,
-):
-    """
-    根据AI答案选择选项(统一处理单题目和多题目模式)。
+async def _selected(option) -> bool:
+    value = await option.evaluate(SELECTED_STATE_SCRIPT)
+    if not isinstance(value, bool):
+        raise ValueError("无法验证选项状态")
+    return value
 
-    Args:
-        selector_prefix: CSS选择器前缀, 多题目模式传入 "[data-dynamic-key='xxx'] "
-    """
+
+async def select_answers(page, question_data, answers, course_url, selector_prefix="", ai_model_config=None):
+    """Apply a desired answer set and verify it, rather than toggling blindly."""
+    if not valid_answers(question_data, answers):
+        reason = "fill_blank" if question_data.get("type") == "fill_blank" else "ai_no_answer"
+        message = "检测到填空题" if reason == "fill_blank" else "没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整"
+        logging.info(message)
+        append_manual_exam_entry(course_url, reason=reason, reason_text=message, ai_failed_model_config=None, file_path=MANUAL_EXAM_FILE)
+        return False
     try:
-        question_index = question_data.get("index", 0)
-        log_prefix = f"题目 {question_index + 1}: " if selector_prefix else ""
-
-        if not answers:
-            if question_data["type"] == "fill_blank":
-                logging.info(f"{log_prefix}检测到填空题, 存入人工考试链接备查")
-                reason = "fill_blank"
-                reason_text = f"{log_prefix}检测到填空题"
-            else:
-                logging.info(
-                    f"{log_prefix}没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整, 存入人工考试链接备查"
-                )
-                reason = "ai_no_answer"
-                reason_text = (
-                    f"{log_prefix}没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整"
-                )
-            append_manual_exam_entry(
-                course_url,
-                reason=reason,
-                reason_text=reason_text,
-                ai_failed_model_config=ai_model_config,
-                file_path=MANUAL_EXAM_FILE,
-            )
-            return False
-
-        logging.info(f"{log_prefix}选择答案: {answers}")
-
-        if question_data["type"] == "fill_blank":
-            logging.info(f"{log_prefix}填空题, 跳过自动作答")
-            return False
-
         if question_data["type"] == "ordering":
-            answer_sequence = "".join(answers)
-            logging.info(f"{log_prefix}输入排序顺序: {answer_sequence}")
-            try:
-                selector = f"{selector_prefix}.answer-input-shot"
-                await page.fill(selector, answer_sequence)
-                logging.info(f"{log_prefix}已输入排序顺序: {answer_sequence}")
-                return True
-            except Exception as exc:
-                _raise_if_exam_auto_submitted(exc)
-                logging.warning(f"{log_prefix}输入排序顺序失败: {exc}")
-                return False
+            selector = f"{selector_prefix}.answer-input-shot"
+            sequence = "".join(answers)
+            await page.fill(selector, sequence)
+            return await page.locator(selector).input_value() == sequence
 
-        if question_data["type"] == "judge":
-            answer_label = "T" if answers[0] == "正确" else "F"
-            answer_index = next(
-                (
-                    index
-                    for index, option in enumerate(question_data.get("options", []))
-                    if option.get("label") == answer_label
-                ),
-                0 if answer_label == "T" else 1,
-            )
-            try:
-                selector = f"{selector_prefix}{_get_option_click_selector(question_data)}"
-                await page.locator(selector).nth(answer_index).click(timeout=2000)
-                logging.info(f"{log_prefix}已点击判断题选项: {answers[0]}")
+        labels = [option["label"] for option in question_data["options"]]
+        options = page.locator(f"{selector_prefix}{_get_option_click_selector(question_data)}")
+        if await options.count() != len(labels):
+            return False
+        target = set(answers)
+        # Radio groups clear the previous answer by selecting the target; clicking
+        # a non-target radio would select it. Checkboxes need an explicit diff.
+        indices = range(len(labels)) if question_data["type"] == "multiple" else [labels.index(answers[0])]
+        for index in indices:
+            option = options.nth(index)
+            if await _selected(option) != (labels[index] in target):
+                await option.click(timeout=2000)
+                await pause_between(page, EXAM_OPTION_GAP_MIN, EXAM_OPTION_GAP_MAX)
+        for _ in range(5):
+            actual = {label for index, label in enumerate(labels) if await _selected(options.nth(index))}
+            if actual == target:
                 return True
-            except Exception as exc:
-                _raise_if_exam_auto_submitted(exc)
-                logging.warning(f"{log_prefix}点击判断题选项失败: {exc}")
-                return False
-
-        selected_count = 0
-        for answer in answers:
-            option_index = ord(answer) - ord("A")
-            if 0 <= option_index < len(question_data["options"]):
-                try:
-                    selector = f"{selector_prefix}{_get_option_click_selector(question_data)}"
-                    await page.locator(selector).nth(option_index).click(timeout=2000)
-                    logging.info(f"{log_prefix}已点击选项: {answer}")
-                    selected_count += 1
-                    # 多选逐个点：固定 300ms 一下的节拍太规整
-                    await pause_between(page, EXAM_OPTION_GAP_MIN, EXAM_OPTION_GAP_MAX)
-                except Exception as exc:
-                    _raise_if_exam_auto_submitted(exc)
-                    logging.warning(f"{log_prefix}点击选项 {answer} 失败: {exc}")
-            else:
-                logging.warning(f"{log_prefix}答案 {answer} 超出选项范围")
-        return selected_count == len(answers)
-    except UserAbortRequested:
+            await page.wait_for_timeout(100)
+        logging.warning("选项读回与目标不一致，保留人工核对")
+        return False
+    except (UserAbortRequested, UserCancelRequested):
         raise
     except Exception as exc:
-        logging.error(f"选择答案出错: {exc}")
-        logging.error(traceback.format_exc())
+        _raise_if_exam_auto_submitted(exc)
+        logging.warning("选项操作未验证成功：%s", type(exc).__name__)
         return False
 
 
 async def close_exam_notice_if_present(page):
-    try:
-        popup = page.locator(".dialog.animated")
-        if await popup.count() > 0:
-            logging.info("检测到考试提示弹窗, 准备关闭")
-            await popup.locator(".dialog-footer .btn").first.click()
-            await page.wait_for_timeout(1000)
-            logging.info("弹窗已关闭")
-        else:
-            logging.info("未检测到考试提示弹窗")
-    except Exception as exc:
-        logging.error(f"处理考试提示弹窗时出错: {exc}")
-        await page.wait_for_timeout(2000)
+    popup = page.locator(".dialog.animated")
+    if await popup.count() > 0:
+        await popup.locator(".dialog-footer .btn").first.click()
+        await page.wait_for_timeout(1000)
 
 
 async def submit_exam(page):
     await page.locator("text=我要交卷").click()
-    # 交卷两步确认之间随机停顿：真人会看一眼确认框再点
     await pause_between(page, EXAM_SUBMIT_GAP_MIN, EXAM_SUBMIT_GAP_MAX)
     await page.locator("button:has-text('确 定')").click()
     await pause_between(page, EXAM_SUBMIT_GAP_MIN, EXAM_SUBMIT_GAP_MAX)
-    close_button = page.locator(
-        "[data-region='modal:modal'] .btn.white.border:has-text('确定')"
-    )
-    if await close_button.count() > 0:
-        await close_button.last.click()
+    receipt = page.locator("[data-region='modal:modal'] .btn.white.border:has-text('确定')").last
+    # Missing/closed result pages propagate as an unverified submission. Callers
+    # retain the task and reconcile with the server before another attempt.
+    await receipt.wait_for(state="visible", timeout=30000)
+    await receipt.click()

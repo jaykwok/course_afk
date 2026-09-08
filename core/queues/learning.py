@@ -1,17 +1,28 @@
 from __future__ import annotations
 
+from core.storage import serialized, write_text_atomic
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from core.config import LEARNING_FAILURES_FILE, LEARNING_URLS_FILE
-from core.file_ops import del_file, is_compliant_url_regex, normalize_text, write_text_atomic
+from core.file_ops import del_file, is_compliant_url_regex, normalize_text
 from core.links import unique_urls
 
 
 @dataclass(frozen=True)
 class LearningQueueEntry:
     url: str
+
+
+@serialized
+def remember_discovery_entries(urls: list[str], *, file_path: Path = LEARNING_FAILURES_FILE) -> None:
+    """Persist the whole input before a browser can fail on its first entry."""
+    existing = {item.url for item in read_learning_failures(file_path)}
+    for url in unique_urls(urls):
+        if url not in existing:
+            record_learning_failure(url, reason="discovery_incomplete", reason_text="入口等待完整解析；中断后请重试", file_path=file_path)
 
 
 @dataclass(frozen=True)
@@ -105,6 +116,7 @@ def read_learning_queue(file_path: Path = LEARNING_URLS_FILE) -> list[LearningQu
     return _normalize_queue_entries(raw_entries)
 
 
+@serialized
 def write_learning_queue(
     entries: list[LearningQueueEntry],
     *,
@@ -122,6 +134,7 @@ def write_learning_queue(
     )
 
 
+@serialized
 def append_learning_urls(
     urls: list[str],
     *,
@@ -150,6 +163,7 @@ def count_learning_urls(file_path: Path = LEARNING_URLS_FILE) -> int:
     return len(read_learning_urls(file_path=file_path))
 
 
+@serialized
 def write_learning_urls(
     urls: list[str],
     *,
@@ -178,6 +192,7 @@ def read_learning_failures(
     return _normalize_failure_entries(raw_entries)
 
 
+@serialized
 def write_learning_failures(
     entries: list[LearningFailureEntry],
     *,
@@ -195,6 +210,7 @@ def write_learning_failures(
     )
 
 
+@serialized
 def record_learning_failure(
     url: str,
     *,
@@ -226,6 +242,7 @@ def record_learning_failure(
     write_learning_failures(entries, file_path=file_path)
 
 
+@serialized
 def remove_learning_failure(
     url: str,
     *,
@@ -248,6 +265,7 @@ def count_learning_failures(file_path: Path = LEARNING_FAILURES_FILE) -> int:
     return len(read_learning_failures(file_path=file_path))
 
 
+@serialized
 def prune_invalid_learning_failures(
     *,
     file_path: Path = LEARNING_FAILURES_FILE,
@@ -264,7 +282,7 @@ def prune_invalid_learning_failures(
     kept: list[LearningFailureEntry] = []
     removed: list[str] = []
     for entry in entries:
-        if is_compliant_url_regex(entry.url):
+        if is_compliant_url_regex(entry.url) or entry.reason == "discovery_incomplete":
             kept.append(entry)
         else:
             removed.append(entry.url)
@@ -293,6 +311,7 @@ RETRIABLE_LEARNING_FAILURE_REASONS: frozenset[str] = frozenset(
 
 # 展示用：reason → 中文说明（TUI 汇总分组）
 LEARNING_FAILURE_REASON_LABELS: dict[str, str] = {
+    "discovery_incomplete": "入口收集不完整（重新解析入口）",
     "retryable_error": "可重试错误",
     "sync_timeout": "进度同步超时",
     "partial_course_failure": "部分章节失败",
@@ -317,6 +336,7 @@ LEARNING_FAILURE_REASON_LABELS: dict[str, str] = {
 # 需人工处理（不自动重试）
 MANUAL_LEARNING_FAILURE_REASONS: frozenset[str] = frozenset(
     {
+        "discovery_incomplete",
         "survey_manual_required",
         "h5_manual_required",
         "other_learning_type",
@@ -360,6 +380,7 @@ def group_learning_failures_by_reason(
     return rows
 
 
+@serialized
 def requeue_retryable_learning_failures(
     *,
     failures_file: Path = LEARNING_FAILURES_FILE,

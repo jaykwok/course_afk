@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import re
-from pathlib import Path
 from urllib.parse import unquote
 
 from core.config import (
@@ -49,18 +48,11 @@ def load_cookies(path) -> list:
         raise PermissionError(
             "无法读取登录凭证文件（可能被网盘/同步软件占用），请关闭相关软件后重试。"
         ) from exc
+    if isinstance(cookies, dict) and cookies.get("version") == 1:
+        cookies = cookies.get("cookies")
     if not isinstance(cookies, list):
         raise ValueError("登录凭证文件格式异常（应为 cookie 列表），请重新登录。")
     return cookies
-
-
-def write_text_atomic(path, content: str, *, encoding: str = "utf-8") -> None:
-    """原子写入：先写临时文件再 os.replace，避免并发读时读到半截内容。"""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(content, encoding=encoding)
-    os.replace(tmp_path, path)
 
 
 _UUID = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"

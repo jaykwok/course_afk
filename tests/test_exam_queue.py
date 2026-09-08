@@ -10,6 +10,8 @@ MODEL_CONFIG_A = {
     "web_search": False,
     "thinking": False,
     "reasoning_effort": None,
+    "base_url": None, "provider": None, "output_mode": None,
+    "prompt_version": None, "temperature": None, "account": None,
 }
 
 MODEL_CONFIG_A_WITH_WEB = {
@@ -18,6 +20,8 @@ MODEL_CONFIG_A_WITH_WEB = {
     "web_search": True,
     "thinking": False,
     "reasoning_effort": None,
+    "base_url": None, "provider": None, "output_mode": None,
+    "prompt_version": None, "temperature": None, "account": None,
 }
 
 

@@ -15,6 +15,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.browser.overlays import prepare_page_after_navigation_async
 from core.browser.session import create_browser_context
+from core.diagnostics import redact_text, redact_url
+from core.runtime import close_safely, protect_application_children
 from core.learning.zone import (
     _collect_ctexpert_case_pool_pages,
     _ensure_ctexpert_case_pool_authenticated,
@@ -27,7 +29,7 @@ DEFAULT_URL = "https://www.ctexpert.cn/expert-assist-web/casePool"
 
 
 def _status(message: str) -> None:
-    print(f"CASE_POOL_STATUS: {message}", flush=True)
+    print(f"CASE_POOL_STATUS: {redact_text(message)}", flush=True)
 
 
 async def probe(url: str, hold_seconds: float) -> None:
@@ -39,25 +41,26 @@ async def probe(url: str, hold_seconds: float) -> None:
                 page,
                 status_callback=_status,
             )
-            print(f"CASE_POOL_STAGE: opened {page.url}", flush=True)
+            print(f"CASE_POOL_STAGE: opened {redact_url(page.url)}", flush=True)
 
             await _ensure_ctexpert_case_pool_authenticated(
                 page,
                 url,
                 status_callback=_status,
             )
-            print(f"CASE_POOL_STAGE: authenticated {page.url}", flush=True)
+            print(f"CASE_POOL_STAGE: authenticated {redact_url(page.url)}", flush=True)
 
             links, api_stats = await _fetch_ctexpert_case_pool_links(page)
             collection_mode = "api"
             page_count = api_stats["pages"]
-            if links:
+            complete = api_stats.get("complete", False)
+            if complete:
                 _status(
                     "接口直取完成："
                     f"{api_stats['records']} 条记录 / {api_stats['pages']} 批请求"
                 )
             else:
-                collection_mode = "page-fallback"
+                collection_mode = "page-fallback-incomplete"
                 for _ in range(30):
                     links = await _read_runtime_learning_links(page)
                     if links:
@@ -80,6 +83,7 @@ async def probe(url: str, hold_seconds: float) -> None:
                         "subjects": subjects,
                         "requests_or_pages": page_count,
                         "mode": collection_mode,
+                        "complete": complete,
                     },
                     ensure_ascii=False,
                 ),
@@ -90,7 +94,7 @@ async def probe(url: str, hold_seconds: float) -> None:
                 _status(f"探测完成，浏览器保留 {hold_seconds:g} 秒供观察")
                 await page.wait_for_timeout(int(hold_seconds * 1000))
         finally:
-            await page.close()
+            await close_safely(page.close(), label="case probe page")
 
 
 def main() -> int:
@@ -103,6 +107,7 @@ def main() -> int:
         help="探测完成后保留浏览器窗口的秒数（默认 60）",
     )
     args = parser.parse_args()
+    protect_application_children()
     asyncio.run(probe(args.url, max(0, args.hold_seconds)))
     return 0
 

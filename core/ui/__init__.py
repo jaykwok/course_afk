@@ -380,7 +380,7 @@ def _credential_display(state: ProjectState, metadata) -> Text:
     if metadata and metadata.expires_at:
         try:
             expires_dt = datetime.fromisoformat(metadata.expires_at)
-            now = datetime.now()
+            now = datetime.now(tz=expires_dt.tzinfo)
             if now.date() >= expires_dt.date():
                 return Text(f"{g.icon_warning} 已过期", style=f"bold {WARNING}")
             seconds_left = (expires_dt - now).total_seconds()
@@ -585,7 +585,7 @@ def build_summary_renderable(title: str, rows: list[tuple[str, str]]):
     table.add_column("结果", overflow="fold", min_width=34, ratio=1)
     for left, right in rows:
         table.add_row(left, Text(right, style="bold white"))
-    return table if expand else Align.center(table)
+    return Align.center(table)
 
 
 def show_summary(title: str, rows: list[tuple[str, str]]) -> None:

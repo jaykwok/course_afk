@@ -360,7 +360,7 @@ class LoggingConfigTests(unittest.TestCase):
         async def noop():
             return "coroutine-result"
 
-        with patch.object(config.asyncio, "Runner", return_value=FakeRunner()):
+        with patch("core.runtime.asyncio.Runner", return_value=FakeRunner()):
             result = config.run_async(noop())
 
         self.assertEqual(result, "runner-result")

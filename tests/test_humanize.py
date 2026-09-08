@@ -4,7 +4,6 @@ from core.humanize import (
     jitter,
     next_slice,
     sample_between,
-    sample_int_between,
 )
 
 
@@ -30,10 +29,6 @@ class JitterTests(unittest.TestCase):
 
         self.assertTrue(all(3 <= value <= 9 for value in values))
 
-    def test_sample_int_between_is_inclusive(self):
-        values = {sample_int_between(1, 3) for _ in range(200)}
-
-        self.assertEqual(values, {1, 2, 3})
 
 
 class NextSliceTests(unittest.TestCase):

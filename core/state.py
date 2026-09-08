@@ -7,6 +7,7 @@ from core.config import (
     LEARNING_FAILURES_FILE,
     LEARNING_URLS_FILE,
     MANUAL_EXAM_FILE,
+    COOKIES_FILE,
 )
 from core.auth.credential import (
     load_credential_metadata,
@@ -21,6 +22,7 @@ from core.queues.learning import (
     count_learning_urls,
 )
 from core.queues.manual_exam import count_manual_exam_urls
+from core.file_ops import load_cookies
 
 
 @dataclass
@@ -34,6 +36,12 @@ class ProjectState:
 
 
 def has_valid_credential() -> tuple[bool, bool]:
+    try:
+        cookies = load_cookies(COOKIES_FILE)
+        if not cookies or not any(isinstance(cookie, dict) and cookie.get("value") for cookie in cookies):
+            return False, True
+    except (OSError, ValueError):
+        return False, True
     metadata = load_credential_metadata()
     saved_at = parse_saved_at(metadata)
     if not metadata or saved_at is None:

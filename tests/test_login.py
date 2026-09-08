@@ -1,165 +1,90 @@
+import asyncio
+import json
 import unittest
+from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from types import SimpleNamespace
-from unittest.mock import patch
+from types import SimpleNamespace as NS
+from unittest.mock import AsyncMock, Mock, patch
+
+from core.auth import login
+from core.auth.credential import AccountProfile, extract_account_profile_from_context
 
 
-class FakeLoginFrame:
-    def __init__(self):
-        self.evaluate_calls = []
+class LoginTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.temp = TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "cookies.json"
+        self.path.write_text('old credential', encoding="utf-8")
+        self.page = NS(goto=AsyncMock(), wait_for_url=AsyncMock(), locator=Mock(return_value=NS(content_frame=object())))
+        self.context = NS(new_page=AsyncMock(return_value=self.page), cookies=AsyncMock(return_value=[{"name": "authorization", "value": "test", "domain": "example.invalid", "path": "/"}]))
+        self.closed = False
+        @asynccontextmanager
+        async def browser(**kwargs):
+            try:
+                yield None, self.context
+            finally:
+                self.closed = True
+        self.enterContext(patch.object(login, "create_browser_context", browser))
+        self.enterContext(patch.object(login, "COOKIES_FILE", self.path))
+        self.enterContext(patch.object(login, "prepare_page_after_navigation_async", new=AsyncMock()))
+        self.enterContext(patch.object(login, "install_login_preferences_watcher", new=AsyncMock(return_value={})))
+        self.profile = self.enterContext(patch.object(login, "extract_account_profile_from_context", new=AsyncMock(return_value=AccountProfile("Test", "account-a"))))
+        self.enterContext(patch.object(login, "_validate_pending_account"))
 
-    @property
-    def content_frame(self):
-        return self
+    async def test_success_commits_cookies_and_profile_together(self):
+        profile = await login.login_and_save_credential()
+        bundle = json.loads(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(bundle["metadata"]["account_name"], profile.account_name)
+        self.assertEqual(bundle["cookies"][0]["value"], "test")
+        self.assertTrue(self.closed)
 
-    def locator(self, _selector):
-        return self
+    async def test_profile_failure_preserves_old_credential(self):
+        self.profile.side_effect = TimeoutError("profile unavailable")
+        with self.assertRaises(login.LoginNotCompletedError):
+            await login.login_and_save_credential()
+        self.assertEqual(self.path.read_text(encoding="utf-8"), "old credential")
+        self.assertTrue(self.closed)
 
-    def wait_for(self, **_kwargs):
-        return None
+    async def test_closed_login_returns_actionable_error(self):
+        self.page.wait_for_url.side_effect = RuntimeError("Target page, context or browser has been closed")
+        with self.assertRaisesRegex(login.LoginNotCompletedError, "未完成登录"):
+            await login.login_and_save_credential()
 
-    def click(self):
-        return None
+    async def test_login_cancellation_preserves_credential_and_closes_context(self):
+        self.page.wait_for_url.side_effect = asyncio.CancelledError
+        with self.assertRaises(asyncio.CancelledError):
+            await login.login_and_save_credential()
+        self.assertTrue(self.closed)
+        self.assertEqual(self.path.read_text(encoding="utf-8"), "old credential")
 
-    def evaluate(self, script, data_time=None):
-        self.evaluate_calls.append((script, data_time))
-        return {"selectedCount": 3, "checkedCount": 4}
+    async def test_missing_cookies_cannot_commit_profile(self):
+        self.context.cookies.return_value = []
+        with self.assertRaises(login.LoginNotCompletedError):
+            await login.login_and_save_credential()
+        self.assertEqual(self.path.read_text(encoding="utf-8"), "old credential")
 
-
-class FakeLoginPage:
-    def __init__(self, close_during_login=False):
-        self.frame = FakeLoginFrame()
-        self.close_during_login = close_during_login
-        self.wait_for_url_calls = 0
-
-    def goto(self, _url):
-        return None
-
-    def wait_for_url(self, _pattern, timeout=0):
-        self.wait_for_url_calls += 1
-        if self.close_during_login and self.wait_for_url_calls > 1:
-            raise TargetClosedError("Target page, context or browser has been closed")
-        return None
-
-    def evaluate(self, _script):
-        return None
-
-    def wait_for_timeout(self, _milliseconds):
-        return None
-
-    def locator(self, _selector):
-        return self.frame
-
-    def close(self):
-        return None
-
-
-class FakeLoginContext:
-    def __init__(self, close_during_login=False):
-        self.page = FakeLoginPage(close_during_login=close_during_login)
-        self.init_scripts = []
-
-    def new_page(self):
-        return self.page
-
-    def add_init_script(self, script):
-        self.init_scripts.append(script)
-
-    def cookies(self):
-        return []
-
-    def close(self):
-        return None
+    async def test_profile_page_closes_on_evaluation_error(self):
+        page = NS(goto=AsyncMock(), wait_for_url=AsyncMock(), wait_for_function=AsyncMock(), evaluate=AsyncMock(side_effect=RuntimeError("parse")), close=AsyncMock())
+        context = NS(new_page=AsyncMock(return_value=page))
+        with patch("core.auth.credential.prepare_page_after_navigation_async", new=AsyncMock()), self.assertRaises(RuntimeError):
+            await extract_account_profile_from_context(context)
+        page.close.assert_awaited_once()
 
 
-class FakeLoginBrowser:
-    def __init__(self, close_during_login=False):
-        self.new_context_calls = []
-        self.context = FakeLoginContext(close_during_login=close_during_login)
+class AccountBindingTests(unittest.TestCase):
+    def test_pending_tasks_block_account_switch(self):
+        state = NS(learning_count=1, learning_failure_count=0, exam_count=0, manual_exam_count=0)
+        old = NS(account_name="first", account_label="First")
+        with patch("core.state.collect_project_state", return_value=state), patch.object(login, "load_credential_metadata", return_value=old):
+            with self.assertRaises(login.LoginNotCompletedError):
+                login._validate_pending_account(AccountProfile("Second", "second"), None)
 
-    def new_context(self, **kwargs):
-        self.new_context_calls.append(kwargs)
-        return self.context
-
-    def close(self):
-        return None
-
-
-class TargetClosedError(Exception):
-    pass
-
-
-class LoginTests(unittest.TestCase):
-    def test_login_uses_no_viewport_context_for_visible_browser(self):
-        from core.auth.login import login_and_save_credential
-
-        fake_browser = FakeLoginBrowser()
-        fake_profile = SimpleNamespace(
-            full_name="测试账号",
-            account_name="tester",
-            label="测试账号（tester）",
-        )
-
-        with TemporaryDirectory() as tmp:
-            cookies_file = Path(tmp) / "cookies.json"
-            with (
-                patch("core.auth.login.COOKIES_FILE", cookies_file),
-                patch("core.auth.login.launch_sync_browser", return_value=fake_browser),
-                patch("core.auth.login.extract_account_profile_from_sync_context", return_value=fake_profile),
-                patch("core.auth.login.save_credential_metadata"),
-                patch("core.auth.login.sync_playwright"),
-            ):
-                profile = login_and_save_credential()
-
-        self.assertEqual(profile.label, fake_profile.label)
-        self.assertEqual(fake_browser.new_context_calls, [{"no_viewport": True}])
-        self.assertEqual(len(fake_browser.context.init_scripts), 1)
-        self.assertIn("webdriver", fake_browser.context.init_scripts[0])
-        self.assertEqual(fake_browser.context.page.frame.evaluate_calls[0][1], "3")
-        self.assertIn(
-            "setInterval",
-            fake_browser.context.page.frame.evaluate_calls[0][0],
-        )
-
-    def test_login_saves_credentials_when_profile_lookup_times_out(self):
-        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-        from core.auth.login import login_and_save_credential
-
-        fake_browser = FakeLoginBrowser()
-
-        with TemporaryDirectory() as tmp:
-            cookies_file = Path(tmp) / "cookies.json"
-            with (
-                patch("core.auth.login.COOKIES_FILE", cookies_file),
-                patch("core.auth.login.launch_sync_browser", return_value=fake_browser),
-                patch(
-                    "core.auth.login.extract_account_profile_from_sync_context",
-                    side_effect=PlaywrightTimeoutError("blank zhixueyun page"),
-                ),
-                patch("core.auth.login.save_credential_metadata") as mock_save_metadata,
-                patch("core.auth.login.sync_playwright"),
-            ):
-                profile = login_and_save_credential()
-                self.assertTrue(cookies_file.exists())
-
-        self.assertEqual(profile.label, "未知账号")
-        mock_save_metadata.assert_called_once()
-
-    def test_login_closed_before_success_raises_clear_error(self):
-        from core.auth.login import LoginNotCompletedError, login_and_save_credential
-
-        fake_browser = FakeLoginBrowser(close_during_login=True)
-
-        with (
-            patch("core.auth.login.launch_sync_browser", return_value=fake_browser),
-            patch("core.auth.login.sync_playwright"),
-        ):
-            with self.assertRaises(LoginNotCompletedError) as ctx:
-                login_and_save_credential()
-
-        self.assertEqual(str(ctx.exception), "已手动关闭浏览器，未完成登录，登录凭证未更新")
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_display_name_is_not_used_as_unique_identity(self):
+        state = NS(learning_count=0, learning_failure_count=0, exam_count=1, manual_exam_count=0)
+        confirm = Mock(return_value=False)
+        with patch("core.state.collect_project_state", return_value=state), patch.object(login, "load_credential_metadata", return_value=NS(account_name="", account_label="Same name")):
+            with self.assertRaises(login.LoginNotCompletedError):
+                login._validate_pending_account(AccountProfile("Same name", ""), confirm)
+        confirm.assert_called_once()

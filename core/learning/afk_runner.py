@@ -329,9 +329,12 @@ async def _process_url(
         await goto_and_prepare_async(page, url)
         await _capture("after_navigation")
         await _wait_for_course_bootstrap(page, course_monitor)
-        await handler(page)
+        completed = await handler(page)
         await _capture("after_handler")
-        return False
+        if completed is True:
+            remove_learning_failure(url, file_path=failure_path, keep_file=True)
+        # False means deliberately routed to a durable manual/recheck destination.
+        return completed is not True and completed is not False
     except (UserCancelRequested, UserAbortRequested):
         # 浏览器整窗关闭等取消信号必须原样上抛；落进下面的通用分支会被
         # 记成「可重试失败」，循环继续下一门——窗口关了却停不下来的根源。
@@ -429,6 +432,8 @@ async def _recheck_url_type_links(context) -> None:
 
         try:
             await goto_and_prepare_async(page, url)
+            from core.learning.common import ensure_no_waf_block
+            await ensure_no_waf_block(page)
             if await is_subject_url_completed(page):
                 logging.info(f"URL类型链接学习完成: {url}")
                 remove_learning_failure(
@@ -445,7 +450,7 @@ async def _recheck_url_type_links(context) -> None:
                     detail=entry.detail,
                     file_path=LEARNING_FAILURES_FILE,
                 )
-        except (UserCancelRequested, UserAbortRequested):
+        except (WafBlockError, UserCancelRequested, UserAbortRequested):
             raise
         except Exception as exc:
             if is_target_closed_exception(exc) and not await browser_still_usable(
@@ -469,7 +474,7 @@ async def _recheck_url_type_links(context) -> None:
 
 async def run_afk_once(status_callback: StatusCallback | None = None) -> None:
     batch = prepare_afk_batch()
-    if not batch.urls:
+    if not batch.urls and not any(entry.reason == "url_type_pending" for entry in read_learning_failures(LEARNING_FAILURES_FILE)):
         if status_callback:
             status_callback("未检测到可处理的学习链接")
         return
@@ -558,6 +563,8 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> None:
                     pending_learning_urls.remove(url)
                     _write_learning_queue(pending_learning_urls)
 
+            if heartbeat_announced:
+                raise UserCancelRequested("心跳页已关闭，已保留剩余待办并停止后续流程")
             await _recheck_url_type_links(context)
             _write_learning_queue(pending_learning_urls)
     except BaseException as exc:
@@ -601,7 +608,7 @@ async def run_afk_once(status_callback: StatusCallback | None = None) -> None:
             logging.warning(f"{message}，本轮挂课已停止")
             if status_callback:
                 status_callback(f"{message}，本轮挂课已停止")
-            return
+            raise
         raise
 
     logging.info("本轮自动挂课完成")

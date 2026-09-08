@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import asyncio
+import logging
+import sys
 
 from playwright.async_api import async_playwright
 
@@ -13,15 +16,13 @@ from core.config import (
 )
 from core.file_ops import load_cookies
 from core.browser.overlays import prepare_page_after_navigation_async
+from core.runtime import close_safely, own_playwright_driver
 
 
 _CONTROLLER_PAGES: dict[int, object] = {}
-_CONTEXT_HEADLESS: dict[int, bool] = {}
-# 心跳页（常驻主控页）关闭闩锁。设计语义：该页被关 = 浏览器整窗被关。
-# 「关闭单个课程标签页」与「关闭整窗」在异常层面无法判别，靠这页常驻来区分：
-# 课程页关了它还在（继续挂课），它关了就是整窗关闭（停止并保存剩余链接）。
-# Edge 后台模式在窗口关闭后进程仍存活（is_connected 恒 True），必须用本
-# 闩锁短路连接判断，否则整窗关闭会被误判成「仅关标签」而继续下一门。
+# 心跳页关闭时登记停止请求；它不证明浏览器物理进程已经断开。
+# 当前课程可完成，但不能开下一门。整窗关闭也会触发这页的 close；
+# Edge 后台进程仍连接时，必须以此状态阻止继续工作。
 _CONTEXT_WINDOW_CLOSED: dict[int, bool] = {}
 _START_MAXIMIZED_ARG = "--start-maximized"
 # 反自动化探测脚本（context.add_init_script，document_start 在每个 frame 执行）。
@@ -185,7 +186,7 @@ def build_browser_launch_options(
 
     if BROWSER_TYPE == "chromium":
         args = list(BROWSER_ARGS)
-        if not headless and _START_MAXIMIZED_ARG not in args:
+        if _START_MAXIMIZED_ARG not in args:
             args.append(_START_MAXIMIZED_ARG)
         if extra_args:
             for arg in extra_args:
@@ -224,10 +225,6 @@ def build_browser_context_options(*, headless: bool) -> dict[str, object]:
     return {"no_viewport": True}
 
 
-def apply_sync_browser_stealth(context) -> None:
-    add_init_script = getattr(context, "add_init_script", None)
-    if callable(add_init_script):
-        add_init_script(BROWSER_STEALTH_INIT_SCRIPT)
 
 
 async def apply_async_browser_stealth(context) -> None:
@@ -247,15 +244,6 @@ async def launch_async_browser(playwright, *, headless: bool, slow_mo=None, extr
     )
 
 
-def launch_sync_browser(playwright, *, headless: bool, slow_mo=None, extra_args=None):
-    browser_launcher = _get_browser_launcher(playwright)
-    return browser_launcher.launch(
-        **build_browser_launch_options(
-            headless=headless,
-            slow_mo=slow_mo,
-            extra_args=extra_args,
-        )
-    )
 
 
 def is_target_closed_exception(exc: BaseException) -> bool:
@@ -296,7 +284,7 @@ def is_browser_connected(context) -> bool:
 
 
 def is_controller_window_closed(context) -> bool:
-    """心跳页是否已被关闭（= 浏览器整窗已被用户关闭）。"""
+    """是否因心跳页关闭而登记了停止请求。"""
     return _CONTEXT_WINDOW_CLOSED.get(id(context), False)
 
 
@@ -342,7 +330,7 @@ async def _open_controller_page(context, *, headless: bool = False):
 
 
 def _mark_controller_window_closed(context) -> None:
-    """心跳页被关：标记整窗关闭（见 _CONTEXT_WINDOW_CLOSED 的设计说明）。"""
+    """心跳页被关：登记停止请求。"""
     _CONTEXT_WINDOW_CLOSED[id(context)] = True
 
 
@@ -350,13 +338,12 @@ def _remember_controller_page(context, page) -> None:
     _CONTROLLER_PAGES[id(context)] = page
     on = getattr(page, "on", None)
     if callable(on):
-        # 心跳语义：这页被关就认定整窗被关——不重开、不恢复，
-        # 由各流程的 UserCancelRequested 路径停止并保存剩余链接。
+        # 不重开心跳页；各流程据此停止并保存剩余链接。
         on("close", lambda: _mark_controller_window_closed(context))
 
 
 async def ensure_controller_page(context):
-    """确保常驻心跳页可用；心跳页已关闭（= 整窗关闭）时返回 None，不重开。"""
+    """确保常驻心跳页可用；已登记关闭时返回 None，不重开。"""
     if _CONTEXT_WINDOW_CLOSED.get(id(context)):
         return None
     controller_page = _CONTROLLER_PAGES.get(id(context))
@@ -364,16 +351,13 @@ async def ensure_controller_page(context):
         return controller_page
     if not is_browser_connected(context):
         return None
-    controller_page = await _open_controller_page(
-        context,
-        headless=_CONTEXT_HEADLESS.get(id(context), False),
-    )
+    controller_page = await _open_controller_page(context)
     _remember_controller_page(context, controller_page)
     return controller_page
 
 
 def is_controller_page(context, page) -> bool:
-    """是否为该 context 的常驻主控页（含恢复后的实例）。"""
+    """是否为该 context 的常驻主控页。"""
     if page is None:
         return False
     controller = _CONTROLLER_PAGES.get(id(context))
@@ -382,51 +366,56 @@ def is_controller_page(context, page) -> bool:
 
 def release_controller_page(context) -> None:
     _CONTROLLER_PAGES.pop(id(context), None)
-    _CONTEXT_HEADLESS.pop(id(context), None)
     _CONTEXT_WINDOW_CLOSED.pop(id(context), None)
 
 
 @asynccontextmanager
 async def create_browser_context(
-    cookies_path=COOKIES_FILE, headless=False, slow_mo=None
+    cookies_path=COOKIES_FILE, headless=False, slow_mo=None, *, controller=True
 ):
     """浏览器初始化上下文管理器, 封装重复的启动/认证/关闭流程"""
 
     _ensure_visible_browser(headless)
 
-    cookies = load_cookies(cookies_path)
+    cookies = load_cookies(cookies_path) if cookies_path is not None else []
+    manager = async_playwright()
+    browser = context = driver_job = None
+    try:
+        async with asyncio.timeout(90):
+            p = await asyncio.wait_for(manager.__aenter__(), 30)
+            driver_job = own_playwright_driver(p)
+            browser = await asyncio.wait_for(launch_async_browser(p, headless=headless, slow_mo=slow_mo), 30)
+            context = await asyncio.wait_for(browser.new_context(**build_browser_context_options(headless=headless)), 30)
+            await apply_async_browser_stealth(context)
+            await context.add_cookies(cookies)
 
-    async with async_playwright() as p:
-        browser = await launch_async_browser(p, headless=headless, slow_mo=slow_mo)
-        context = await browser.new_context(
-            **build_browser_context_options(headless=headless)
-        )
-        await apply_async_browser_stealth(context)
-        _CONTEXT_HEADLESS[id(context)] = headless
-        await context.add_cookies(cookies)
-
-        # 保留一个常驻心跳页（mylearning 首页）：课程页逐门开关它始终在场，
-        # 浏览器不会因「最后一页被关」而退出；它自己被关则说明用户关掉了
-        # 整窗——关闭事件会置位 _CONTEXT_WINDOW_CLOSED，各流程据此停止。
-        controller_page = await _open_controller_page(
-            context,
-            headless=headless,
-        )
-        _remember_controller_page(context, controller_page)
-
+            # 保留一个常驻心跳页：课程页逐门开关时它始终在场，关闭它登记停止请求。
+            if controller:
+                controller_page = await _open_controller_page(context, headless=headless)
+                _remember_controller_page(context, controller_page)
+        yield browser, context
+    finally:
+        exception_info = sys.exc_info()
+        if driver_job is None:
+            # __aenter__ may start a transport before timing out or being
+            # cancelled. The manager still owns that partially started driver.
+            try:
+                driver_job = own_playwright_driver(manager)
+            except Exception:
+                logging.exception("无法附加启动失败的 Playwright driver，继续执行关闭")
+        async def cleanup():
+            if context is not None:
+                try:
+                    await close_safely(context.close(), label="browser context")
+                finally:
+                    release_controller_page(context)
+            if browser is not None:
+                await close_safely(browser.close(), label="browser")
+            await close_safely(manager.__aexit__(*exception_info), label="Playwright driver")
         try:
-            yield browser, context
+            await close_safely(cleanup(), timeout=18, label="browser lifecycle")
         finally:
-            try:
-                await context.close()
-            except Exception:
-                pass
-            finally:
-                # context.close() 会同步触发心跳页的 close 回调并置位窗口关闭
-                # 闩锁；必须在回调之后统一清理，否则每轮正常退出都会重新
-                # 遗留一个以旧 context id 为键的闩锁。
+            if context is not None:
                 release_controller_page(context)
-            try:
-                await browser.close()
-            except Exception:
-                pass
+            if driver_job is not None:
+                await close_safely(driver_job.terminate(), label="browser process tree")

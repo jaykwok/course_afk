@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import re
 import sys
 import traceback
 from dataclasses import asdict
@@ -179,53 +178,8 @@ _DOM_PROBE_SCRIPT = r"""
 """
 
 
-def _sanitize_url(url: str) -> str:
-    sanitized = re.sub(
-        r"(kc\.zhixueyun\.com/oauth/#login/)[^?#\s]+",
-        r"\1<redacted>",
-        str(url or ""),
-        flags=re.IGNORECASE,
-    )
-    return re.sub(
-        r"([?&#/](?:access_token|refresh_token|authorization|token|code|auth_key|signature|sign|policy|expires|key-pair-id)=)[^&\s]+",
-        r"\1<redacted>",
-        sanitized,
-        flags=re.IGNORECASE,
-    )
-
-
-_SENSITIVE_KEY = re.compile(
-    r"authorization|cookie|credential|password|secret|session|token",
-    re.IGNORECASE,
-)
-
-
-def _redact_json_value(value):
-    if isinstance(value, dict):
-        return {
-            key: "<redacted>" if _SENSITIVE_KEY.search(str(key)) else _redact_json_value(item)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [_redact_json_value(item) for item in value]
-    return value
-
-
-def _redact_text(text: str) -> str:
-    text = re.sub(
-        r"(?i)(bearer\s+)[a-z0-9._~+/=-]+",
-        r"\1<redacted>",
-        str(text or ""),
-    )
-    return re.sub(
-        r'''(?ix)
-        (["']?(?:authorization|cookie|credential|password|secret|session|token)["']?
-        \s*[:=]\s*["']?)
-        ([^"'&,;\s}\]]+)
-        ''',
-        r"\1<redacted>",
-        text,
-    )
+from core.diagnostics import redact_url as _sanitize_url, redact as _redact_json_value, redact_text as _redact_text, structural_html, redact_snapshot
+from core.runtime import close_safely
 
 
 def _redact_response_body(
@@ -298,10 +252,10 @@ async def _save_stage_capture(
     json_path = run_dir / f"{stem}.json"
     html_path = run_dir / f"{stem}.html"
     json_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
+        json.dumps(redact_snapshot(payload), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    html_path.write_text(await page.content(), encoding="utf-8")
+    html_path.write_text(structural_html(await page.content()), encoding="utf-8")
     payload["json_file"] = str(json_path)
     payload["html_file"] = str(html_path)
     captures.append(payload)
@@ -311,7 +265,7 @@ def _save_result(result: dict[str, object], *, run_dir: Path) -> Path:
     CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
     result_path = run_dir / "result.json"
     result["result_file"] = str(result_path)
-    result_text = json.dumps(result, ensure_ascii=False, indent=2)
+    result_text = json.dumps(redact_snapshot(result), ensure_ascii=False, indent=2)
     result_path.write_text(result_text, encoding="utf-8")
     RESULT_FILE.write_text(result_text, encoding="utf-8")
     return result_path
@@ -389,9 +343,15 @@ def _attach_page_listeners(
         return
 
     def track_response(response) -> None:
-        task = asyncio.create_task(
-            _capture_response_event(response, network_events=network_events)
-        )
+        if len(response_tasks) >= 100:
+            return
+        async def capture():
+            try:
+                async with asyncio.timeout(10):
+                    await _capture_response_event(response, network_events=network_events)
+            except asyncio.TimeoutError:
+                pass
+        task = asyncio.create_task(capture())
         response_tasks.add(task)
         task.add_done_callback(response_tasks.discard)
 
@@ -580,16 +540,16 @@ async def main(
         finally:
             await asyncio.sleep(0)
             if response_tasks:
-                await asyncio.gather(*list(response_tasks), return_exceptions=True)
+                await close_safely(asyncio.gather(*list(response_tasks), return_exceptions=True), timeout=5, label="probe response tasks")
 
     network_file = run_dir / "network.json"
     console_file = run_dir / "console.json"
     network_file.write_text(
-        json.dumps(network_events, ensure_ascii=False, indent=2),
+        json.dumps(redact_snapshot(network_events), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     console_file.write_text(
-        json.dumps(console_events, ensure_ascii=False, indent=2),
+        json.dumps(redact_snapshot(console_events), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     result["network_capture"] = {
@@ -614,6 +574,8 @@ async def main(
 
 
 if __name__ == "__main__":
+    from core.runtime import protect_application_children
+    protect_application_children()
     reconfigure_stdout = getattr(sys.stdout, "reconfigure", None)
     if callable(reconfigure_stdout):
         reconfigure_stdout(encoding="utf-8", errors="replace")

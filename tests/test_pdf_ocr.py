@@ -1,6 +1,14 @@
+import asyncio
+import base64
+import json
+import os
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 from core.discovery.pdf_ocr import (
     expected_ocr_markdown_path,
@@ -9,6 +17,12 @@ from core.discovery.pdf_ocr import (
     ocr_document_dir_name,
     update_document_index_ocr_links,
     update_course_markdown_ocr_links,
+    is_complete_ocr_artifact,
+    convert_downloaded_pdfs_to_markdown,
+    file_digest,
+    PdfOcrRuntimeError,
+    OCR_FILE_PREFIX,
+    OCR_RESULT_PREFIX,
 )
 from core.discovery.pdf_ocr_worker import (
     _append_ocr_text_layer,
@@ -93,8 +107,8 @@ class PdfOcrTests(unittest.TestCase):
             self.assertIn("[讲义.docx]", index_content)
 
             deleted = delete_converted_pdf_files(output_dir, [pdf_path])
-            self.assertEqual(deleted, 1)
-            self.assertFalse(pdf_path.exists())
+            self.assertEqual(deleted, 0)
+            self.assertTrue(pdf_path.exists(), "a Markdown file without a commit manifest cannot authorize deletion")
 
     def test_convert_pdf_writes_single_llm_markdown(self):
         class FakeResult:
@@ -127,6 +141,10 @@ class PdfOcrTests(unittest.TestCase):
             self.assertIn("PP-StructureV3 + PP-OCRv6_medium", content)
             self.assertIn("## 第一页", content)
             self.assertNotIn("{", content)
+            self.assertTrue(is_complete_ocr_artifact(output_dir, pdf_path))
+            markdown_path.write_text("corrupted", encoding="utf-8")
+            self.assertFalse(is_complete_ocr_artifact(output_dir, pdf_path))
+            self.assertEqual(delete_converted_pdf_files(output_dir, [pdf_path]), 0)
 
     def test_sparse_structured_markdown_gets_ocr_text_layer(self):
         payload = {
@@ -149,6 +167,91 @@ class PdfOcrTests(unittest.TestCase):
         self.assertEqual(_markdown_text("正文"), "正文")
         self.assertEqual(_markdown_text(("正文", [])), "正文")
         self.assertEqual(_markdown_text({"markdown_texts": "正文"}), "正文")
+
+    def test_image_failure_and_missing_page_never_publish_partial_artifact(self):
+        class BadImage:
+            def save(self, _path):
+                raise OSError("image failed")
+        with TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            (output / "docs").mkdir()
+            pdf = output / "docs" / "source.pdf"
+            pdf.write_bytes(b"%PDF-test")
+            for pages in (
+                [{"markdown_texts": "![image](imgs/a.png)", "markdown_images": {"imgs/a.png": BadImage()}}],
+                [{"markdown_texts": "![image](imgs/missing.png)", "markdown_images": {}}],
+                [{"markdown_texts": "first page"}, None],
+            ):
+                pipeline = SimpleNamespace(
+                    predict=lambda **_kwargs: [SimpleNamespace(markdown=page) for page in pages],
+                    concatenate_markdown_pages=lambda results: results[0]["markdown_texts"],
+                )
+                with self.assertRaises((OSError, RuntimeError)):
+                    _convert_pdf(pipeline, pdf, output / "ocr")
+                self.assertFalse(is_complete_ocr_artifact(output, pdf))
+                self.assertEqual(delete_converted_pdf_files(output, [pdf]), 0)
+                self.assertTrue(pdf.exists())
+
+    def test_worker_import_does_not_load_application_configuration(self):
+        result = subprocess.run(
+            [sys.executable, "-c", "import sys; import core.discovery.pdf_ocr_worker; assert 'core.config' not in sys.modules"],
+            capture_output=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+
+
+class PdfOcrParentTests(unittest.IsolatedAsyncioTestCase):
+    async def test_only_verified_artifacts_are_linked_and_source_is_retained_by_default(self):
+        with TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            (output / "docs").mkdir()
+            pdf = output / "docs" / "source.pdf"
+            pdf.write_bytes(b"%PDF-test")
+            markdown = expected_ocr_markdown_path(output, pdf)
+            markdown.parent.mkdir(parents=True)
+            markdown.write_text("complete text", encoding="utf-8")
+            (markdown.parent / "complete.json").write_text(json.dumps({
+                "version": 1, "source_sha256": file_digest(pdf), "files": {markdown.name: file_digest(markdown)},
+            }), encoding="utf-8")
+            async def worker(_command, **kwargs):
+                self.assertNotIn("OPENAI_API_KEY", kwargs["env"])
+                self.assertNotIn("AI_BASE_URL", kwargs["env"])
+                kwargs["on_line"](OCR_FILE_PREFIX + base64.urlsafe_b64encode(pdf.name.encode()).decode())
+                kwargs["on_line"](OCR_RESULT_PREFIX + "1|0|0")
+                return 0
+            with (
+                patch("core.discovery.pdf_ocr.ensure_ocr_dependencies"),
+                patch("core.discovery.pdf_ocr.run_child", new=worker),
+                patch("core.config._env_raw", return_value=None),
+                patch.dict(os.environ, {"OPENAI_API_KEY": "dummy", "AI_BASE_URL": "dummy"}),
+            ):
+                result = await convert_downloaded_pdfs_to_markdown(output)
+            self.assertEqual(result["ocr_converted_count"], 1)
+            self.assertEqual(result["pdf_deleted_count"], 0)
+            self.assertTrue(pdf.exists())
+            with (
+                patch("core.discovery.pdf_ocr.ensure_ocr_dependencies"),
+                patch("core.discovery.pdf_ocr.run_child", new=worker),
+                patch("core.config._env_raw", side_effect=lambda key: "true" if key == "COURSE_AFK_OCR_DELETE_SOURCE" else None),
+            ):
+                result = await convert_downloaded_pdfs_to_markdown(output)
+            self.assertEqual(result["pdf_deleted_count"], 1)
+            self.assertFalse(pdf.exists())
+
+    async def test_cancel_failure_and_inconsistent_success_all_preserve_source(self):
+        with TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            (output / "docs").mkdir()
+            pdf = output / "docs" / "source.pdf"
+            pdf.write_bytes(b"%PDF-test")
+            async def inconsistent(_command, **kwargs):
+                kwargs["on_line"](OCR_RESULT_PREFIX + "1|0|0")
+                return 0
+            for worker in (AsyncMock(side_effect=asyncio.CancelledError()), AsyncMock(side_effect=TimeoutError()), inconsistent):
+                with self.subTest(worker=type(worker).__name__), patch("core.discovery.pdf_ocr.ensure_ocr_dependencies"), patch("core.discovery.pdf_ocr.run_child", new=worker), patch("core.config._env_raw", return_value=None):
+                    with self.assertRaises((asyncio.CancelledError, PdfOcrRuntimeError)):
+                        await convert_downloaded_pdfs_to_markdown(output)
+                self.assertTrue(pdf.exists())
 
 
 if __name__ == "__main__":

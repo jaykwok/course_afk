@@ -108,15 +108,15 @@ def _normalize_option_label(raw_label: str, index: int) -> str:
         return chr(ord("A") + index)
 
     upper = raw_label.upper()
-    if "正确" in raw_label:
+    if raw_label.strip() in {"正确", "对", "是"}:
         return "T"
-    if "错误" in raw_label:
+    if raw_label.strip() in {"错误", "不正确", "错", "否"}:
         return "F"
 
-    match = re.search(r"[A-Z]", upper)
+    match = re.fullmatch(r"\s*\(?([A-Z])\)?[.、:：\)\]]?\s*", upper)
     if match:
-        return match.group(0)
-    return chr(ord("A") + index)
+        return match.group(1)
+    return ""
 
 
 def _strip_label_prefix(text: str, label: str) -> str:
@@ -125,8 +125,8 @@ def _strip_label_prefix(text: str, label: str) -> str:
         return ""
 
     patterns = [
-        rf"^\s*{re.escape(label)}\s*[\.、:：\)\]]?\s*",
-        rf"^\s*\(?{re.escape(label)}\)?\s*",
+        rf"^\s*{re.escape(label)}(?:\s*[\.、:：\)\]]\s*|\s+)",
+        rf"^\s*\({re.escape(label)}\)\s*",
     ]
     for pattern in patterns:
         stripped = re.sub(pattern, "", stripped, count=1, flags=re.IGNORECASE)
@@ -195,11 +195,13 @@ async def _extract_judge_options(locator) -> tuple[list[dict], str | None]:
         options = []
         for i in range(count):
             option_text = await _safe_inner_text(option_elements.nth(i))
-            if not option_text:
-                continue
+            normalized = re.sub(r"\s+", "", option_text)
+            labels = {"正确": "T", "对": "T", "是": "T", "错误": "F", "不正确": "F", "错": "F", "否": "F"}
+            if normalized not in labels:
+                return [], None
             options.append(
                 {
-                    "label": "T" if "正确" in option_text else "F",
+                    "label": labels[normalized],
                     "text": option_text,
                 }
             )

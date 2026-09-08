@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from core.config import EXAM_URLS_FILE, MANUAL_EXAM_FILE
-from core.exam.rules import extract_attempt_limit_message, parse_remaining_attempts
+from core.exam.rules import extract_attempt_limit_message, parse_remaining_attempts, explicitly_unlimited
 from core.queues.exam import append_exam_url, remove_exam_url
 from core.queues.manual_exam import append_manual_exam_entry
 
@@ -44,13 +44,13 @@ def queue_exam_url_by_attempt_text(
         logging.info(f"{attempt_limit_message}，已转为人工考试: {normalized_url}")
         return "manual"
 
-    if "剩余" not in normalized_text:
+    if explicitly_unlimited(normalized_text):
         append_exam_url(normalized_url, file_path=exam_file)
         return "ai"
 
     remaining = parse_remaining_attempts(normalized_text)
     if remaining is None:
-        reason_text = "页面显示剩余次数但无法解析，转为人工考试处理"
+        reason_text = "剩余次数未知，转为人工考试核对"
         append_manual_exam_entry(
             normalized_url,
             reason="attempt_unknown",

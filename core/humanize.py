@@ -40,10 +40,6 @@ def sample_between(low: float, high: float) -> float:
     return random.uniform(low, high)
 
 
-def sample_int_between(low: int, high: int) -> int:
-    """整数版 :func:`sample_between`，用于毫秒等整型参数。"""
-    low, high = sorted((max(0, int(low)), max(0, int(high))))
-    return random.randint(low, high)
 
 
 async def pause_between(page, low: float, high: float) -> float:

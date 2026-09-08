@@ -80,7 +80,7 @@ class ExamPageProbeTests(unittest.IsolatedAsyncioTestCase):
             mock_wait_for_auth.assert_awaited_once_with(
                 browser_context.context.page,
                 "https://kc.zhixueyun.com/#/exam/exam/answer-paper/test",
-                timeout_ms=0,
+                timeout_ms=120000,
             )
             browser_context.context.page.locator.assert_not_called()
             self.assertFalse(result_file.exists())

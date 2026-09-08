@@ -10,7 +10,7 @@ _AI_EXAM_URL_INPUT_PROMPTS = [
 ]
 
 _REFERENCE_COLLECTION_PROMPTS = [
-    "请粘贴知学云学习专区链接，一行一个。",
+    "请粘贴知学云主题详情链接，一行一个。",
     "程序会读取课程列表，保存 PDF/文档课件，并跳过 MP4 视频本体。",
     "视频类资源会保存平台提供的 AI 导学/总结文本。",
     "下载完成后，如检测到 PDF，可选择使用 PP-OCRv6 转换为 Markdown。",
@@ -131,8 +131,10 @@ _FLOW_RESULT_LABELS = {
     "manual-selection": "未检测到学习链接，请手动选择课程或录入链接",
     "afk-only": "挂课完成，未检测到考试链接",
     "ai-not-configured": "未填写 AI 配置，已跳过 AI 自动考试（可改用人工考试）",
-    "manual-exam-pending": "AI 考试完成，仍有人工考试待处理",
+    "manual-exam-pending": "仍有人工考试或评卷结果待复查",
     "done": "全部流程完成",
+    "blocked": "网站防护拦截，本轮停止；剩余待办已保留",
+    "learning-pending": "本轮结束，仍有学习、失败复查或考试待办",
 }
 
 
@@ -168,7 +170,7 @@ def handle_refresh_credential(state, ui) -> None:
         ui.show_warning("当前登录凭证仍有效，继续将覆盖现有登录状态")
     _begin_operation(ui, "更新登录凭证", "正在打开浏览器，请完成登录")
     try:
-        profile = refresh_credential(status_callback=ui.show_info)
+        profile = run_async(refresh_credential(status_callback=ui.show_info, confirm_same_account=lambda old, new: ui.prompt_yes_no(f"已有 {old} 的待办；请确认当前登录的 {new} 是同一账号，或明确接管这些待办。", default="N")))
     except LoginNotCompletedError as exc:
         ui.show_warning(str(exc))
         ui.pause()

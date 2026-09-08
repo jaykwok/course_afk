@@ -154,7 +154,7 @@ class WorkflowStateTests(unittest.TestCase):
             mock_datetime.fromisoformat.side_effect = datetime.fromisoformat
             mock_datetime.now.return_value = datetime(2026, 5, 19, 8, 0, 0)
 
-            self.assertEqual(has_valid_credential(), (True, True))
+            self.assertEqual(has_valid_credential(), (False, True))
 
 
 if __name__ == "__main__":

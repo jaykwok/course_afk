@@ -128,6 +128,7 @@ class LearningZoneAuthenticationTests(unittest.IsolatedAsyncioTestCase):
                     "records": 435,
                     "total": 435,
                     "pages": 5,
+                    "complete": True,
                 }
 
         page = FakeApiPage()
@@ -135,7 +136,7 @@ class LearningZoneAuthenticationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("case/getCaseHomeList", page.script)
         self.assertEqual(len(links), 2)
-        self.assertEqual(stats, {"records": 435, "total": 435, "pages": 5})
+        self.assertEqual(stats, {"records": 435, "total": 435, "pages": 5, "complete": True})
 
 
 class FakeLearningZonePage:
@@ -196,6 +197,9 @@ class FakeDirectTopicResponse:
     async def text(self):
         return self._html
 
+    async def dispose(self):
+        self.disposed = True
+
 
 class FakeDirectTopicRequest:
     def __init__(self, response):
@@ -250,9 +254,10 @@ class LearningZoneCollectionTests(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertEqual(added, 1)
-        self.assertFalse(hasattr(page, "wait_until"))
+        self.assertEqual(page.wait_until, "load")
         self.assertEqual(context.request.calls[0][0], topic_url)
-        self.assertEqual(mock_enqueue.await_args.args[0], [course_url])
+        self.assertIn(course_url, mock_enqueue.await_args.args[0])
+        self.assertTrue(context.request.response.disposed)
         self.assertTrue(any("HTTP 直接读取" in item for item in messages))
 
     async def test_collection_closes_popup_and_waits_for_dynamic_links(self):

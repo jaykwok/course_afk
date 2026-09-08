@@ -67,7 +67,7 @@ def validity_parts(state: ProjectState, metadata: Any) -> tuple[Text, str]:
     if metadata and getattr(metadata, "expires_at", None):
         try:
             expires_dt = datetime.fromisoformat(metadata.expires_at)
-            now = datetime.now()
+            now = datetime.now(tz=expires_dt.tzinfo)
             if now.date() >= expires_dt.date():
                 return (
                     Text(f"{g.icon_warning} 已过期", style=f"bold {WARNING}"),

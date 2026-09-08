@@ -1,216 +1,167 @@
+import asyncio
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+from core.abort import UserCancelRequested
+from core.exam.actions import select_answers, submit_exam
 
 
-class _FakeClickTarget:
-    def __init__(self, clicks, error=None):
-        self._clicks = clicks
-        self._error = error
-
-    @property
-    def first(self):
-        return self
-
-    async def click(self, timeout=0):
-        if self._error:
-            raise self._error
-        self._clicks.append(timeout)
+def question(kind="single", labels=("A", "B")):
+    return {"type": kind, "text": "测试题干", "options": [{"label": label, "text": label} for label in labels]}
 
 
-class _FakeSubmitClickTarget:
-    def __init__(self, selector, click_calls):
-        self._selector = selector
-        self._click_calls = click_calls
+class Option:
+    def __init__(self, page, index):
+        self.page, self.index = page, index
 
-    @property
-    def last(self):
-        return self
+    async def evaluate(self, _script):
+        return self.index in self.page.selected
 
-    async def click(self, timeout=0):
-        self._click_calls.append((self._selector, timeout))
+    async def click(self, **_kwargs):
+        if self.page.error:
+            raise self.page.error
+        self.page.clicked.append(self.index)
+        if self.page.ignore_click:
+            return
+        if self.page.multiple:
+            self.page.selected.symmetric_difference_update({self.index})
+        else:
+            self.page.selected = {self.index}
+
+
+class Options:
+    def __init__(self, page):
+        self.page = page
 
     async def count(self):
-        return 1
-
-
-class _FakeCollectionLocator:
-    def __init__(self, selector, calls, error=None):
-        self._selector = selector
-        self._calls = calls
-        self._error = error
+        return self.page.count
 
     def nth(self, index):
-        self._calls.append((self._selector, index))
-        return _FakeClickTarget([], error=self._error)
+        return Option(self.page, index)
+
+    async def input_value(self):
+        return self.page.value
 
 
-class _FakePage:
-    def __init__(self, click_error=None):
-        self.locator_calls = []
-        self._click_error = click_error
-
-    def locator(self, selector):
-        self.locator_calls.append(selector)
-        return _FakeCollectionLocator(
-            selector,
-            self.locator_calls,
-            error=self._click_error,
-        )
-
-    async def wait_for_timeout(self, _milliseconds):
-        return None
-
-
-class _FakeSubmitPage:
-    def __init__(self):
-        self.locator_calls = []
-        self.click_calls = []
+class Page:
+    def __init__(self, *, multiple=False, selected=(), count=2, error=None, ignore_click=False):
+        self.multiple = multiple
+        self.selected = set(selected)
+        self.count, self.error, self.ignore_click = count, error, ignore_click
+        self.clicked, self.selectors = [], []
+        self.value = ""
+        self.ignore_fill = False
 
     def locator(self, selector):
-        self.locator_calls.append(selector)
-        return _FakeSubmitClickTarget(selector, self.click_calls)
+        self.selectors.append(selector)
+        return Options(self)
 
-    async def wait_for_timeout(self, _milliseconds):
-        return None
+    async def wait_for_timeout(self, _ms):
+        await asyncio.sleep(0)
+
+    async def fill(self, _selector, value):
+        if not self.ignore_fill:
+            self.value = value
 
 
 class ExamActionTests(unittest.IsolatedAsyncioTestCase):
-    async def test_select_answers_routes_empty_choice_answers_without_claiming_fill_blank(self):
-        from core.exam.actions import MANUAL_EXAM_FILE, select_answers
+    async def asyncSetUp(self):
+        self.pause = patch("core.exam.actions.pause_between", new=AsyncMock())
+        self.pause.start()
+        self.addCleanup(self.pause.stop)
 
-        question_data = {
-            "index": 0,
-            "type": "single",
-            "text": "示例公司的英文缩写是什么？",
-            "options": [
-                {"label": "A", "text": "CT"},
-                {"label": "B", "text": "CU"},
-            ],
-        }
+    async def test_empty_answers_route_to_manual_without_recording_model_failure(self):
+        with patch("core.exam.actions.append_manual_exam_entry") as append:
+            self.assertFalse(await select_answers(object(), question(), [], "exam"))
+        self.assertEqual(append.call_args.kwargs["reason"], "ai_no_answer")
+        self.assertIsNone(append.call_args.kwargs["ai_failed_model_config"])
 
-        with (
-            patch("core.exam.actions.logging.info") as mock_info,
-            patch("core.exam.actions.append_manual_exam_entry") as mock_append_manual,
-        ):
-            result = await select_answers(
-                object(),
-                question_data,
-                [],
-                "https://example.com/exam",
-            )
+    async def test_multiple_selection_applies_diff_and_is_idempotent(self):
+        page = Page(multiple=True, selected={0})
+        self.assertTrue(await select_answers(page, question("multiple"), ["A", "B"], "exam"))
+        self.assertEqual(page.selected, {0, 1})
+        self.assertEqual(page.clicked, [1])
+        self.assertTrue(await select_answers(page, question("multiple"), ["A", "B"], "exam"))
+        self.assertEqual(page.clicked, [1])
 
-        self.assertFalse(result)
-        mock_append_manual.assert_called_once_with(
-            "https://example.com/exam",
-            reason="ai_no_answer",
-            reason_text="没有获取到有效答案, 可能是 AI 作答失败或题目解析不完整",
-            ai_failed_model_config=None,
-            file_path=MANUAL_EXAM_FILE,
-        )
-        messages = [call.args[0] for call in mock_info.call_args_list]
-        self.assertTrue(any("没有获取到有效答案" in message for message in messages))
-        self.assertFalse(any("填空" in message for message in messages))
+    async def test_multiple_selection_clears_extraneous_answers(self):
+        page = Page(multiple=True, selected={0, 1})
+        self.assertTrue(await select_answers(page, question("multiple"), ["B"], "exam"))
+        self.assertEqual(page.selected, {1})
+        self.assertEqual(page.clicked, [0])
 
-    async def test_select_answers_uses_option_click_selector_when_present(self):
-        from core.exam.actions import select_answers
+    async def test_labels_are_resolved_in_display_order(self):
+        page = Page(selected={1})
+        data = {**question(labels=("B", "A")), "option_click_selector": ".option-item"}
+        self.assertTrue(await select_answers(page, data, ["B"], "exam", selector_prefix="#question "))
+        self.assertEqual(page.clicked, [0])
+        self.assertEqual(page.selected, {0})
+        self.assertIn("#question .option-item", page.selectors)
 
-        page = _FakePage()
-        question_data = {
-            "index": 0,
-            "type": "single",
-            "text": "示例公司的英文缩写是什么？",
-            "options": [
-                {"label": "A", "text": "CT"},
-                {"label": "B", "text": "CU"},
-            ],
-            "option_click_selector": ".option-item",
-        }
+    async def test_radio_already_correct_is_not_toggled(self):
+        page = Page(selected={0})
+        self.assertTrue(await select_answers(page, question(), ["A"], "exam"))
+        self.assertEqual(page.clicked, [])
 
-        result = await select_answers(
-            page,
-            question_data,
-            ["B"],
-            "https://example.com/exam",
-            selector_prefix="[data-dynamic-key='item-1'] ",
-        )
+    async def test_dom_count_mismatch_never_clicks(self):
+        page = Page(count=1)
+        self.assertFalse(await select_answers(page, question(), ["A"], "exam"))
+        self.assertEqual(page.clicked, [])
 
-        self.assertTrue(result)
-        self.assertIn(
-            "[data-dynamic-key='item-1'] .option-item",
-            page.locator_calls,
-        )
-        self.assertIn(
-            ("[data-dynamic-key='item-1'] .option-item", 1),
-            page.locator_calls,
-        )
+    async def test_ignored_click_is_not_reported_as_success(self):
+        page = Page(ignore_click=True)
+        self.assertFalse(await select_answers(page, question(), ["A"], "exam"))
 
-    async def test_select_answers_returns_false_when_click_fails(self):
-        from core.exam.actions import select_answers
+    async def test_ordering_requires_full_permutation_and_readback(self):
+        page = Page()
+        self.assertTrue(await select_answers(page, question("ordering"), ["B", "A"], "exam"))
+        self.assertEqual(page.value, "BA")
+        page.ignore_fill = True
+        self.assertFalse(await select_answers(page, question("ordering"), ["A", "B"], "exam"))
+        with patch("core.exam.actions.append_manual_exam_entry"):
+            self.assertFalse(await select_answers(page, question("ordering"), ["A"], "exam"))
 
-        page = _FakePage(click_error=RuntimeError("click failed"))
-        question_data = {
-            "index": 0,
-            "type": "single",
-            "text": "示例公司的英文缩写是什么？",
-            "options": [
-                {"label": "A", "text": "CT"},
-                {"label": "B", "text": "CU"},
-            ],
-        }
+    async def test_click_failure_is_unverified(self):
+        self.assertFalse(await select_answers(Page(error=RuntimeError("click failed")), question(), ["A"], "exam"))
 
-        result = await select_answers(
-            page,
-            question_data,
-            ["A"],
-            "https://example.com/exam",
-        )
+    async def test_platform_auto_submission_stops_for_reconciliation(self):
+        page = Page(error=RuntimeError("您好，已超过考试时长，考试已自动提交"))
+        with self.assertRaisesRegex(UserCancelRequested, "自动交卷"):
+            await select_answers(page, question(), ["A"], "exam")
 
-        self.assertFalse(result)
+    async def test_cancellation_is_not_converted_to_invalid_answer(self):
+        with self.assertRaises(asyncio.CancelledError):
+            await select_answers(Page(error=asyncio.CancelledError()), question(), ["A"], "exam")
 
-    async def test_select_answers_raises_user_abort_when_exam_was_auto_submitted(self):
-        from core.abort import UserAbortRequested
-        from core.exam.actions import select_answers
+    async def test_submission_requires_visible_result_receipt(self):
+        calls = []
+        class Target:
+            @property
+            def last(self):
+                return self
+            async def click(self):
+                calls.append(("click", self.selector))
+            async def wait_for(self, **kwargs):
+                calls.append(("wait", self.selector, kwargs))
+        class SubmitPage:
+            def locator(self, selector):
+                target = Target()
+                target.selector = selector
+                return target
+        await submit_exam(SubmitPage())
+        self.assertEqual([call[0] for call in calls], ["click", "click", "wait", "click"])
+        self.assertIn("modal:modal", calls[-1][1])
+        self.assertEqual(calls[-2][2], {"state": "visible", "timeout": 30000})
 
-        page = _FakePage(
-            click_error=RuntimeError("您好，已超过考试时长，考试已自动提交")
-        )
-        question_data = {
-            "index": 0,
-            "type": "single",
-            "text": "示例公司的英文缩写是什么？",
-            "options": [
-                {"label": "A", "text": "CT"},
-                {"label": "B", "text": "CU"},
-            ],
-        }
-
-        with self.assertRaises(UserAbortRequested) as ctx:
-            await select_answers(
-                page,
-                question_data,
-                ["A"],
-                "https://example.com/exam",
-                selector_prefix="[data-dynamic-key='item-1'] ",
-            )
-
-        self.assertIn("自动交卷", str(ctx.exception))
-
-    async def test_submit_exam_uses_modal_close_button_instead_of_broad_text_selector(self):
-        from core.exam.actions import submit_exam
-
-        page = _FakeSubmitPage()
-
-        await submit_exam(page)
-
-        self.assertEqual(
-            page.locator_calls,
-            [
-                "text=我要交卷",
-                "button:has-text('确 定')",
-                "[data-region='modal:modal'] .btn.white.border:has-text('确定')",
-            ],
-        )
-        self.assertNotIn("text=确定", page.locator_calls)
+    async def test_missing_result_receipt_propagates(self):
+        target = AsyncMock()
+        target.last = target
+        target.wait_for.side_effect = TimeoutError
+        class SubmitPage:
+            def locator(self, _selector):
+                return target
+        with self.assertRaises(TimeoutError):
+            await submit_exam(SubmitPage())
 
 
 if __name__ == "__main__":

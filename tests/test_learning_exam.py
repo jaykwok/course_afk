@@ -236,7 +236,7 @@ class LearningExamTests(unittest.IsolatedAsyncioTestCase):
         from core.learning.flows import course_learning
 
         page = FakeCoursePage()
-        mock_check = AsyncMock(return_value=False)
+        mock_check = AsyncMock(return_value="unknown")
 
         with (
             patch(
@@ -253,7 +253,7 @@ class LearningExamTests(unittest.IsolatedAsyncioTestCase):
                 new=AsyncMock(return_value=None),
             ),
             patch("core.learning.flows._is_course_completed", new=AsyncMock(return_value=False)),
-            patch("core.learning.flows.check_exam_passed", new=mock_check),
+            patch("core.learning.flows.get_course_exam_outcome", new=mock_check),
             patch("core.learning.exam_bridge.check_exam_passed", new=mock_check),
             patch(
                 "core.learning.flows.queue_course_exams_from_api",
@@ -300,7 +300,7 @@ class LearningExamTests(unittest.IsolatedAsyncioTestCase):
                 new=AsyncMock(),
             ) as mock_activate,
             patch(
-                "core.learning.flows.check_exam_passed",
+                "core.learning.flows.get_course_exam_outcome",
                 new=AsyncMock(),
             ) as mock_check,
         ):

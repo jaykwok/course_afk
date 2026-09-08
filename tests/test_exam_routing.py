@@ -71,7 +71,7 @@ class ExamRoutingTests(unittest.TestCase):
 
             destination = queue_exam_url_by_attempt_text(
                 url,
-                "开始考试",
+                "开始考试 不限次数",
                 threshold=1,
                 exam_file=exam_file,
                 manual_exam_file=manual_file,

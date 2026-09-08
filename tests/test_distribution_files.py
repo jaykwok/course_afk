@@ -14,12 +14,16 @@ class DistributionFilesTests(unittest.TestCase):
         self.assertNotIn("DASHSCOPE_", content)
         self.assertIn("MODEL_NAME=qwen3.6-plus", content)
         self.assertIn("AI_REQUEST_TYPE=responses", content)
-        self.assertIn("AI_ENABLE_WEB_SEARCH=1", content)
+        self.assertIn("AI_ENABLE_WEB_SEARCH=0", content)
         self.assertIn("AI_ENABLE_THINKING=0", content)
         self.assertIn("AI_REASONING_EFFORT=medium", content)
-        self.assertIn("默认关闭", content)
-        self.assertIn("chat / responses", content)
-        self.assertIn("联网搜索，默认关闭", content)
+        from dotenv import dotenv_values
+        from core.exam.settings import AiSettings
+        values = dict(dotenv_values(env_example))
+        values["OPENAI_COMPLETION_API_KEY"] = "test-only-placeholder"
+        settings = AiSettings.load(values)
+        self.assertFalse(settings.web_search)
+        self.assertEqual(settings.provider, "compatible")
         self.assertIn("DEBUG_MODE=1", content)
         self.assertIn("SUPPRESS_STARTUP_BANNER=1", content)
 

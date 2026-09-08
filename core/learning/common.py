@@ -175,7 +175,13 @@ def is_learned(text: str) -> bool:
         return False
     if _ZERO_REMAINING_PROGRESS.search(text):
         return True
-    return _PENDING_PROGRESS.search(text) is None
+    if _PENDING_PROGRESS.search(text):
+        return False
+    if re.search(r"已完成|已学完|学习完成|已学习|已学(?!时)|重新学习", text):
+        return True
+    # 旧版课页的完成态保留“必修/选修 + 类型 + 总时长”，没有剩余标记。
+    # 只接受已观察到的完整布局，标题或局部加载文本不能推导成功。
+    return bool(re.search(r"(?:必修|选修).*?(?:视频|文档|网页).*?\b\d{1,3}:\d{2}(?::\d{2})?\b", text, re.S))
 
 
 async def is_course_section_focused(box) -> bool:

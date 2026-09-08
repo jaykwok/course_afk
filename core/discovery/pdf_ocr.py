@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import hashlib
 import importlib.util
+import json
 import os
 import re
 import sys
 import sysconfig
 from pathlib import Path
+from core.runtime import run_child
+from core.storage import write_text_atomic
 
 
 OCR_STATUS_PREFIX = "COURSE_AFK_OCR_STATUS:"
@@ -16,6 +18,34 @@ OCR_RESULT_PREFIX = "COURSE_AFK_OCR_RESULT:"
 OCR_FILE_PREFIX = "COURSE_AFK_OCR_FILE:"
 OCR_MODEL_NAME = "PP-OCRv6_medium"
 OCR_FORMAT_MARKER = "<!-- course-afk-ocr-format: 2 -->"
+OCR_COMMIT_FILE = "complete.json"
+
+
+def file_digest(path: Path) -> str:
+    with path.open("rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
+
+
+def is_complete_ocr_artifact(output_dir: Path, pdf_path: Path) -> bool:
+    """Reuse only a committed artifact whose source, markdown and images match."""
+    markdown = expected_ocr_markdown_path(output_dir, pdf_path)
+    root = markdown.parent.resolve()
+    try:
+        manifest = json.loads((root / OCR_COMMIT_FILE).read_text(encoding="utf-8"))
+        if manifest.get("version") != 1 or manifest.get("source_sha256") != file_digest(pdf_path):
+            return False
+        files = manifest.get("files")
+        if not isinstance(files, dict) or markdown.name not in files:
+            return False
+        for name, digest in files.items():
+            target = (root / name).resolve()
+            if root not in target.parents or not target.is_file() or target.stat().st_size == 0:
+                return False
+            if file_digest(target) != digest:
+                return False
+        return True
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
 
 
 class PdfOcrUnavailable(RuntimeError):
@@ -142,7 +172,7 @@ def update_course_markdown_ocr_links(
         updated = _insert_ocr_links(original, output_dir, pdf_files)
         if updated == original:
             continue
-        course_path.write_text(updated, encoding="utf-8")
+        write_text_atomic(course_path, updated)
         linked_count += sum(
             1
             for pdf_path in pdf_files
@@ -170,15 +200,14 @@ def update_document_index_ocr_links(output_dir: Path, pdf_files: list[Path]) -> 
             updated_count += 1
             break
     if updated_count:
-        index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        write_text_atomic(index_path, "\n".join(lines) + "\n")
     return updated_count
 
 
 def delete_converted_pdf_files(output_dir: Path, pdf_files: list[Path]) -> int:
     deleted_count = 0
     for pdf_path in pdf_files:
-        markdown_path = expected_ocr_markdown_path(output_dir, pdf_path)
-        if not markdown_path.is_file() or markdown_path.stat().st_size == 0:
+        if not is_complete_ocr_artifact(output_dir, pdf_path):
             continue
         pdf_path.unlink()
         deleted_count += 1
@@ -211,6 +240,10 @@ async def convert_downloaded_pdfs_to_markdown(
     *,
     status_callback=None,
 ) -> dict:
+    # The worker imports artifact helpers from this module. Keep application
+    # configuration (including .env credentials) out of that import path.
+    from core.config import _env_raw
+
     output_dir = Path(output_dir).resolve()
     pdf_files = find_pdf_files(output_dir)
     if not pdf_files:
@@ -242,68 +275,62 @@ async def convert_downloaded_pdfs_to_markdown(
         "--output-dir",
         str(output_dir / "ocr"),
         "--device",
-        os.getenv("COURSE_AFK_OCR_DEVICE", "auto"),
+        (_env_raw("COURSE_AFK_OCR_DEVICE") or "auto"),
     ]
-    creationflags = 0
-    if os.name == "nt":
-        creationflags = getattr(__import__("subprocess"), "CREATE_NO_WINDOW", 0)
-    worker_env = os.environ.copy()
+    worker_env = {key: value for key, value in os.environ.items() if not key.upper().startswith(("OPENAI_", "AI_", "ANTHROPIC_", "AZURE_OPENAI_"))}
     worker_env["PYTHONUTF8"] = "1"
     worker_env["PYTHONIOENCODING"] = "utf-8"
     _configure_worker_dll_path(worker_env)
-    process = await asyncio.create_subprocess_exec(
-        *command,
-        cwd=str(project_root),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-        creationflags=creationflags,
-        env=worker_env,
-    )
     output_tail: list[str] = []
     worker_result: tuple[int, int, int] | None = None
     successful_pdf_names: set[str] = set()
-    assert process.stdout is not None
-    while True:
-        raw_line = await process.stdout.readline()
-        if not raw_line:
-            break
-        line = raw_line.decode("utf-8", errors="replace").strip()
+    def consume_line(line: str) -> None:
+        nonlocal worker_result
+        line = line.strip()
         if not line:
-            continue
+            return
         parsed = _parse_worker_result(line)
         if parsed is not None:
             worker_result = parsed
-            continue
+            return
         successful_file = _parse_worker_file(line)
         if successful_file is not None:
             successful_pdf_names.add(successful_file)
-            continue
+            return
         if line.startswith(OCR_STATUS_PREFIX):
             if status_callback:
                 status_callback(line.removeprefix(OCR_STATUS_PREFIX))
-            continue
+            return
         output_tail.append(line)
-        output_tail = output_tail[-20:]
+        del output_tail[:-20]
 
-    return_code = await process.wait()
+    try:
+        timeout = float((_env_raw("COURSE_AFK_OCR_TIMEOUT") or "7200"))
+        idle_timeout = float((_env_raw("COURSE_AFK_OCR_IDLE_TIMEOUT") or "600"))
+    except (ValueError, TypeError) as exc:
+        raise PdfOcrRuntimeError("OCR 超时配置必须是数值，修改 .env 后重启再试") from exc
+    if not 1 <= timeout <= 86400 or not 1 <= idle_timeout <= timeout:
+        raise PdfOcrRuntimeError("OCR 超时必须为 1–86400 秒，idle 不得超过总期限")
+    try:
+        return_code = await run_child(command, cwd=str(project_root), env=worker_env, on_line=consume_line, timeout=timeout, idle_timeout=idle_timeout)
+    except TimeoutError as exc:
+        raise PdfOcrRuntimeError("PDF OCR 已超过期限，工作进程已回收；源 PDF 已保留") from exc
     if return_code != 0:
         detail = "\n".join(output_tail[-8:]) or f"子进程退出码 {return_code}"
         raise PdfOcrRuntimeError(f"PDF OCR 转换失败：{detail}")
 
     if worker_result is None:
-        converted = sum(
-            expected_ocr_markdown_path(output_dir, path).is_file() for path in pdf_files
-        )
-        failed = len(pdf_files) - converted
-        reused = 0
-    else:
-        converted, failed, reused = worker_result
+        raise PdfOcrRuntimeError("OCR 工作进程未返回完整结果；源 PDF 已保留")
+    converted, failed, reused = worker_result
     successful_pdf_files = [
-        path for path in pdf_files if path.name in successful_pdf_names
+        path for path in pdf_files if path.name in successful_pdf_names and is_complete_ocr_artifact(output_dir, path)
     ]
+    if min(converted, failed, reused) < 0 or converted + failed + reused != len(pdf_files) or len(successful_pdf_files) != converted + reused:
+        raise PdfOcrRuntimeError("OCR 结果与已提交文件不一致；源 PDF 已保留")
     linked = update_course_markdown_ocr_links(output_dir, successful_pdf_files)
     update_document_index_ocr_links(output_dir, successful_pdf_files)
-    deleted = delete_converted_pdf_files(output_dir, successful_pdf_files)
+    delete_source = (_env_raw("COURSE_AFK_OCR_DELETE_SOURCE") or "false").strip().lower() in {"true", "1", "yes"}
+    deleted = delete_converted_pdf_files(output_dir, successful_pdf_files) if delete_source else 0
     return {
         "ocr_output_dir": str(output_dir / "ocr"),
         "pdf_count": len(pdf_files),

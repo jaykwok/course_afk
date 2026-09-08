@@ -6,6 +6,10 @@ import traceback
 
 from core.abort import (
     LearningFlowError,
+    UserCancelRequested,
+    UserAbortRequested,
+    WafBlockError,
+    SyncTimeoutError,
     NoPermissionError,
     PartialCourseFailure,
     SectionActivationError,
@@ -27,7 +31,8 @@ from core.learning.common import (
     timer,
     wait_for_course_section_focus,
 )
-from core.learning.exam_bridge import check_exam_passed, handle_examination
+from core.learning.exam_bridge import get_course_exam_outcome, handle_examination
+from core.runtime import close_safely
 from core.learning.exam_api import queue_course_exams_from_api
 from core.learning.handlers import handle_document, handle_h5, handle_video
 from core.queues.learning import record_learning_failure
@@ -125,6 +130,8 @@ async def _activate_course_section(page_detail, box) -> None:
             logging.info(
                 f"章节切换未生效 (第{attempt}/3次)，重新点击同一目标"
             )
+        except (WafBlockError, UserCancelRequested, UserAbortRequested):
+            raise
         except Exception as exc:
             if is_target_closed_exception(exc):
                 raise
@@ -187,6 +194,8 @@ async def _ensure_course_learning_view(page_detail) -> bool:
             await page_detail.wait_for_timeout(800)
             logging.info("已切换到课程学习页面")
             return True
+        except (WafBlockError, UserCancelRequested, UserAbortRequested):
+            raise
         except Exception as exc:
             if is_target_closed_exception(exc):
                 raise
@@ -326,6 +335,7 @@ async def subject_learning(page):
     learn_locator = page.locator(".item.current-hover")
     learn_count = await learn_locator.count()
 
+    deferred = False
     has_failed_course = False
     subject_course_failures: list[dict[str, object]] = []
     for i in range(learn_count):
@@ -339,7 +349,10 @@ async def subject_learning(page):
         if section_type == "课程":
             page_detail = await _open_subject_item_popup(page, learn_item)
             try:
-                await course_learning(page_detail, learn_item)
+                if await course_learning(page_detail, learn_item) is not True:
+                    deferred = True
+            except (WafBlockError, UserCancelRequested, UserAbortRequested):
+                raise
             except Exception as exc:
                 if is_target_closed_exception(exc):
                     if is_page_browser_connected(page_detail):
@@ -392,9 +405,10 @@ async def subject_learning(page):
                         }
                     )
             finally:
-                await page_detail.close()
+                await close_safely(page_detail.close(), label="subject child page")
 
         elif section_type == "URL":
+            deferred = True
             logging.info("URL学习类型, 记录为待复查")
             # record_learning_failure 按 URL 合并，重复调用会刷新文案，不堆多条
             record_learning_failure(
@@ -420,14 +434,16 @@ async def subject_learning(page):
                         task.cancel()
                 await asyncio.gather(timeout_task, timer_task, return_exceptions=True)
                 try:
-                    await page_detail.close()
+                    await close_safely(page_detail.close(), label="subject child page")
                 except Exception:
                     pass
 
         elif section_type == "考试":
+            deferred = True
             await handle_subject_exam_item(learn_item)
 
         elif section_type == "调研":
+            deferred = True
             logging.info("调研学习类型, 记录为需要人工处理")
             record_learning_failure(
                 await get_course_url(learn_item),
@@ -437,6 +453,7 @@ async def subject_learning(page):
             )
 
         else:
+            deferred = True
             logging.info("非课程及考试类学习类型, 记录为需要人工处理")
             record_learning_failure(
                 page.url,
@@ -452,6 +469,8 @@ async def subject_learning(page):
             reason_text="部分主题课程学习失败，后续可重新加入课程链接",
             detail={"course_failures": subject_course_failures},
         )
+
+    return not deferred
 
 
 async def _collect_chapter_boxes(page_detail) -> list[tuple[str, object]]:
@@ -515,12 +534,11 @@ async def course_learning(page_detail, learn_item=None):
         except Exception:
             title = page_detail.url
         logging.info(f"<{title}>已学习完毕, 跳过该课程\n")
-        return
+        return True
 
     chapters = await _collect_chapter_boxes(page_detail)
     if not chapters:
-        logging.warning("未找到章节列表（必修/选修）")
-        return
+        raise PartialCourseFailure("未找到完整章节列表，保留课程待办")
 
     course_exam_api_result = await queue_course_exams_from_api(page_detail)
     course_exams_handled_by_api = bool(
@@ -550,10 +568,11 @@ async def course_learning(page_detail, learn_item=None):
 
     if all_learned and not has_non_detectable_types:
         logging.info("所有章节（含选修）已学习完毕, 跳过该课程")
-        return
+        return True
 
     # 课程内 data-sectiontype（与主题 chapter-progress 的 sectionType 数字含义不同）:
     # 1/2/3=文档网页, 4=H5, 5/6=视频, 9=课程内考试。主题外链 URL 的 API 类型 3 不在此列。
+    deferred = False
     has_failed_box = False
     chapter_failures: list[dict[str, object]] = []
     for index, (track, box) in enumerate(chapters):
@@ -569,6 +588,7 @@ async def course_learning(page_detail, learn_item=None):
                 continue
 
         if section_type == "9" and course_exams_handled_by_api:
+            deferred = True
             logging.info("课程内考试已由接口完成状态判断与入队，跳过页面解析")
             continue
 
@@ -581,13 +601,16 @@ async def course_learning(page_detail, learn_item=None):
                 logging.info("该课程为文档、网页类型")
                 await handle_document(page_detail, box)
             elif section_type == "4":
+                deferred = True
                 logging.info("该课程为h5类型")
                 await handle_h5(page_detail, learn_item)
             elif section_type == "9":
                 logging.info("该课程为考试类型")
-                exam_passed = await check_exam_passed(page_detail)
-                if exam_passed:
-                    logging.info("考试已通过, 跳过该节")
+                outcome = await get_course_exam_outcome(page_detail)
+                exam_passed = outcome == "passed"
+                deferred = True
+                if outcome in {"passed", "pending_grading"}:
+                    logging.info("考试已通过或待评卷，跳过本节答题")
                     continue
                 if learn_item:
                     await handle_examination(
@@ -598,6 +621,7 @@ async def course_learning(page_detail, learn_item=None):
                 else:
                     await handle_examination(page_detail, exam_passed=exam_passed)
             else:
+                deferred = True
                 logging.info("未知课程学习类型, 记录为需要人工处理")
                 failure_url = (
                     await get_course_url(learn_item) if learn_item else page_detail.url
@@ -613,6 +637,8 @@ async def course_learning(page_detail, learn_item=None):
                     },
                 )
                 continue
+        except (WafBlockError, UserCancelRequested, UserAbortRequested):
+            raise
         except Exception as exc:
             if is_target_closed_exception(exc):
                 raise
@@ -672,6 +698,15 @@ async def course_learning(page_detail, learn_item=None):
             detail={"chapter_failures": chapter_failures},
         )
 
+    if deferred:
+        return False
+    if await _is_course_completed(page_detail):
+        return True
+    for _, box in chapters:
+        if not is_learned(await box.locator(".section-item-wrapper").inner_text()):
+            raise SyncTimeoutError("课程章节处理结束，但完成状态仍未确认")
+    return True
+
 
 async def _is_course_completed(page) -> bool:
     """课程进度 100% 则视为整课完成。
@@ -686,4 +721,5 @@ async def _is_course_completed(page) -> bool:
         progress_text = await progress_element.inner_text(timeout=5000)
     except Exception:
         return False
-    return "100%" in (progress_text or "")
+    import re
+    return bool(re.search(r"(?<![\d.])100(?:\.0+)?\s*%", progress_text or ""))

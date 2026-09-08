@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from core.config import EXAM_URLS_FILE
-from core.file_ops import del_file, write_text_atomic
+from core.file_ops import del_file
 from core.links import unique_urls
+from core.storage import serialized, write_text_atomic
+from core.queues.history import failed_configs, record_failures
 
 
 @dataclass(frozen=True)
@@ -41,24 +43,24 @@ def _normalize_model_config(raw_config) -> dict[str, object] | None:
         "web_search": bool(raw_config.get("web_search", False)),
         "thinking": bool(raw_config.get("thinking", False)),
         "reasoning_effort": reasoning_effort,
+        "base_url": str(raw_config.get("base_url") or "").strip().rstrip("/") or None,
+        "provider": raw_config.get("provider"),
+        "output_mode": raw_config.get("output_mode"),
+        "prompt_version": raw_config.get("prompt_version"),
+        "temperature": raw_config.get("temperature"),
+        "account": raw_config.get("account"),
     }
 
 
-def _model_config_key(config: dict[str, object]) -> tuple[object, ...]:
-    return (
-        config["model"],
-        config["request_type"],
-        config["web_search"],
-        config["thinking"],
-        config["reasoning_effort"],
-    )
+def _model_config_key(config: dict[str, object]) -> str:
+    return json.dumps(config, sort_keys=True, ensure_ascii=False)
 
 
 def _unique_model_configs(raw_configs) -> list[dict[str, object]]:
     if not isinstance(raw_configs, list):
         return []
 
-    configs_by_key: dict[tuple[object, ...], dict[str, object]] = {}
+    configs_by_key: dict[str, dict[str, object]] = {}
     for raw_config in raw_configs:
         config = _normalize_model_config(raw_config)
         if config is None:
@@ -127,6 +129,7 @@ def read_exam_queue(file_path: Path = EXAM_URLS_FILE) -> list[ExamQueueEntry]:
     return _normalize_entries(raw_entries)
 
 
+@serialized
 def write_exam_queue(
     entries: list[ExamQueueEntry],
     *,
@@ -134,6 +137,9 @@ def write_exam_queue(
     keep_file: bool = True,
 ) -> None:
     normalized = _normalize_entries(_serialize_entries(entries))
+    # Archive both retained and removed entries before replacing the queue.
+    for entry in read_exam_queue(file_path) + normalized:
+        record_failures(entry.url, entry.ai_failed_model_configs, file_path)
     if not normalized and not keep_file:
         del_file(file_path)
         return
@@ -148,6 +154,7 @@ def append_exam_url(url: str, *, file_path: Path = EXAM_URLS_FILE) -> None:
     append_exam_urls([url], file_path=file_path)
 
 
+@serialized
 def append_exam_urls(
     urls: list[str],
     *,
@@ -164,7 +171,7 @@ def append_exam_urls(
         if normalized_url in existing_urls:
             continue
         entries.append(
-            ExamQueueEntry(url=normalized_url, ai_failed_model_configs=[])
+            ExamQueueEntry(url=normalized_url, ai_failed_model_configs=_unique_model_configs(failed_configs(normalized_url, file_path)))
         )
         existing_urls.add(normalized_url)
         added.append(normalized_url)
@@ -174,6 +181,7 @@ def append_exam_urls(
     return added
 
 
+@serialized
 def remove_exam_url(url: str, *, file_path: Path = EXAM_URLS_FILE) -> bool:
     """从 AI 考试队列移除单个链接，保留队列文件。"""
     normalized_url = str(url or "").strip()
@@ -196,6 +204,7 @@ def count_exam_urls(file_path: Path = EXAM_URLS_FILE) -> int:
     return len(read_exam_urls(file_path=file_path))
 
 
+@serialized
 def write_exam_urls(
     urls: list[str],
     *,
@@ -227,6 +236,9 @@ def has_ai_failed_model_config(
     if not normalized_url or normalized_config is None:
         return False
 
+    history = _unique_model_configs(failed_configs(normalized_url, file_path))
+    if any(_model_config_key(config) == _model_config_key(normalized_config) for config in history):
+        return True
     for entry in read_exam_queue(file_path=file_path):
         if entry.url == normalized_url:
             return any(
@@ -236,6 +248,7 @@ def has_ai_failed_model_config(
     return False
 
 
+@serialized
 def record_ai_failed_model_config(
     url: str,
     model_config: dict[str, object],

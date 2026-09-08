@@ -129,20 +129,6 @@ class SlowMoSamplingTests(unittest.TestCase):
 
 
 class BrowserStealthTests(unittest.IsolatedAsyncioTestCase):
-    def test_apply_sync_browser_stealth_adds_init_script(self):
-        class FakeContext:
-            def __init__(self):
-                self.scripts = []
-
-            def add_init_script(self, script):
-                self.scripts.append(script)
-
-        context = FakeContext()
-
-        browser.apply_sync_browser_stealth(context)
-
-        self.assertEqual(len(context.scripts), 1)
-        self.assertIn("webdriver", context.scripts[0])
 
     def test_stealth_script_covers_the_three_known_leaks(self):
         """webdriver 本身、补丁函数的 toString、同源子 frame 三处都要盖住。
@@ -382,11 +368,11 @@ class BrowserControllerPageTests(unittest.IsolatedAsyncioTestCase):
             async with browser.create_browser_context() as (_browser, active_context):
                 context_key = id(active_context)
                 self.assertIn(context_key, browser._CONTROLLER_PAGES)
-                self.assertIn(context_key, browser._CONTEXT_HEADLESS)
+                self.assertIs(browser.get_controller_page(active_context), context.pages[0])
+                self.assertFalse(browser.is_controller_window_closed(active_context))
 
         self.assertEqual(events, ["context.close", "browser.close"])
         self.assertNotIn(context_key, browser._CONTROLLER_PAGES)
-        self.assertNotIn(context_key, browser._CONTEXT_HEADLESS)
         self.assertNotIn(context_key, browser._CONTEXT_WINDOW_CLOSED)
 
 

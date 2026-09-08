@@ -6,6 +6,8 @@ from typing import Callable
 from urllib.parse import urlparse
 
 from core.learning.afk_runner import run_afk_once
+from core.abort import WafBlockError
+from core.queues.learning import read_learning_failures, remember_discovery_entries
 from core.browser.session import create_browser_context, is_controller_page
 from core.config import (
     EXAM_URLS_FILE,
@@ -102,10 +104,10 @@ async def _wait_for_manual_popup_record_url(new_page) -> str | None:
             return fallback_url
 
 
-def refresh_credential(status_callback: StatusCallback | None = None) -> AccountProfile:
+async def refresh_credential(status_callback: StatusCallback | None = None, *, confirm_same_account=None) -> AccountProfile:
     if status_callback:
         status_callback("正在打开浏览器，请完成登录")
-    return login_and_save_credential()
+    return await login_and_save_credential(confirm_same_account=confirm_same_account)
 
 
 async def _collect_learning_links_on_entry_context(
@@ -257,7 +259,7 @@ async def run_manual_course_selection(
         entry_urls,
     ) = split_manual_selection_urls(urls)
 
-    # 直接粘贴的 subject 不入队原链，按方案 C 展开：课→学习队列，考→考试队列，未知→残留
+    # 主题按章节类型展开：课→学习队列，考→考试队列，未知→主题残留。
     direct_course_urls, direct_subject_urls = partition_course_and_subject_urls(
         direct_learning_urls
     )
@@ -326,6 +328,8 @@ async def run_manual_course_selection(
         direct_subject_urls or auto_zone_urls or train_class_urls
     )
     needs_browser = needs_auto_browser or bool(manual_entry_urls)
+    # A failure in an earlier source must not discard later source categories.
+    remember_discovery_entries(direct_subject_urls + auto_zone_urls + train_class_urls)
 
     async def _run_auto_browser_jobs(shared_context) -> None:
         """Phase A：主题/专区/培训班。无 page 监听，各 job 自管 new_page/close。"""
@@ -483,10 +487,7 @@ async def run_afk_workflow(status_callback: StatusCallback | None = None) -> boo
     await run_afk_once(status_callback=status_callback)
     state = collect_project_state()
     if status_callback:
-        if state.exam_count > 0:
-            status_callback(f"挂课完成，检测到 {state.exam_count} 条考试链接")
-        else:
-            status_callback("挂课完成，未检测到考试链接")
+        status_callback(f"本轮挂课结束：学习待办 {state.learning_count}，失败/复查 {state.learning_failure_count}，AI 考试 {state.exam_count}")
     return state.exam_count > 0
 
 async def run_ai_exam_workflow(
@@ -522,7 +523,7 @@ async def run_manual_exam_workflow(status_callback: StatusCallback | None = None
         status_callback(f"开始人工考试，共 {state.manual_exam_count} 条链接")
     processed_count = await run_manual_exam_batch(status_callback=status_callback)
     if status_callback:
-        status_callback("人工考试流程完成")
+        status_callback(f"人工考试本轮结束，剩余 {collect_project_state().manual_exam_count} 条待办")
     return processed_count
 
 
@@ -539,7 +540,7 @@ async def run_reference_collection_workflow(
         status_callback=status_callback,
     )
     if status_callback:
-        status_callback(f"资料保存完成：{result['output_dir']}")
+        status_callback(f"资料保存{'完成' if result.get('complete') else '结束，仍有未完成项'}：{result['output_dir']}")
     return result
 
 
@@ -556,7 +557,7 @@ async def run_pdf_markdown_workflow(
         status_callback=status_callback,
     )
     if status_callback:
-        status_callback(f"PDF Markdown 转换完成：{result['ocr_output_dir']}")
+        status_callback(f"PDF Markdown 转换{'结束，部分失败' if result['ocr_failed_count'] else '完成'}：{result['ocr_output_dir']}")
     return result
 
 
@@ -571,36 +572,30 @@ async def run_recommended_flow(
             status_callback("登录凭证不可用，请先更新登录凭证")
         return "credential"
 
-    if state.learning_count > 0:
-        has_exam = await run_afk_workflow(status_callback=status_callback)
-    else:
-        has_exam = state.exam_count > 0
-
-    if not has_exam:
+    had_learning = state.learning_count > 0 or any(item.reason == "url_type_pending" for item in read_learning_failures())
+    if had_learning:
+        try:
+            await run_afk_workflow(status_callback=status_callback)
+        except WafBlockError:
+            if status_callback:
+                status_callback("网站防护拦截，本轮已停止；剩余待办已保留")
+            return "blocked"
+    state = collect_project_state()
+    if state.exam_count == 0:
         if state.manual_exam_count > 0:
-            if status_callback:
-                status_callback("当前仅有人工考试待处理")
             return "manual-exam-pending"
-        if state.learning_count == 0:
-            if status_callback:
-                status_callback("未检测到学习或考试链接，请先手动录入")
-            return "manual-selection"
-        if status_callback:
-            status_callback("未检测到考试链接，本次流程结束")
-        return "afk-only"
-
+        if state.learning_count or state.learning_failure_count:
+            return "learning-pending"
+        return "afk-only" if had_learning else "manual-selection"
     if not is_ai_configured():
         if status_callback:
-            status_callback("未填写 AI 配置，跳过 AI 自动考试；可改用人工考试")
+            status_callback("未填写 AI 配置；可配置后重试或改用人工考试")
         return "ai-not-configured"
-
     auto_submit = ask_auto_submit() if ask_auto_submit else False
-    manual_count = await run_ai_exam_workflow(
-        status_callback=status_callback,
-        auto_submit=auto_submit,
-    )
-    if manual_count > 0:
-        if status_callback:
-            status_callback("AI 自动考试完成，仍有人工考试待处理")
+    await run_ai_exam_workflow(status_callback=status_callback, auto_submit=auto_submit)
+    state = collect_project_state()
+    if state.manual_exam_count:
         return "manual-exam-pending"
+    if state.learning_count or state.learning_failure_count or state.exam_count:
+        return "learning-pending"
     return "done"

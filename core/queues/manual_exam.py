@@ -6,7 +6,9 @@ from pathlib import Path
 
 from core.config import MANUAL_EXAM_FILE
 from core.queues.exam import normalize_model_config, unique_model_configs
-from core.file_ops import del_file, normalize_optional_text, write_text_atomic
+from core.file_ops import del_file, normalize_optional_text
+from core.storage import serialized, write_text_atomic
+from core.queues.history import record_failures
 
 
 @dataclass(frozen=True)
@@ -111,6 +113,7 @@ def read_manual_exam_queue(file_path: Path = MANUAL_EXAM_FILE) -> list[ManualExa
     return _normalize_entries(raw_entries)
 
 
+@serialized
 def write_manual_exam_queue(
     entries: list[ManualExamEntry],
     *,
@@ -118,6 +121,8 @@ def write_manual_exam_queue(
     keep_file: bool = True,
 ) -> None:
     normalized = _normalize_entries(_serialize_entries(entries))
+    for entry in read_manual_exam_queue(file_path) + normalized:
+        record_failures(entry.url, entry.ai_failed_model_configs, file_path)
     if not normalized and not keep_file:
         del_file(file_path)
         return
@@ -128,6 +133,7 @@ def write_manual_exam_queue(
     )
 
 
+@serialized
 def append_manual_exam_entry(
     url: str,
     *,
@@ -146,6 +152,8 @@ def append_manual_exam_entry(
     normalized_model_config = normalize_model_config(ai_failed_model_config)
     if normalized_model_config is not None:
         ai_failed_model_configs.append(normalized_model_config)
+        if reason == "ai_failed":
+            record_failures(normalized_url, ai_failed_model_configs, file_path)
 
     entries = read_manual_exam_queue(file_path=file_path)
     incoming = ManualExamEntry(

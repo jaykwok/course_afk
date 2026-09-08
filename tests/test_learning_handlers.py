@@ -98,8 +98,8 @@ class LearningHandlerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(created_tasks), 3)
         self.assertEqual(task_states_after_cleanup, [True, True, True])
 
-    async def test_handle_document_leaves_quietly_when_sync_times_out(self):
-        """文档到点未同步：不抛错、不记失败，直接走人。"""
+    async def test_handle_document_reports_sync_timeout(self):
+        """文档到点未同步：向课程流程报告失败，保留待办。"""
         from core.abort import SyncTimeoutError
         from core.learning.handlers import handle_document
 
@@ -130,7 +130,8 @@ class LearningHandlerTests(unittest.IsolatedAsyncioTestCase):
             ),
         ):
             # 不得向外抛 SyncTimeoutError
-            await handle_document(DocPage(), DocBox())
+            with self.assertRaises(SyncTimeoutError):
+                await handle_document(DocPage(), DocBox())
 
         mock_wait.assert_awaited_once()
         kwargs = mock_wait.await_args.kwargs

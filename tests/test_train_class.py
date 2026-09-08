@@ -153,6 +153,9 @@ class FakeApiResponse:
         self.ok = ok
         self.status = status
 
+    async def dispose(self):
+        pass
+
     async def json(self):
         return self._payload
 
@@ -206,7 +209,7 @@ class FakeRequestApi:
             ],
         }
 
-    async def get(self, url, headers=None):
+    async def get(self, url, headers=None, **kwargs):
         self.calls.append((url, headers))
         if "chapter/paas" in url and "activity" not in url:
             return FakeApiResponse(

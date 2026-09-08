@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import os
 import re
 import sys
 import traceback
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from core.storage import write_json_atomic, write_text_atomic
 
 from core.discovery.pdf_ocr import (
     OCR_FORMAT_MARKER,
@@ -13,6 +16,9 @@ from core.discovery.pdf_ocr import (
     OCR_RESULT_PREFIX,
     OCR_STATUS_PREFIX,
     expected_ocr_markdown_path,
+    file_digest,
+    is_complete_ocr_artifact,
+    OCR_COMMIT_FILE,
 )
 
 
@@ -52,11 +58,11 @@ def _save_markdown_images(document_dir: Path, markdown_pages: list[dict]) -> Non
     for page in markdown_pages:
         images = page.get("markdown_images") or {}
         if not isinstance(images, dict):
-            continue
+            raise ValueError("OCR 图片清单格式不完整")
         for relative_path, image in images.items():
             target = _safe_image_path(document_dir, relative_path)
             if target is None:
-                continue
+                raise ValueError("OCR 返回了不安全的图片路径")
             target.parent.mkdir(parents=True, exist_ok=True)
             image.save(target)
 
@@ -111,7 +117,8 @@ def _append_ocr_text_layer(body: str, page_lines: list[list[str]]) -> str:
 def _convert_pdf(pipeline, pdf_path: Path, output_root: Path) -> Path:
     markdown_path = expected_ocr_markdown_path(output_root.parent, pdf_path)
     document_dir = markdown_path.parent
-    document_dir.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
+    source_digest = file_digest(pdf_path)
     markdown_pages: list[dict] = []
     page_ocr_lines: list[list[str]] = []
     for page_index, result in enumerate(
@@ -131,8 +138,9 @@ def _convert_pdf(pipeline, pdf_path: Path, output_root: Path) -> Path:
         if page_index == 1 or page_index % 5 == 0:
             _status(f"{pdf_path.name}：已处理 {page_index} 页")
         page = result.markdown
-        if isinstance(page, dict):
-            markdown_pages.append(page)
+        if not isinstance(page, dict):
+            raise RuntimeError(f"PDF 第 {page_index} 页没有返回 Markdown，未提交部分结果")
+        markdown_pages.append(page)
         page_ocr_lines.append(_extract_ocr_lines(getattr(result, "json", {})))
     if not markdown_pages:
         raise RuntimeError("PDF 没有生成任何页面结果")
@@ -141,12 +149,34 @@ def _convert_pdf(pipeline, pdf_path: Path, output_root: Path) -> Path:
     content = (
         f"{OCR_FORMAT_MARKER}\n\n"
         f"# {pdf_path.stem}\n\n"
-        f"> 来源文件：{pdf_path.name}（转换成功后删除本地 PDF）  \n"
+        f"> 来源文件：{pdf_path.name}  \n"
         "> 解析引擎：PP-StructureV3 + PP-OCRv6_medium\n\n"
         f"{body}\n"
     )
-    markdown_path.write_text(content, encoding="utf-8")
-    _save_markdown_images(document_dir, markdown_pages)
+    if not body.strip():
+        raise RuntimeError("OCR 未生成正文，保留源 PDF")
+    with TemporaryDirectory(prefix=".ocr-stage-", dir=output_root) as temporary:
+        staging = Path(temporary)
+        write_text_atomic(staging / markdown_path.name, content)
+        _save_markdown_images(staging, markdown_pages)
+        references = re.findall(r'!\[[^\]]*\]\(<?([^\s)>]+)>?(?:\s+[^)]*)?\)', body)
+        references += re.findall(r'<img\b[^>]*\bsrc=["\']([^"\']+)["\']', body, re.I)
+        for reference in references:
+            image_path = _safe_image_path(staging, reference)
+            if image_path is None or not image_path.is_file() or not image_path.stat().st_size:
+                raise RuntimeError("OCR Markdown 引用了缺失的图片，未提交结果")
+        files = {path.relative_to(staging).as_posix(): file_digest(path) for path in staging.rglob("*") if path.is_file()}
+        if source_digest != file_digest(pdf_path):
+            raise RuntimeError("转换期间源 PDF 已变化，未提交结果")
+        document_dir.mkdir(parents=True, exist_ok=True)
+        # Invalidate any prior transaction before publishing its replacements.
+        # A crash at any point before the final marker causes re-conversion.
+        (document_dir / OCR_COMMIT_FILE).unlink(missing_ok=True)
+        for name in files:
+            destination = document_dir / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(staging / name, destination)
+        write_json_atomic(document_dir / OCR_COMMIT_FILE, {"version": 1, "source_sha256": source_digest, "files": files})
     return markdown_path
 
 
@@ -170,7 +200,7 @@ def _write_index(
         lines.extend(["", "## 转换失败", ""])
         for pdf_path, error in failures:
             lines.append(f"- {pdf_path.name}：{error}")
-    (output_root / "OCR索引.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(output_root / "OCR索引.md", "\n".join(lines) + "\n")
 
 
 def run(input_dir: Path, output_root: Path, device: str) -> int:
@@ -184,13 +214,7 @@ def run(input_dir: Path, output_root: Path, device: str) -> int:
     reused: list[tuple[Path, Path]] = []
     for pdf_path in pdf_files:
         markdown_path = expected_ocr_markdown_path(output_root.parent, pdf_path)
-        if (
-            markdown_path.is_file()
-            and markdown_path.stat().st_size > 0
-            and markdown_path.stat().st_mtime >= pdf_path.stat().st_mtime
-            and OCR_FORMAT_MARKER
-            in markdown_path.read_text(encoding="utf-8", errors="ignore")[:200]
-        ):
+        if is_complete_ocr_artifact(output_root.parent, pdf_path):
             reused.append((pdf_path, markdown_path))
         else:
             pending.append(pdf_path)

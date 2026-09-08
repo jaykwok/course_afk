@@ -32,7 +32,7 @@ class _FakePage:
     def locator(self, selector):
         if selector == ".single-btn-next":
             return self._next_button
-        raise KeyError(selector)
+        return _FakeLocatorWithCount(count=1)
 
 
 class _FakeLocatorWithCount:
@@ -46,6 +46,9 @@ class _FakeLocatorWithCount:
 
     async def count(self):
         return self._count
+
+    async def is_visible(self):
+        return self._count > 0
 
     async def click(self):
         self._click_calls.append("clicked")
@@ -167,8 +170,8 @@ class ExamFlowLoggingTests(unittest.IsolatedAsyncioTestCase):
         ):
             await ai_exam(object(), "test-model", page, "https://example.com/exam")
 
-        mock_info.assert_any_call("当前题目: 测试单题")
-        mock_info.assert_any_call("题目选项:\nA. 选项一\nB. 选项二")
+        self.assertNotIn("测试单题", str(mock_info.call_args_list))
+        self.assertNotIn("选项一", str(mock_info.call_args_list))
 
     async def test_ai_exam_logs_multi_question_options_for_frontend_display(self):
         from core.exam.flow import ai_exam
@@ -208,8 +211,8 @@ class ExamFlowLoggingTests(unittest.IsolatedAsyncioTestCase):
                 auto_submit=False,
             )
 
-        mock_info.assert_any_call("处理题目 1: 测试多题")
-        mock_info.assert_any_call("题目 1 选项:\nA. 甲\nB. 乙")
+        self.assertNotIn("测试多题", str(mock_info.call_args_list))
+        mock_info.assert_any_call("处理题目 %s，题型 %s，选项数 %s", "item-1", "single", 2)
 
     async def test_ai_exam_disables_auto_submit_for_single_fill_blank_question(self):
         from core.exam.flow import ai_exam
@@ -241,7 +244,7 @@ class ExamFlowLoggingTests(unittest.IsolatedAsyncioTestCase):
 
         mock_submit_exam.assert_not_awaited()
         mock_wait_manual_submit.assert_awaited_once_with(page)
-        mock_info.assert_any_call("检测到需要人工处理的题目，已自动切换为手动交卷")
+        mock_info.assert_any_call("单题导航模式无法核实整卷题目清单，改为人工确认交卷")
 
     async def test_ai_exam_disables_auto_submit_for_multi_question_without_valid_answers(self):
         from core.exam.flow import ai_exam

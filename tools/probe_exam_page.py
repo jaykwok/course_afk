@@ -10,7 +10,6 @@
 import argparse
 import asyncio
 import json
-import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -47,20 +46,7 @@ SELECTORS = [
 ]
 
 
-def _sanitize_url(url: str) -> str:
-    sanitized = re.sub(
-        r"(kc\.zhixueyun\.com/oauth/#login/)[^?#\s]+",
-        r"\1<redacted>",
-        url,
-        flags=re.IGNORECASE,
-    )
-    sanitized = re.sub(
-        r"([?#&/](?:access_token|code)=)[^&]+",
-        r"\1<redacted>",
-        sanitized,
-        flags=re.IGNORECASE,
-    )
-    return sanitized
+from core.diagnostics import redact_url as _sanitize_url, structural_html, redact_snapshot
 
 
 async def _inspect_selector(page, selector: str) -> dict[str, object]:
@@ -105,7 +91,7 @@ def _save_classified_result(
     state_dir.mkdir(parents=True, exist_ok=True)
     stem = f"probe_{captured_at:%Y%m%d_%H%M%S_%f}"
     result_file = state_dir / f"{stem}.json"
-    result_text = json.dumps(result_data, ensure_ascii=False, indent=2)
+    result_text = json.dumps(redact_snapshot(result_data), ensure_ascii=False, indent=2)
     result_file.write_text(result_text, encoding="utf-8")
 
     # latest.json 作为稳定入口；完整历史按页面状态分类归档。
@@ -115,7 +101,7 @@ def _save_classified_result(
     html_file = None
     if html is not None:
         html_file = state_dir / f"{stem}.html"
-        html_file.write_text(html, encoding="utf-8")
+        html_file.write_text(structural_html(html), encoding="utf-8")
     return result_file, html_file
 
 
@@ -139,7 +125,7 @@ async def main(target_url: Optional[str] = None):
             else None,
         )
         await page.goto(target_url, wait_until="load")
-        await _wait_for_target_route_after_auth(page, target_url, timeout_ms=0)
+        await _wait_for_target_route_after_auth(page, target_url, timeout_ms=120000)
 
         final_url = page.url
         if normalize_url(final_url) != normalize_url(target_url):
@@ -199,6 +185,8 @@ async def main(target_url: Optional[str] = None):
 
 
 if __name__ == "__main__":
+    from core.runtime import protect_application_children
+    protect_application_children()
     parser = argparse.ArgumentParser(description="探测知学云考试页面 DOM 与授权跳转")
     parser.add_argument("url", nargs="?", help="直达考试页面 URL")
     args = parser.parse_args()

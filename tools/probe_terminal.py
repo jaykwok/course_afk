@@ -44,6 +44,12 @@ def main() -> int:
 
         k = ctypes.windll.kernel32
         u = ctypes.windll.user32
+        k.GetConsoleWindow.argtypes = []
+        k.GetConsoleWindow.restype = wintypes.HWND
+        u.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        u.GetWindowThreadProcessId.restype = wintypes.DWORD
+        k.GetConsoleProcessList.argtypes = [ctypes.POINTER(wintypes.DWORD), wintypes.DWORD]
+        k.GetConsoleProcessList.restype = wintypes.DWORD
         hwnd = k.GetConsoleWindow()
         pid = wintypes.DWORD(0)
         if hwnd:
@@ -79,7 +85,7 @@ def main() -> int:
             info["reg_DelegationTerminal"] = winreg.QueryValueEx(key, "DelegationTerminal")[0]
         finally:
             winreg.CloseKey(key)
-    except OSError as exc:
+    except (OSError, ImportError) as exc:
         info["reg_err"] = repr(exc)
 
     print(json.dumps(info, ensure_ascii=False, indent=2))

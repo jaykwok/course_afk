@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 import re
 from dataclasses import dataclass, field
 
-from core.browser.session import create_browser_context
+from core.browser.session import create_browser_context, is_target_closed_exception
 from core.config import (
     ZHIXUEYUN_COURSE_PREFIX,
     ZHIXUEYUN_EXAM_PREFIX,
@@ -16,16 +17,18 @@ from core.file_ops import (
     is_subject_detail_url,
     normalize_url,
 )
-from core.queues.learning import append_learning_urls
+from core.queues.learning import append_learning_urls, remember_discovery_entries, remove_learning_failure
 from core.links import unique_urls
 from core.browser.page_auth import fetch_json, wait_for_authorization_header
 from core.browser.overlays import prepare_page_after_navigation_async
+from core.abort import UserAbortRequested, UserCancelRequested, WafBlockError
+from core.runtime import close_safely
 
 
 # 实勘（subject 详情页）:
 # - 鉴权同 class: Authorization: Bearer__{token}
 # - GET .../subject/chapter-progress?courseId={subjectId}
-# - 章节 courseChapterSections[].sectionType 分流（方案 C）——注意：
+# - 章节 courseChapterSections[].sectionType 分流——注意：
 #   此处数字与「课程内」DOM data-sectiontype 不是同一套（课程内 3=文档，主题 3=外链）
 #   * 10 → 课程 course/detail/{attachmentId/resourceId} → 学习队列
 #   * 9  → 考试 exam/answer-paper/{resourceId} → 考试队列
@@ -52,7 +55,7 @@ URL_SECTION_TYPES: frozenset[int] = frozenset({3})
 
 @dataclass(frozen=True)
 class SubjectExpandResult:
-    """主题 chapter-progress 展开结果（方案 C）。"""
+    """主题 chapter-progress 按章节类型展开的结果。"""
 
     course_urls: list[str] = field(default_factory=list)
     exam_urls: list[str] = field(default_factory=list)
@@ -158,7 +161,7 @@ def _section_exam_id(section: dict) -> str | None:
     实勘（sectionType=9）: resourceId 为试卷 id，写入 answer-paper；
     DOM 挂机同样用 data-resource-id。id/referenceId 是章节小节 id，勿混用。
     """
-    return _section_uuid(section, ("resourceId", "id", "referenceId"))
+    return _section_uuid(section, ("resourceId",))
 
 
 def expand_chapter_progress(
@@ -167,7 +170,7 @@ def expand_chapter_progress(
     subject_url: str | None = None,
 ) -> SubjectExpandResult:
     """
-    按 sectionType 分流主题章节（方案 C）。
+    按 sectionType 分流主题章节。
 
     - COURSE_SECTION_TYPES → 学习队列 course 链接
     - EXAM_SECTION_TYPES → 考试队列
@@ -243,7 +246,7 @@ async def expand_subject_from_page(
     subject_url: str,
     status_callback=None,
 ) -> SubjectExpandResult:
-    """打开主题详情页，经 chapter-progress API 按方案 C 展开。"""
+    """打开主题详情页，经 chapter-progress API 按章节类型展开。"""
     normalized = normalize_url(subject_url)
     subject_id = extract_subject_id(normalized)
     if not subject_id:
@@ -340,7 +343,7 @@ async def enqueue_learning_links_with_subject_expand(
     source_label: str = "来源",
 ) -> dict[str, int]:
     """
-    将混合课程/主题链接分流入队（课直接进学习队列，主题按方案 C 展开）。
+    将混合课程/主题链接分流入队（课直接进学习队列，主题按章节类型展开）。
 
     返回 course_links / subject_links / course_added / subject_learning_added /
     learning_added / exam_added。
@@ -381,7 +384,7 @@ async def expand_and_append_subject_urls(
     context=None,
 ) -> dict[str, int]:
     """
-    批量展开主题并写入队列（方案 C）。
+    批量按章节类型展开主题并写入队列。
 
     可传入已有 page/context 复用浏览器；否则自建 context。
     返回 course_count / exam_count / residual_count / learning_added / exam_added。
@@ -403,6 +406,7 @@ async def expand_and_append_subject_urls(
         [normalize_url(url.strip()) for url in subject_urls if url and url.strip()]
     )
     stats["subject_count"] = len(unique_subjects)
+    remember_discovery_entries(unique_subjects)
 
     async def _run_with_page(active_page) -> None:
         for index, url in enumerate(unique_subjects, start=1):
@@ -414,7 +418,13 @@ async def expand_and_append_subject_urls(
                 result = await expand_subject_from_page(
                     active_page, url, status_callback=status_callback
                 )
+            except (UserAbortRequested, UserCancelRequested, WafBlockError, asyncio.CancelledError):
+                # Preserve every unvisited entry before propagating the stop.
+                append_learning_urls(unique_subjects[index - 1:])
+                raise
             except Exception as exc:
+                if is_target_closed_exception(exc):
+                    raise UserCancelRequested("主题页面已关闭，未完成的解析入口已保留") from None
                 logging.error(f"展开主题失败 {url}: {exc}")
                 if status_callback:
                     status_callback(f"展开主题失败，保留原链接: {exc}")
@@ -424,6 +434,7 @@ async def expand_and_append_subject_urls(
             if result.residual_subject_url:
                 stats["residual_count"] += 1
             learning_n, exam_n = append_expand_result(result)
+            remove_learning_failure(url, keep_file=True)
             stats["learning_added"] += learning_n
             stats["exam_added"] += exam_n
 
@@ -434,14 +445,14 @@ async def expand_and_append_subject_urls(
         try:
             await _run_with_page(active)
         finally:
-            await active.close()
+            await close_safely(active.close(), label="subject page")
     else:
         async with create_browser_context() as (_, new_context):
             active = await new_context.new_page()
             try:
                 await _run_with_page(active)
             finally:
-                await active.close()
+                await close_safely(active.close(), label="subject page")
 
     if status_callback:
         status_callback(
@@ -453,5 +464,3 @@ async def expand_and_append_subject_urls(
     if before_close_callback:
         before_close_callback(stats["learning_added"])
     return stats
-
-

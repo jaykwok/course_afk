@@ -4,26 +4,29 @@
 运行时配置主要从 .env 读取，本文件负责集中定义默认值、路径和日志行为。
 """
 
-import asyncio
 import ctypes
 import logging
+import math
 import os
 import random
 import sys
-import threading
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
-from dotenv import load_dotenv
-from urllib.parse import urlparse
+from dotenv import dotenv_values
+from core.diagnostics import redact_text
 
-# 加载 .env 文件（API密钥等敏感信息仍由 .env 管理）
+# 不把 .env 注入 os.environ；AI 每轮读取最新文件，显式环境变量始终优先。
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
+_FILE_SETTINGS = dotenv_values(PROJECT_ROOT / ".env", encoding="utf-8-sig")
+
+
+def _env_raw(name: str):
+    return os.environ.get(name, _FILE_SETTINGS.get(name))
 
 # 运行时数据按用途分目录，避免凭证、队列和日志混在 data/ 根目录。
-DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR = Path(_env_raw("COURSE_AFK_DATA_DIR") or PROJECT_ROOT / "data").expanduser().resolve()
 CREDENTIALS_DIR = DATA_DIR / "credentials"
 LINKS_DIR = DATA_DIR / "links"
 LOGS_DIR = DATA_DIR / "logs"
@@ -100,7 +103,12 @@ def _sanitize_console_message(message: str) -> str:
     return "\n".join(collapsed_lines).strip("\n")
 
 
-class _SanitizedConsoleFormatter(logging.Formatter):
+class _RedactingFormatter(logging.Formatter):
+    def format(self, record):
+        return redact_text(super().format(record))
+
+
+class _SanitizedConsoleFormatter(_RedactingFormatter):
     def format(self, record):
         return _sanitize_console_message(super().format(record))
 
@@ -162,68 +170,25 @@ def _make_asyncio_exception_handler(previous_handler=None):
 
 
 def run_async(awaitable):
-    with asyncio.Runner() as runner:
-        loop = runner.get_loop()
-        previous_handler = loop.get_exception_handler()
-        loop.set_exception_handler(_make_asyncio_exception_handler(previous_handler))
-        thread_id = threading.get_ident()
-
-        async def _tracked():
-            # 把当前任务登记起来，便于主线程通过 interrupt_running_async 跨线程取消
-            # （TUI 里 Ctrl+C 需要打断工作线程上阻塞的 Playwright 循环并触发优雅保存）。
-            with _RUNNING_ASYNC_LOCK:
-                _RUNNING_ASYNC[thread_id] = (loop, asyncio.current_task())
-            try:
-                return await awaitable
-            finally:
-                with _RUNNING_ASYNC_LOCK:
-                    _RUNNING_ASYNC.pop(thread_id, None)
-
-        try:
-            return runner.run(_tracked())
-        finally:
-            with _RUNNING_ASYNC_LOCK:
-                _RUNNING_ASYNC.pop(thread_id, None)
-            close_awaitable = getattr(awaitable, "close", None)
-            if callable(close_awaitable):
-                close_awaitable()
-
-
-# 线程 id -> (事件循环, 正在运行的任务)；run_async 登记，interrupt_running_async 读取
-_RUNNING_ASYNC: dict[int, tuple] = {}
-_RUNNING_ASYNC_LOCK = threading.Lock()
+    from core.runtime import run_operation
+    return run_operation(awaitable, exception_handler_factory=_make_asyncio_exception_handler)
 
 
 def interrupt_running_async() -> bool:
-    """从主线程取消工作线程上正在运行的 run_async 任务。
-
-    TUI 的 Ctrl+C 绑定调用本函数：若挂课/考试流程正在工作线程上阻塞，
-    取消该任务会抛 CancelledError，由对应 workflow 的异常处理触发优雅保存。
-    没有正在运行的任务时返回 False（调用方可直接退出应用）。
-    """
-    current = threading.get_ident()
-    with _RUNNING_ASYNC_LOCK:
-        candidates = [
-            (tid, pair)
-            for tid, pair in _RUNNING_ASYNC.items()
-            if tid != current
-        ]
-    if not candidates:
-        return False
-    _tid, (loop, task) = candidates[0]
-    loop.call_soon_threadsafe(task.cancel)
-    return True
+    """请求停止当前操作；重复请求不打断清理。"""
+    from core.runtime import interrupt_running_async as interrupt
+    return interrupt()
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
+    value = _env_raw(name)
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _env_text(name: str, default: str | None = None) -> str | None:
-    value = os.getenv(name)
+    value = _env_raw(name)
     if value is None:
         return default
     stripped = value.strip()
@@ -286,7 +251,7 @@ def _build_file_handler(
     handler.namer = _dated_log_namer
     handler.setLevel(minimum)
     handler.addFilter(_LevelRangeFilter(minimum=minimum, maximum=maximum))
-    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    handler.setFormatter(_RedactingFormatter(LOG_FORMAT))
     return handler
 
 
@@ -456,58 +421,29 @@ def setup_logging(show_startup_banner: bool | None = None):
 # ============================================================
 # OpenAI 兼容 AI 模型配置（从 .env 读取）
 # ============================================================
-OPENAI_COMPLETION_BASE_URL = os.getenv("OPENAI_COMPLETION_BASE_URL")
-OPENAI_COMPLETION_API_KEY = os.getenv("OPENAI_COMPLETION_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME")
-AI_REQUEST_TYPE = (_env_text("AI_REQUEST_TYPE", "responses") or "responses").lower()
-AI_ENABLE_WEB_SEARCH = _env_flag("AI_ENABLE_WEB_SEARCH", False)
-AI_ENABLE_THINKING = _env_flag("AI_ENABLE_THINKING", False)
-AI_REASONING_EFFORT = _env_text("AI_REASONING_EFFORT")
-if AI_REASONING_EFFORT:
-    AI_REASONING_EFFORT = AI_REASONING_EFFORT.lower()
-AI_RESPONSE_TOOLS = [{"type": "web_search"}] if AI_ENABLE_WEB_SEARCH else None
-
-# AI 请求超时与重试（应对接口不稳/网络抖动；单位：秒 / 次）
-AI_REQUEST_TIMEOUT = float(_env_text("AI_REQUEST_TIMEOUT", "60") or "60")
-AI_MAX_RETRIES = int(_env_text("AI_MAX_RETRIES", "2") or "2")
-
-# AI 考试参数
-AI_TEMPERATURE = 0
-AI_SYSTEM_PROMPT = (
-    "你是一个专业的考试助手, 请根据题目选择最合适的答案。"
-    "如果关键信息不足且已提供联网搜索工具, 可以先搜索再作答。"
-    "最终只输出答案内容, 不要解释。"
-)
-
-
 def is_ai_configured() -> bool:
     """是否已填写 AI 考试所需配置。
 
     .env 未填 AI 信息时挂课、人工考试等非 AI 功能仍可用；只有 AI 自动考试
     需要这三项（接口地址 / API Key / 模型名）。
     """
-    return bool(OPENAI_COMPLETION_BASE_URL and OPENAI_COMPLETION_API_KEY and MODEL_NAME)
+    from core.exam.settings import ai_is_configured
+    return ai_is_configured()
 
 
 def validate_ai_base_url(url: str | None) -> str | None:
-    """校验 AI 接口地址，防止误填内网/非法地址导致 API Key 外泄。
-
-    仅 http/https 且带 hostname 的地址才放行；返回去掉末尾斜杠的地址。
-    """
+    """校验地址语法；允许用户显式配置本地模型服务。"""
     if not url:
         return url
-    parsed = urlparse(url.strip())
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise ValueError(
-            f"OPENAI_COMPLETION_BASE_URL 非法（需以 http:// 或 https:// 开头）: {url!r}"
-        )
-    return url.strip().rstrip("/")
+    from core.exam.settings import validate_base_url
+    return validate_base_url(url)
 
 # ============================================================
 # 浏览器配置
 # ============================================================
 BROWSER_TYPE = (_env_text("BROWSER_TYPE", "chromium") or "chromium").lower()
-BROWSER_CHANNEL = _env_text("BROWSER_CHANNEL", _default_browser_channel(BROWSER_TYPE))
+_BROWSER_CHANNEL_RAW = _env_raw("BROWSER_CHANNEL")
+BROWSER_CHANNEL = _default_browser_channel(BROWSER_TYPE) if _BROWSER_CHANNEL_RAW is None else str(_BROWSER_CHANNEL_RAW).strip() or None
 # 关闭 Chromium「本地网络访问 / 私有网络访问(PNA)」拦截：知学云/天翼登录会探测本机服务
 # (localhost), 触发 Edge「kc.zhixueyun.com 想要访问此设备上的其他应用和服务」授权弹窗,
 # 该弹窗会阻塞页面加载、导致自动化超时卡死。Playwright 的 grant_permissions
@@ -575,7 +511,7 @@ VIDEO_SYNC_MIN_WAIT = 30  # 秒
 # 视频学完后「确认进度同步」的轮询 / 日志间隔
 VIDEO_SYNC_POLL_INTERVAL = 30  # 秒
 
-# 文档/网页：统一挂机上限（秒）。提前同步则提前离开；到点直接走人，不另开同步确认窗、不因未同步判失败。
+# 文档/网页：等待服务端同步的上限；到期保留未确认任务，继续其他章节。
 DOCUMENT_WAIT = 60
 # 文档挂机期间进度轮询间隔（秒）
 DOCUMENT_POLL_INTERVAL = 10
@@ -624,12 +560,23 @@ COURSE_GAP_MAX = _env_int("COURSE_GAP_MAX", 40)
 # 已经把答题时间线抖开了。
 
 # 多选题逐个点选之间的随机停顿（秒）——同一题内的连点，模型耗时盖不到
-EXAM_OPTION_GAP_MIN = float(_env_text("EXAM_OPTION_GAP_MIN", "0.25") or "0.25")
-EXAM_OPTION_GAP_MAX = float(_env_text("EXAM_OPTION_GAP_MAX", "0.9") or "0.9")
+def _env_nonnegative_float(name: str, default: float) -> float:
+    try:
+        value = float(_env_text(name, str(default)))
+        if math.isfinite(value) and 0 <= value <= 3600:
+            return value
+    except (TypeError, ValueError):
+        pass
+    logging.warning("%s 配置无效，使用默认值 %s", name, default)
+    return default
+
+
+EXAM_OPTION_GAP_MIN = _env_nonnegative_float("EXAM_OPTION_GAP_MIN", 0.25)
+EXAM_OPTION_GAP_MAX = _env_nonnegative_float("EXAM_OPTION_GAP_MAX", 0.9)
 
 # 交卷两步确认之间的随机停顿（秒）
-EXAM_SUBMIT_GAP_MIN = float(_env_text("EXAM_SUBMIT_GAP_MIN", "0.8") or "0.8")
-EXAM_SUBMIT_GAP_MAX = float(_env_text("EXAM_SUBMIT_GAP_MAX", "2.5") or "2.5")
+EXAM_SUBMIT_GAP_MIN = _env_nonnegative_float("EXAM_SUBMIT_GAP_MIN", 0.8)
+EXAM_SUBMIT_GAP_MAX = _env_nonnegative_float("EXAM_SUBMIT_GAP_MAX", 2.5)
 
 # 课程内考试: 剩余次数 <= 此值时转为人工考试（1 即“小于 2 次”）
 COURSE_EXAM_ATTEMPT_THRESHOLD = 1

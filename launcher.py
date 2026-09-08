@@ -12,8 +12,15 @@ def _disable_windows_console_input_modes_early() -> None:
 
     try:
         kernel32 = ctypes.windll.kernel32
+        from ctypes import wintypes
+        kernel32.GetStdHandle.argtypes = [wintypes.DWORD]
+        kernel32.GetStdHandle.restype = wintypes.HANDLE
+        kernel32.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel32.GetConsoleMode.restype = wintypes.BOOL
+        kernel32.SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        kernel32.SetConsoleMode.restype = wintypes.BOOL
         stdin_handle = kernel32.GetStdHandle(-10)
-        if stdin_handle in (0, -1):
+        if stdin_handle in (0, -1, None, ctypes.c_void_p(-1).value):
             return
 
         mode = ctypes.c_uint()
@@ -56,6 +63,8 @@ MANUAL_SELECTION_PROMPTS = [
 
 
 def main() -> int:
+    if sys.version_info < (3, 11):
+        raise RuntimeError("需要 Python 3.11 或更高版本")
     from core.abort import UserAbortRequested, UserCancelRequested
     from core.config import setup_logging
     from core.config import (

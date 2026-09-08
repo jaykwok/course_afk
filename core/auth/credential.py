@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from core.config import (
     CREDENTIAL_META_FILE,
+    COOKIES_FILE,
     CREDENTIAL_VALID_DAYS,
     MYLEARNING_CENTER_HOME,
     MYLEARNING_CENTER_HOME_PATTERN,
 )
-from core.browser.overlays import prepare_page_after_navigation_sync
+from core.browser.overlays import prepare_page_after_navigation_async
+from core.storage import write_json_atomic
 
 
 CENTER_ACCOUNT_PROFILE_SCRIPT = """
@@ -65,7 +68,7 @@ def build_account_label(full_name: str | None, account_name: str | None) -> str:
 
 
 def is_credential_expired(saved_at: datetime, now: datetime | None = None) -> bool:
-    now = now or datetime.now()
+    now = now or datetime.now(tz=saved_at.tzinfo)
     return now >= saved_at + timedelta(days=CREDENTIAL_VALID_DAYS)
 
 
@@ -83,54 +86,49 @@ def extract_account_profile(user_data: dict[str, Any] | None) -> AccountProfile:
     )
 
 
-def extract_account_profile_from_sync_context(
-    context,
-    wait_milliseconds: int = 3000,
-    navigation_timeout: int = 30000,
-) -> AccountProfile:
-    page = context.new_page()
+
+
+async def extract_account_profile_from_context(context, navigation_timeout: int = 30000) -> AccountProfile:
+    from core.runtime import close_safely
+    page = await context.new_page()
     try:
-        page.goto(MYLEARNING_CENTER_HOME, timeout=navigation_timeout)
-        page.wait_for_url(
-            re.compile(MYLEARNING_CENTER_HOME_PATTERN),
-            timeout=navigation_timeout,
-        )
-        page.wait_for_timeout(wait_milliseconds)
-        prepare_page_after_navigation_sync(page)
-        profile_data = page.evaluate(CENTER_ACCOUNT_PROFILE_SCRIPT)
-        return extract_account_profile(profile_data)
+        await page.goto(MYLEARNING_CENTER_HOME, timeout=navigation_timeout)
+        await page.wait_for_url(re.compile(MYLEARNING_CENTER_HOME_PATTERN), timeout=navigation_timeout)
+        await prepare_page_after_navigation_async(page)
+        await page.wait_for_function(CENTER_ACCOUNT_PROFILE_SCRIPT, timeout=navigation_timeout)
+        return extract_account_profile(await page.evaluate(CENTER_ACCOUNT_PROFILE_SCRIPT))
     finally:
-        page.close()
+        await close_safely(page.close(), label="account profile page")
 
 
-def save_credential_metadata(
-    saved_at: datetime,
-    full_name: str | None = None,
-    account_name: str | None = None,
-    metadata_path=CREDENTIAL_META_FILE,
-) -> CredentialMetadata:
-    profile = AccountProfile(
-        full_name=(full_name or "").strip(),
-        account_name=(account_name or "").strip(),
-    )
-    expires_at = saved_at + timedelta(days=CREDENTIAL_VALID_DAYS)
-    metadata = CredentialMetadata(
-        saved_at=saved_at.isoformat(timespec="seconds"),
-        expires_at=expires_at.isoformat(timespec="seconds"),
-        account_display_name=profile.full_name,
-        account_name=profile.account_name,
-        account_label=profile.label,
-    )
-    with open(metadata_path, "w", encoding="utf-8") as file:
-        json.dump(asdict(metadata), file, ensure_ascii=False, indent=2)
+def save_credential_bundle(saved_at: datetime, profile: AccountProfile, cookies: list, *, cookies_path=COOKIES_FILE) -> CredentialMetadata:
+    if not (profile.full_name or profile.account_name) or not cookies:
+        raise ValueError("账号信息或 cookie 不完整，凭证未更新")
+    metadata = CredentialMetadata(saved_at=saved_at.isoformat(timespec="seconds"), expires_at=(saved_at + timedelta(days=CREDENTIAL_VALID_DAYS)).isoformat(timespec="seconds"), account_display_name=profile.full_name, account_name=profile.account_name, account_label=profile.label)
+    # One authoritative commit replaces the old cookie/metadata two-file write.
+    write_json_atomic(cookies_path, {"version": 1, "cookies": cookies, "metadata": asdict(metadata)})
     return metadata
+
+
 
 
 def load_credential_metadata(metadata_path=CREDENTIAL_META_FILE) -> CredentialMetadata | None:
     try:
-        with open(metadata_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError):
+        data = None
+        if Path(metadata_path) == Path(CREDENTIAL_META_FILE) and Path(COOKIES_FILE).exists():
+            bundle = json.loads(Path(COOKIES_FILE).read_text(encoding="utf-8"))
+            if isinstance(bundle, dict):
+                if bundle.get("version") != 1 or not bundle.get("cookies"):
+                    return None
+                data = bundle.get("metadata")
+                if not isinstance(data, dict):
+                    return None
+        if data is None:
+            with open(metadata_path, "r", encoding="utf-8") as file:
+                data = json.load(file)
+        if not isinstance(data, dict):
+            return None
+    except (OSError, json.JSONDecodeError):
         return None
     return CredentialMetadata(
         saved_at=str(data.get("saved_at") or ""),

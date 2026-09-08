@@ -7,7 +7,9 @@ from core import config
 
 class PathConfigTests(unittest.TestCase):
     def test_runtime_files_live_under_data_dir(self):
-        self.assertEqual(config.DATA_DIR, config.PROJECT_ROOT / "data")
+        import os
+        from pathlib import Path
+        self.assertEqual(config.DATA_DIR, Path(os.environ["COURSE_AFK_DATA_DIR"]).resolve())
         self.assertEqual(config.LEARNING_URLS_FILE.parent, config.LINKS_DIR)
         self.assertEqual(config.LEARNING_FAILURES_FILE.parent, config.LINKS_DIR)
         self.assertEqual(config.EXAM_URLS_FILE.parent, config.LINKS_DIR)

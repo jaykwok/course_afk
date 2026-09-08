@@ -18,3 +18,7 @@ def parse_remaining_attempts(text: str) -> int | None:
     if not match:
         return None
     return int(match.group(1))
+
+
+def explicitly_unlimited(text: str) -> bool:
+    return bool(re.search(r"不限次数|次数不限|不限制(?:考试)?次数|无限次", str(text or "")))

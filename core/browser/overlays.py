@@ -128,30 +128,6 @@ async def dismiss_topmost_overlays_async(
     return dismissed
 
 
-def dismiss_topmost_overlays_sync(
-    page,
-    *,
-    max_count: int = 3,
-    settle_milliseconds: int = 200,
-) -> int:
-    """同步版顶层弹窗处理，用于登录凭证刷新流程。"""
-
-    dismissed = 0
-    for _ in range(max_count):
-        try:
-            result = page.evaluate(DISMISS_TOPMOST_OVERLAY_SCRIPT)
-        except Exception as exc:
-            logging.debug(f"检查页面顶层弹窗失败: {exc}")
-            break
-        if not isinstance(result, dict):
-            break
-        dismissed += 1
-        logging.info(
-            "已关闭页面顶层弹窗: "
-            f"{result.get('tag', '')}.{result.get('className', '')}"
-        )
-        page.wait_for_timeout(settle_milliseconds)
-    return dismissed
 
 
 async def prepare_page_after_navigation_async(
@@ -192,37 +168,6 @@ async def prepare_page_after_navigation_async(
     return total
 
 
-def prepare_page_after_navigation_sync(
-    page,
-    *,
-    rounds: int = 3,
-    max_per_round: int = 5,
-    settle_milliseconds: int = 200,
-    between_round_milliseconds: int = 400,
-    status_callback=None,
-) -> int:
-    """同步版进页调度：多轮调用 dismiss_topmost_overlays。"""
-
-    total = 0
-    empty_streak = 0
-    for round_i in range(rounds):
-        closed = dismiss_topmost_overlays_sync(
-            page,
-            max_count=max_per_round,
-            settle_milliseconds=settle_milliseconds,
-        )
-        total += closed
-        if closed:
-            empty_streak = 0
-            if status_callback:
-                status_callback(f"已关闭 {closed} 个页面弹窗，继续操作")
-        else:
-            empty_streak += 1
-            if empty_streak >= 2:
-                break
-        if round_i + 1 < rounds:
-            page.wait_for_timeout(between_round_milliseconds)
-    return total
 
 
 async def goto_and_prepare_async(

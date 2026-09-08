@@ -438,8 +438,7 @@ async def handle_document(page, box):
     """处理文档、网页类型课程。
 
     统一挂 DOCUMENT_WAIT 秒：期间轮询进度，提前同步则提前走；
-    到点无论是否同步都离开，不抛同步超时、不记失败（A/B 实勘：
-    额外同步窗/滚动均推不动卡在「需学 00:05」的文档）。
+    到点未同步则抛同步超时，由课程流程保留待办并继续其他章节。
     """
     from core.abort import SyncTimeoutError
 
@@ -486,6 +485,7 @@ async def handle_document(page, box):
                 f"文档挂机 {max_wait} 秒结束，进度仍未同步，继续下一节"
                 f" (文案: {(text or '').replace(chr(10), ' ')[:80]})"
             )
+            raise
 
 
 async def handle_h5(page, learn_item=None):

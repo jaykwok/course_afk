@@ -103,6 +103,13 @@ def _windows_process_table() -> dict[int, tuple[int, str]]:
             ]
 
         kernel32 = ctypes.windll.kernel32
+        kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+        kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        for function in (kernel32.Process32FirstW, kernel32.Process32NextW):
+            function.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+            function.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
         snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
         if snap in (0, INVALID_HANDLE_VALUE, None):
             return {}
@@ -179,6 +186,11 @@ def _console_window_class() -> str:
 
         kernel32 = ctypes.windll.kernel32
         user32 = ctypes.windll.user32
+        from ctypes import wintypes
+        kernel32.GetConsoleWindow.argtypes = []
+        kernel32.GetConsoleWindow.restype = wintypes.HWND
+        user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+        user32.GetClassNameW.restype = ctypes.c_int
         hwnd = kernel32.GetConsoleWindow()
         if not hwnd:
             return ""

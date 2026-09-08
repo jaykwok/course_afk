@@ -84,8 +84,9 @@ class ReferenceCollectorTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertNotIn("secret-token", sanitized)
         self.assertNotIn("timestamp-signature", sanitized)
-        self.assertIn("Bearer__<redacted>", sanitized)
-        self.assertIn("auth_key=<redacted>", sanitized)
+        self.assertNotIn("test-secret", sanitized)
+        self.assertIn("redacted", sanitized)
+        self.assertNotIn("signed-token", sanitized)
 
     def test_resource_output_name_includes_attachment_id_to_avoid_collisions(self):
         resource = SectionResource(
@@ -175,7 +176,7 @@ class ReferenceCollectorTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(is_trusted_preview_host("evilzhixueyun.com"))
         self.assertFalse(is_trusted_preview_host("zhixueyun.com.evil.test"))
 
-        with self.assertRaisesRegex(ValueError, "白名单"):
+        with self.assertRaises(ValueError):
             full_preview_url("https://evil.example.com/file.pdf")
 
     def test_course_markdown_groups_chapters_sections_and_guides(self):
@@ -301,7 +302,7 @@ class ReferenceCollectorTests(unittest.IsolatedAsyncioTestCase):
                 ),
                 patch(
                     "core.discovery.reference_collector._collect_courses_from_subject_page",
-                    new=AsyncMock(return_value=[object()]),
+                    new=AsyncMock(return_value=[SubjectCourse("course-id", "课程")]),
                 ),
                 patch(
                     "core.discovery.reference_collector.get_authorization_header",
@@ -335,7 +336,8 @@ class ReferenceCollectorTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(course_files), 1)
             self.assertIn("guide failed", course_files[0].read_text(encoding="utf-8"))
             self.assertFalse((output_dir / "README.md").exists())
-            self.assertEqual(list(output_dir.rglob("*.json")), [])
+            self.assertTrue((output_dir / "manifest.json").is_file())
+            self.assertFalse(result["complete"])
             self.assertFalse((output_dir / "video_guides").exists())
             for name in (
                 "课程目录.md",

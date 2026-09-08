@@ -10,6 +10,8 @@ MODEL_CONFIG = {
     "web_search": False,
     "thinking": False,
     "reasoning_effort": None,
+    "base_url": None, "provider": None, "output_mode": None,
+    "prompt_version": None, "temperature": None, "account": None,
 }
 
 

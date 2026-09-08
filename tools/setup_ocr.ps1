@@ -19,10 +19,10 @@ if (-not (Test-Path -LiteralPath $Python)) {
 
 $PythonVersion = & $Python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
 if ([version]$PythonVersion -gt [version]"3.13") {
-    throw "PaddlePaddle 3.3.0 暂无 Python $PythonVersion 轮子，请使用 Python 3.9-3.13。"
+    throw "本项目 OCR 安装脚本支持 Python 3.11-3.13；当前版本为 $PythonVersion。"
 }
-if ([version]$PythonVersion -lt [version]"3.9") {
-    throw "PP-StructureV3 文档解析依赖需要 Python 3.9-3.13。"
+if ([version]$PythonVersion -lt [version]"3.11") {
+    throw "本项目需要 Python 3.11 或更高版本；OCR 建议使用 Python 3.11-3.13。"
 }
 
 function Get-NvidiaCudaVersion {

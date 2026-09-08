@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 import stat
 from datetime import datetime
-
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-from playwright.sync_api import sync_playwright
 
 from core.config import (
     AUTO_LOGIN_DATA_TIME,
@@ -16,17 +12,16 @@ from core.config import (
     MYLEARNING_SSO_PATTERN,
 )
 from core.browser.session import (
-    apply_sync_browser_stealth,
-    build_browser_context_options,
+    create_browser_context,
     is_target_closed_exception,
-    launch_sync_browser,
 )
 from core.auth.credential import (
     AccountProfile,
-    extract_account_profile_from_sync_context,
-    save_credential_metadata,
+    extract_account_profile_from_context,
+    load_credential_metadata,
+    save_credential_bundle,
 )
-from core.browser.overlays import prepare_page_after_navigation_sync
+from core.browser.overlays import prepare_page_after_navigation_async
 
 
 def _clear_readonly(path) -> None:
@@ -151,67 +146,68 @@ INSTALL_LOGIN_PREFERENCES_WATCHER_SCRIPT = """
 """
 
 
-def install_login_preferences_watcher(
+async def install_login_preferences_watcher(
     login_frame,
     data_time: str = AUTO_LOGIN_DATA_TIME,
 ) -> dict[str, int]:
-    login_frame.locator("#j-auto-group-qr").wait_for(state="attached")
-    return login_frame.locator("body").evaluate(
+    await login_frame.locator("#j-auto-group-qr").wait_for(state="attached")
+    return await login_frame.locator("body").evaluate(
         INSTALL_LOGIN_PREFERENCES_WATCHER_SCRIPT,
         data_time,
     )
 
 
-def login_and_save_credential() -> AccountProfile:
-    with sync_playwright() as playwright:
-        browser = launch_sync_browser(playwright, headless=False)
-        context = browser.new_context(**build_browser_context_options(headless=False))
-        apply_sync_browser_stealth(context)
-        page = context.new_page()
+async def login_and_save_credential(*, confirm_same_account=None) -> AccountProfile:
+    async with create_browser_context(cookies_path=None, controller=False) as (_, context):
+        page = await context.new_page()
         try:
-            page.goto(MYLEARNING_HOME)
-            page.wait_for_url(MYLEARNING_SSO_PATTERN, timeout=0)
+            await page.goto(MYLEARNING_HOME)
+            await page.wait_for_url(MYLEARNING_SSO_PATTERN, timeout=120000)
 
             iframe = page.locator("#esurfingloginiframe").content_frame
-            preferences = install_login_preferences_watcher(iframe)
+            preferences = await install_login_preferences_watcher(iframe)
             logging.info(
                 "已开启登录页偏好自动保持："
                 f"{preferences.get('selectedCount', 0)} 个登录方式为30天内自动登录，"
                 f"{preferences.get('checkedCount', 0)} 个登录方式已勾选账号协议"
             )
 
-            page.wait_for_url(MYLEARNING_HOME, timeout=0)
-            # 登录回首页后常有推广弹窗，先关掉再读个人中心/写 cookies
-            prepare_page_after_navigation_sync(page)
-            # 防止网盘同步等外部工具把 cookies.json 设为只读，导致覆盖写入时 PermissionError。
-            # 注意：Path.chmod 在 Windows 上对权限位基本无效，改用 os.chmod 清除只读位。
+            # Human login may wait indefinitely, but remains cancellable.
+            await page.wait_for_url(MYLEARNING_HOME, timeout=0)
+            await prepare_page_after_navigation_async(page)
+            profile = await extract_account_profile_from_context(context)
+            if not (profile.full_name or profile.account_name):
+                raise LoginNotCompletedError("未取得账号信息，登录凭证未更新")
+            _validate_pending_account(profile, confirm_same_account)
+            cookies = await context.cookies()
             if COOKIES_FILE.exists():
                 _clear_readonly(COOKIES_FILE)
-            with open(COOKIES_FILE, "w", encoding="utf-8") as file:
-                json.dump(context.cookies(), file, ensure_ascii=False, indent=2)
-            logging.info("已保存登录凭证")
-
-            try:
-                profile = extract_account_profile_from_sync_context(context)
-            except PlaywrightTimeoutError as exc:
-                logging.debug(f"读取个人中心账号信息超时，继续保存登录凭证: {exc}")
-                profile = AccountProfile()
-            save_credential_metadata(
-                saved_at=datetime.now(),
-                full_name=profile.full_name,
-                account_name=profile.account_name,
-            )
+            save_credential_bundle(datetime.now().astimezone(), profile, cookies, cookies_path=COOKIES_FILE)
             logging.info(f"已更新登录凭证元数据，当前账号：{profile.label}")
             return profile
         except Exception as exc:
+            if isinstance(exc, LoginNotCompletedError):
+                raise
             if is_target_closed_exception(exc):
                 raise LoginNotCompletedError(
                     "已手动关闭浏览器，未完成登录，登录凭证未更新"
                 ) from None
-            raise
-        finally:
-            for close_target in (page, context, browser):
-                try:
-                    close_target.close()
-                except Exception:
-                    pass
+            raise LoginNotCompletedError(
+                f"登录信息未完整取得或保存失败（{type(exc).__name__}），原凭证未更新"
+            ) from exc
+
+
+def _validate_pending_account(profile, confirm_same_account) -> None:
+    from core.state import collect_project_state
+    state = collect_project_state()
+    if not any((state.learning_count, state.learning_failure_count, state.exam_count, state.manual_exam_count)):
+        return
+    old = load_credential_metadata()
+    if old and old.account_name and profile.account_name:
+        if old.account_name == profile.account_name:
+            return
+        raise LoginNotCompletedError("仍有旧账号的待办，请先处理或导出后再切换账号；原凭证未更新")
+    # The currently available DOM may expose only a display name. Never infer
+    # identity equality from that non-unique field without the user's confirmation.
+    if confirm_same_account is None or not confirm_same_account(old.account_label if old else "未绑定账号", profile.label):
+        raise LoginNotCompletedError("未确认待办属于当前账号，原登录凭证未更新")

@@ -4,8 +4,18 @@
 # 整套测试会被 COURSE_GAP 等区间拖到几分钟。这里在导入 core.config 之前把这些
 # 区间置零；需要验证停顿本身的用例自己 patch 常量，不依赖这里的默认值。
 #
-# load_dotenv 默认不覆盖已存在的环境变量，所以这里的设置对 .env 也生效。
+# 配置读取时环境变量优先于 .env，因此这里的测试设置不会被文件覆盖。
 import os
+import atexit
+from tempfile import TemporaryDirectory
+
+# 每个测试进程独享数据目录，回归不能改用户凭证、待办或历史。
+_test_data = TemporaryDirectory(prefix="course-afk-tests-")
+atexit.register(_test_data.cleanup)
+os.environ["COURSE_AFK_DATA_DIR"] = _test_data.name
+os.environ["OPENAI_COMPLETION_API_KEY"] = "test-isolated-key"
+os.environ["OPENAI_COMPLETION_BASE_URL"] = "http://127.0.0.1:9/v1"
+os.environ["MODEL_NAME"] = "test-model"
 
 for _name in (
     "SECTION_GAP_MIN",

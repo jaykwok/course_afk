@@ -35,14 +35,15 @@ async def extract_single_question_data(page):
         question_text = await page.locator(
             ".single-title .rich-text-style"
         ).inner_text()
-        logging.debug(f"题目内容: {question_text}")
 
         options, option_click_selector = await extract_options_with_selector(
             page, question_type
         )
-        logging.debug(f"选项: {options}")
 
         question_data = {"type": question_type, "text": question_text, "options": options}
+        if not question_text.strip():
+            return None
+        question_data["has_unread_media"] = await page.locator(".single-title img, .single-title canvas, .single-title audio, .single-title video, .single-title iframe, .single-title object, .preview-list img, .option-item img, .answer-item img").count() > 0
         if option_click_selector:
             question_data["option_click_selector"] = option_click_selector
         return question_data
@@ -80,15 +81,15 @@ async def extract_multi_questions_data(page):
                     ).inner_text()
             except Exception:
                 logging.error(f"无法获取题目 {i+1} 的内容")
-                continue
+                return []
 
-            logging.debug(f"题目 {i+1} 内容: {question_text}")
             options, option_click_selector = await extract_options_with_selector(
                 question_item, question_type
             )
-            logging.debug(f"题目 {i+1} 选项: {options}")
 
-            item_id = await question_item.get_attribute("data-dynamic-key") or f"item-{i}"
+            item_id = await question_item.get_attribute("data-dynamic-key")
+            if not item_id or item_id in {item["item_id"] for item in all_questions} or not question_text.strip():
+                return []
             question_data = {
                 "index": i,
                 "type": question_type,
@@ -98,6 +99,7 @@ async def extract_multi_questions_data(page):
             }
             if option_click_selector:
                 question_data["option_click_selector"] = option_click_selector
+            question_data["has_unread_media"] = await question_item.locator("img, canvas, video, audio, iframe, object").count() > 0
             all_questions.append(question_data)
 
         return all_questions

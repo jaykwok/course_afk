@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import re
+import asyncio
 from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
 
-from core.browser.session import create_browser_context
+from core.browser.session import create_browser_context, is_target_closed_exception
+from core.abort import UserCancelRequested, UserAbortRequested, WafBlockError
+from core.queues.learning import record_learning_failure, remove_learning_failure, remember_discovery_entries
+from core.runtime import close_safely
 from core.config import ZHIXUEYUN_COURSE_PREFIX, ZHIXUEYUN_SUBJECT_PREFIX
 from core.file_ops import is_compliant_url_regex, normalize_url
 from core.links import is_ctexpert_case_pool_url, unique_urls
@@ -183,85 +187,66 @@ _CLICK_LOGIN_BUTTON_SCRIPT = r"""
 _FETCH_CASE_POOL_LINKS_SCRIPT = r"""
 async () => {
   const token = localStorage.getItem('userID') || '';
-  if (!token) throw new Error('casePool token is missing');
-  const headers = {
-    'Accept': 'application/json, text/plain, */*',
-    'Content-Type': 'application/json;charset=UTF-8',
-    'token': token
-  };
+  const values = new Set(), globalRecords = new Set();
+  let requestPages = 0, total = 0;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90000);
   const post = async (url, body) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body || {})
-    });
-    if (!response.ok) throw new Error(`casePool API ${response.status}: ${url}`);
+    const response = await fetch(url, {method: 'POST', signal: controller.signal,
+      headers: {'Accept': 'application/json', 'Content-Type': 'application/json', token}, body: JSON.stringify(body)});
+    if (!response.ok) throw new Error(`casePool API HTTP ${response.status}`);
     const payload = await response.json();
-    if (Number(payload && payload.code) !== 200) {
-      throw new Error(`casePool API rejected: ${payload && payload.msg || url}`);
-    }
+    if (Number(payload?.code) !== 200) throw new Error('casePool API rejected');
     return payload.data;
   };
-
-  const tagTree = await post(
-    '/expert-assist-case/tag/listTree?source=home',
-    {source: 'home'}
-  );
-  const roots = Array.isArray(tagTree) ? tagTree : [];
-  const caseRoot = roots.find(item => item && item.name === '案例资源') ||
-    roots.find(item => item && Array.isArray(item.childrenList));
-  const firstTag = caseRoot && Array.isArray(caseRoot.childrenList) &&
-    caseRoot.childrenList[0];
-  if (!firstTag || firstTag.id == null) {
-    throw new Error('casePool default classify tag is missing');
-  }
-
-  const values = [];
-  const seenRecords = new Set();
-  const pageSize = 100;
-  let pageNum = 1;
-  let requestPages = 0;
-  let total = null;
-  while (pageNum <= 1000) {
-    const data = await post(
-      '/expert-assist-case/case/getCaseHomeList',
-      {
-        classifyTagId: firstTag.id,
-        sortFiled: '',
-        sortType: '',
-        pageSize,
-        pageNum
+  try {
+    if (!token) throw new Error('casePool token missing');
+    const roots = await post('/expert-assist-case/tag/listTree?source=home', {source: 'home'});
+    if (!Array.isArray(roots)) throw new Error('category tree missing');
+    const root = roots.find(item => item?.name === '案例资源');
+    if (!root || !Array.isArray(root.childrenList)) throw new Error('category tree incomplete');
+    const tags = [], seenTags = new Set();
+    const visit = node => {
+      if (!node || node.id == null || seenTags.has(String(node.id))) return;
+      seenTags.add(String(node.id)); tags.push(node.id);
+      for (const child of node.childrenList || []) visit(child);
+    };
+    for (const child of root.childrenList) visit(child);
+    if (!tags.length) throw new Error('no categories');
+    for (const tag of tags) {
+      const seen = new Set();
+      let ended = false;
+      for (let pageNum = 1; pageNum <= 1000; pageNum++) {
+        const data = await post('/expert-assist-case/case/getCaseHomeList', {classifyTagId: tag, sortFiled: '', sortType: '', pageSize: 100, pageNum});
+        requestPages++;
+        if (!Array.isArray(data?.records)) throw new Error('record list missing');
+        const expected = data.total == null ? null : Number(data.total);
+        let added = 0;
+        for (const record of data.records) {
+          const key = String(record.id ?? record.caseId ?? record.url ?? '');
+          if (!key) throw new Error('record identity missing');
+          if (!seen.has(key)) {seen.add(key); added++;}
+          globalRecords.add(key);
+          if (typeof record.url === 'string' && record.url.trim()) values.add(record.url.trim());
+        }
+        if (Number.isFinite(expected) && seen.size >= expected || !data.records.length && expected == null) {ended = true; break;}
+        if (!added) throw new Error('pagination stalled or truncated');
       }
-    );
-    requestPages += 1;
-    const records = data && Array.isArray(data.records) ? data.records : [];
-    const parsedTotal = Number(data && data.total);
-    if (Number.isFinite(parsedTotal) && parsedTotal >= 0) total = parsedTotal;
-
-    let newRecords = 0;
-    for (const record of records) {
-      if (!record || typeof record !== 'object') continue;
-      const key = String(record.id ?? record.caseId ?? record.url ?? '');
-      if (!key || seenRecords.has(key)) continue;
-      seenRecords.add(key);
-      newRecords += 1;
-      if (typeof record.url === 'string' && record.url.trim()) {
-        values.push(record.url.trim());
-      }
+      if (!ended) throw new Error('pagination limit reached');
+      total += seen.size;
     }
-
-    if (!records.length || !newRecords) break;
-    if (total != null && seenRecords.size >= total) break;
-    pageNum += 1;
-  }
-  return {
-    values: [...new Set(values)],
-    records: seenRecords.size,
-    total,
-    pages: requestPages
-  };
+    return {values: [...values], records: globalRecords.size, total, pages: requestPages, complete: true};
+  } catch (error) {
+    return {values: [...values], records: globalRecords.size, total, pages: requestPages, complete: false, error: error.name};
+  } finally {clearTimeout(timer);}
 }
 """
+
+
+async def _evaluate(page, script):
+    async with asyncio.timeout(100 if script == _FETCH_CASE_POOL_LINKS_SCRIPT else 15):
+        return await page.evaluate(script)
+
 
 
 def _extract_query_params_from_app_href(href: str) -> dict[str, list[str]]:
@@ -340,6 +325,7 @@ def extract_learning_links_from_runtime_values(values: object) -> list[str]:
 async def _fetch_learning_zone_links_direct(context, url: str) -> list[str]:
     """用浏览器 Cookie 直接请求 topic HTML；失败返回空列表触发页面兜底。"""
 
+    response = None
     try:
         response = await context.request.get(url, timeout=30_000)
         if not response.ok:
@@ -355,6 +341,9 @@ async def _fetch_learning_zone_links_direct(context, url: str) -> list[str]:
         return extract_learning_links_from_learning_zone_html(await response.text())
     except Exception:
         return []
+    finally:
+        if response is not None:
+            await close_safely(response.dispose(), label="topic response")
 
 
 def _extract_detail_urls_from_text(text: str) -> list[str]:
@@ -394,9 +383,9 @@ async def _click_load_more_until_stable(page, status_callback=None) -> int:
     for _ in range(_MORE_CLICK_MAX):
         await dismiss_topmost_overlays_async(page, max_count=2)
         try:
-            result = await page.evaluate(_CLICK_MORE_SCRIPT)
-        except Exception:
-            break
+            result = await _evaluate(page, _CLICK_MORE_SCRIPT)
+        except Exception as exc:
+            raise RuntimeError("无法读取更多按钮状态，收集未完成") from exc
         if not result or not result.get("ok"):
             break
         clicks += 1
@@ -414,14 +403,16 @@ async def _click_load_more_until_stable(page, status_callback=None) -> int:
                 extract_learning_links_from_learning_zone_html(await page.content())
             )
             if new_count <= prev_count:
-                break
+                raise RuntimeError("更多按钮没有推进页面，收集不完整")
         prev_count = new_count
+    else:
+        raise RuntimeError("学习专区展开达到上限，收集不完整")
     return clicks
 
 
 async def _read_runtime_learning_links(page) -> list[str]:
     try:
-        values = await page.evaluate(_READ_RUNTIME_LEARNING_LINK_VALUES_SCRIPT)
+        values = await _evaluate(page, _READ_RUNTIME_LEARNING_LINK_VALUES_SCRIPT)
     except Exception:
         return []
     return extract_learning_links_from_runtime_values(values)
@@ -431,7 +422,7 @@ async def _fetch_ctexpert_case_pool_links(page) -> tuple[list[str], dict[str, in
     """通过案例库接口直接读取所有记录 URL，不操作页面分页控件。"""
 
     try:
-        result = await page.evaluate(_FETCH_CASE_POOL_LINKS_SCRIPT)
+        result = await _evaluate(page, _FETCH_CASE_POOL_LINKS_SCRIPT)
     except Exception:
         return [], {"records": 0, "total": 0, "pages": 0}
     if not isinstance(result, dict):
@@ -443,6 +434,7 @@ async def _fetch_ctexpert_case_pool_links(page) -> tuple[list[str], dict[str, in
             stats[key] = max(0, int(result.get(key) or 0))
         except (TypeError, ValueError):
             stats[key] = 0
+    stats["complete"] = result.get("complete") is True
     return links, stats
 
 
@@ -470,6 +462,14 @@ async def _ensure_ctexpert_case_pool_authenticated(
     target_url: str,
     status_callback=None,
 ) -> None:
+    try:
+        async with asyncio.timeout(_CASE_POOL_AUTH_WAIT_MS / 1000):
+            await _poll_ctexpert_case_pool_authenticated(page, target_url, status_callback)
+    except TimeoutError as exc:
+        raise RuntimeError("专家助手自动认证超过 60 秒，入口已保留供重试") from exc
+
+
+async def _poll_ctexpert_case_pool_authenticated(page, target_url: str, status_callback=None) -> None:
     """自动完成 A→登录页→SSO→A 回跳；仅检查 token 是否存在。"""
 
     elapsed = 0
@@ -479,7 +479,7 @@ async def _ensure_ctexpert_case_pool_authenticated(
     saw_redirect = False
     while elapsed <= _CASE_POOL_AUTH_WAIT_MS:
         try:
-            state = await page.evaluate(_READ_CASE_POOL_AUTH_STATE_SCRIPT)
+            state = await _evaluate(page, _READ_CASE_POOL_AUTH_STATE_SCRIPT)
         except Exception:
             state = None
         current_url = (getattr(page, "url", "") or "").strip()
@@ -530,7 +530,7 @@ async def _collect_ctexpert_case_pool_pages(
     announced = False
     for _ in range(_CASE_POOL_PAGE_MAX):
         try:
-            result = await page.evaluate(_CLICK_CASE_POOL_NEXT_PAGE_SCRIPT)
+            result = await _evaluate(page, _CLICK_CASE_POOL_NEXT_PAGE_SCRIPT)
         except Exception:
             break
         if not result or not result.get("ok"):
@@ -549,7 +549,7 @@ async def _collect_ctexpert_case_pool_pages(
             elapsed += _CASE_POOL_PAGE_WAIT_MS
             try:
                 current = int(
-                    await page.evaluate(_READ_CASE_POOL_PAGE_NUMBER_SCRIPT) or 0
+                    await _evaluate(page, _READ_CASE_POOL_PAGE_NUMBER_SCRIPT) or 0
                 )
             except Exception:
                 current = 0
@@ -557,7 +557,7 @@ async def _collect_ctexpert_case_pool_pages(
                 changed = True
                 break
         if not changed:
-            break
+            raise RuntimeError("案例库翻页未推进，收集不完整")
 
         await page.wait_for_timeout(_CASE_POOL_PAGE_SETTLE_MS)
         links = unique_urls(links + await _read_runtime_learning_links(page))
@@ -569,6 +569,8 @@ async def _collect_ctexpert_case_pool_pages(
             )
         except Exception:
             pass
+    else:
+        raise RuntimeError("案例库翻页达到上限，收集不完整")
     return links, clicks
 
 
@@ -587,6 +589,7 @@ async def collect_learning_links_from_learning_zone_urls(
     if not learning_zone_urls:
         return 0
 
+    remember_discovery_entries(learning_zone_urls)
     total_added = 0
 
     async def _run_with_context(active_context) -> None:
@@ -602,36 +605,35 @@ async def collect_learning_links_from_learning_zone_urls(
             try:
                 elapsed = 0
                 learning_links: list[str] = []
+                rendered_links: list[str] = []
                 case_pool_api_stats = {"records": 0, "total": 0, "pages": 0}
                 case_pool_api_direct = False
-                topic_html_direct = False
+                incomplete_reason = ""
                 if not is_case_pool:
                     learning_links = await _fetch_learning_zone_links_direct(
                         active_context, url
                     )
-                    topic_html_direct = bool(learning_links)
-                    if topic_html_direct and status_callback:
+                    if learning_links and status_callback:
                         status_callback(
-                            f"已通过 HTTP 直接读取学习专区 HTML：{len(learning_links)} 条链接"
+                            f"已通过 HTTP 直接读取首屏 HTML：{len(learning_links)} 条链接，继续展开浏览器页面"
                         )
 
-                if not topic_html_direct:
-                    await page.goto(url, wait_until="load")
-                    await prepare_page_after_navigation_async(
-                        page, status_callback=status_callback
+                await page.goto(url, wait_until="load")
+                await prepare_page_after_navigation_async(
+                    page, status_callback=status_callback
+                )
+                if is_case_pool:
+                    await _ensure_ctexpert_case_pool_authenticated(
+                        page,
+                        url,
+                        status_callback=status_callback,
                     )
-                    if is_case_pool:
-                        await _ensure_ctexpert_case_pool_authenticated(
-                            page,
-                            url,
-                            status_callback=status_callback,
-                        )
 
                 if is_case_pool:
                     learning_links, case_pool_api_stats = (
                         await _fetch_ctexpert_case_pool_links(page)
                     )
-                    case_pool_api_direct = bool(learning_links)
+                    case_pool_api_direct = case_pool_api_stats.get("complete") is True
                     if learning_links and status_callback:
                         status_callback(
                             "已通过案例库接口直接读取 "
@@ -644,7 +646,7 @@ async def collect_learning_links_from_learning_zone_urls(
                         )
                 # 先等首屏出现任意合规链接，再点更多收全
                 while (
-                    not learning_links
+                    not (case_pool_api_direct or rendered_links)
                     and elapsed <= LEARNING_ZONE_LINK_WAIT_MILLISECONDS
                 ):
                     dismissed_count = await dismiss_topmost_overlays_async(page)
@@ -652,14 +654,15 @@ async def collect_learning_links_from_learning_zone_urls(
                         status_callback(
                             f"已关闭 {dismissed_count} 个页面弹窗，继续读取课程链接"
                         )
-                    learning_links = extract_learning_links_from_learning_zone_html(
+                    rendered_links = extract_learning_links_from_learning_zone_html(
                         await page.content()
                     )
                     if is_case_pool:
-                        learning_links = unique_urls(
-                            learning_links + await _read_runtime_learning_links(page)
+                        rendered_links = unique_urls(
+                            rendered_links + await _read_runtime_learning_links(page)
                         )
-                    if learning_links:
+                    learning_links = unique_urls(learning_links + rendered_links)
+                    if rendered_links:
                         break
                     if elapsed >= LEARNING_ZONE_LINK_WAIT_MILLISECONDS:
                         break
@@ -672,30 +675,24 @@ async def collect_learning_links_from_learning_zone_urls(
                         learning_links,
                         status_callback=status_callback,
                     )
+                    incomplete_reason = "案例库全分类接口未完整返回；页面兜底仅覆盖当前分类，请重试此入口"
                     if page_clicks and status_callback:
                         status_callback(f"已读取案例库 {page_clicks + 1} 页")
-                elif not is_case_pool and not topic_html_direct:
+                elif not is_case_pool:
                     more_clicks = await _click_load_more_until_stable(
                         page, status_callback=status_callback
                     )
                     if more_clicks and status_callback:
                         status_callback(f"已展开「更多」{more_clicks} 次")
 
-                    learning_links = extract_learning_links_from_learning_zone_html(
-                        await page.content()
-                    )
+                    learning_links = unique_urls(learning_links + extract_learning_links_from_learning_zone_html(await page.content()))
+                    if not rendered_links:
+                        incomplete_reason = "未能确认学习专区的课程清单已加载，请重试此入口"
                 # 再从渲染后的 DOM 文本兜底扫一轮（含非 a 标签）
-                if not topic_html_direct:
-                    try:
-                        body_text = await page.evaluate(
-                            "() => (document.body && document.body.innerText) || ''"
-                        )
-                        learning_links = unique_urls(
-                            learning_links
-                            + _extract_detail_urls_from_text(body_text or "")
-                        )
-                    except Exception:
-                        pass
+                body_text = await _evaluate(page,
+                    "() => (document.body && document.body.innerText) || ''"
+                )
+                learning_links = unique_urls(learning_links + _extract_detail_urls_from_text(body_text or ""))
 
                 enqueue = await enqueue_learning_links_with_subject_expand(
                     learning_links,
@@ -704,6 +701,12 @@ async def collect_learning_links_from_learning_zone_urls(
                     source_label=source_label,
                 )
                 total_added += enqueue["learning_added"]
+                if incomplete_reason:
+                    record_learning_failure(url, reason="discovery_incomplete", reason_text=incomplete_reason, detail={"source": source_label})
+                    if status_callback:
+                        status_callback(incomplete_reason)
+                else:
+                    remove_learning_failure(url, keep_file=True)
                 if status_callback:
                     if learning_links:
                         status_callback(
@@ -717,8 +720,19 @@ async def collect_learning_links_from_learning_zone_urls(
                             f"该{source_label}暂未识别到课程链接；已处理弹窗并等待页面加载，"
                             "可改用手动选择模式"
                         )
+            except (UserAbortRequested, UserCancelRequested, WafBlockError):
+                record_learning_failure(url, reason="discovery_incomplete", reason_text="入口收集被中断，请重新解析", detail={"source": source_label})
+                raise
+            except asyncio.CancelledError:
+                record_learning_failure(url, reason="discovery_incomplete", reason_text="入口收集被取消，请重新解析", detail={"source": source_label})
+                raise
+            except Exception as exc:
+                record_learning_failure(url, reason="discovery_incomplete", reason_text=f"入口收集不完整（{type(exc).__name__}），请重新解析", detail={"source": source_label})
+                if is_target_closed_exception(exc):
+                    raise UserCancelRequested("收集页面已关闭，入口已保存供重试") from None
+                raise
             finally:
-                await page.close()
+                await close_safely(page.close(), label="discovery page")
 
     if context is not None:
         await _run_with_context(context)

@@ -4,7 +4,7 @@
 本模块在 TUI 启动时把 core.ui 模块上的公开函数替换成桥接方法，于是
 launcher 解析到的 ui.show_menu / controller 传入的 status_callback=ui.show_info
 等都自动走到 TUI。唯一一处直接 import 的 core.ui 函数
-(learning_common.py 的 wait_with_progress) 是懒导入，patch 后同样生效。
+(core.learning.common 的 wait_with_progress) 是懒导入，patch 后同样生效。
 
 - 输出类 (show_info / show_success / ...)：控制类更新经 app.post_ui_update
   写入合并缓冲（latest-value / 保序、至多一条在途信号消息），日志经
@@ -25,7 +25,8 @@ from rich.text import Text
 
 import core.ui as cli_ui
 from core.abort import UserCancelRequested
-from core.config import LOG_FORMAT, _get_console_log_level, setup_logging
+from core.diagnostics import redact_text
+from core.config import LOG_FORMAT, _get_console_log_level, setup_logging, _RedactingFormatter
 from core.palette import GREEN, ERROR, SUCCESS, WARNING
 from core.ui import tui_render
 from core.ui.terminal_compat import ui_glyphs
@@ -49,7 +50,7 @@ def _icon_text(icon: str, message: str, *, style: str) -> Text:
     g = ui_glyphs()
     text = Text()
     text.append(f"  {g.pad_icon(icon)}  ", style=f"bold {style}")
-    text.append(message, style=style)
+    text.append(redact_text(message), style=style)
     return text
 
 
@@ -92,7 +93,7 @@ def _install_log_handler(app: CourseTuiApp) -> None:
 
     handler = TextualLogHandler(app)
     handler.setLevel(_get_console_log_level())
-    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    handler.setFormatter(_RedactingFormatter(LOG_FORMAT))
     root.addHandler(handler)
 
 
@@ -140,6 +141,11 @@ class TuiFrontend:
         值字段（title/dashboard/status/progress）latest-value 合并、事件字段
         （begin_operation/end_operation）保序；消息队列至多一条在途信号。
         call_from_thread 保留给必须同步等结果的模态挂载。"""
+        for key, value in fields.items():
+            if isinstance(value, str):
+                fields[key] = redact_text(value)
+            elif isinstance(value, tuple):
+                fields[key] = tuple(redact_text(item) if isinstance(item, str) else item for item in value)
         event: tuple[str, Any] | None = None
         if "begin_operation" in fields:
             event = ("begin_operation", fields.pop("begin_operation"))
@@ -301,12 +307,18 @@ class TuiFrontend:
 
     # ---------------- 阻塞提示类（工作线程在 Queue.get 上等待结果）----------------
     def _prompt(self, screen: Any, *, cancellable: bool = False) -> Any:
+        from core.abort import UserAbortRequested
+        if self.app._shutting_down:
+            raise UserAbortRequested("应用已退出")
         # call_from_thread 阻塞工作线程直到模态屏挂载完成并返回 Queue；
         # 随后 Queue.get 阻塞直到用户操作把结果写入队列。
-        queue = self.app.call_from_thread(
-            self.app.push_prompt, screen, cancellable=cancellable
-        )
+        try:
+            queue = self.app.call_from_thread(self.app.push_prompt, screen, cancellable=cancellable)
+        except RuntimeError as exc:
+            raise UserAbortRequested("应用已退出") from exc
         result = queue.get()
+        if self.app._shutting_down:
+            raise UserAbortRequested("应用已退出")
         # Ctrl+C 强制取消（仅 cancellable 提示）→ 抛 UserCancelRequested 返回主菜单
         if result is _PROMPT_CANCELLED:
             raise UserCancelRequested("已取消当前操作，返回主菜单")
@@ -372,6 +384,9 @@ class TuiFrontend:
 
     def _bridge_wait_prepared_prompt(self, handle) -> None:
         result = handle.get()
+        if self.app._shutting_down:
+            from core.abort import UserAbortRequested
+            raise UserAbortRequested("应用已退出")
         if result is _PROMPT_CANCELLED:
             raise UserCancelRequested("已取消当前操作，返回主菜单")
 
@@ -416,6 +431,9 @@ class TuiFrontend:
 def launch_tui() -> int:
     """启动 Textual TUI，复用 launcher.main() 作为后台控制流。"""
     import launcher
+    import os
+    from core.config import DATA_DIR
+    from core.runtime import application_lock, protect_application_children
 
     # 直接从 tui_bridge 启动时，也要在 Textual 接管控制台前关闭 Quick Edit。
     launcher._disable_windows_console_input_modes_early()
@@ -427,8 +445,18 @@ def launch_tui() -> int:
 
     frontend = TuiFrontend(app)
     frontend.install()
+    import signal
+    previous_term = signal.getsignal(signal.SIGTERM)
+    signal.signal(signal.SIGTERM, lambda *_: app.exit(143))
     try:
-        app.run()
+        with application_lock(DATA_DIR / "application.lock"):
+            protect_application_children()
+            result = app.run()
+            if app._launcher_thread is not None and app._launcher_thread.is_alive():
+                logging.critical("工作线程未在退出期限内停止，终止进程；已提交的数据可在下次恢复")
+                logging.shutdown()
+                os._exit(1)
+        return int(app._exit_status or result or 0)
     finally:
+        signal.signal(signal.SIGTERM, previous_term)
         frontend.restore()
-    return 0

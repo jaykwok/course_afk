@@ -1,329 +1,166 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
-import re
 import time
-import traceback
 
-from openai import (
-    APIConnectionError,
-    APITimeoutError,
-    InternalServerError,
-    RateLimitError,
-)
+from openai import APIConnectionError, APITimeoutError, InternalServerError, RateLimitError
 
-from core.config import (
-    AI_ENABLE_THINKING,
-    AI_ENABLE_WEB_SEARCH,
-    AI_MAX_RETRIES,
-    AI_REASONING_EFFORT,
-    AI_REQUEST_TYPE,
-    AI_RESPONSE_TOOLS,
-    AI_SYSTEM_PROMPT,
-    AI_TEMPERATURE,
-)
+from core.exam.contracts import SYSTEM_PROMPT, answer_schema, build_question_prompt, parse_answer_payload, question_problem, valid_answers
+from core.exam.settings import AiSettings, ExamAiConfigurationError
+from core.runtime import close_safely
 
-# 可重试的 OpenAI 异常：网络/超时/限流/服务端错误
-_RETRYABLE_API_ERRORS = (
-    APIConnectionError,
-    APITimeoutError,
-    RateLimitError,
-    InternalServerError,
-)
+_RETRYABLE_API_ERRORS = (APIConnectionError, APITimeoutError, RateLimitError, InternalServerError)
+MAX_ANSWER_CHARACTERS = 8192
 
 
-TYPE_LABELS = {
-    "single": "单选题",
-    "multiple": "多选题/不定项选择题",
-    "judge": "判断题(请回答'正确'或'错误')",
-    "ordering": "排序题(请按正确顺序给出选项字母, 如'ACBDEF')",
-    "reading": "阅读理解题",
-}
-
-TYPE_HINTS = {
-    "ordering": "请直接给出正确的排序顺序, 只需按字母顺序列出, 如'ACBDEF'。",
-    "reading": "请直接回答选项代号(如A、B、C、D)。",
-    "judge": "请直接回答'正确'或'错误'。",
-}
+class AiOutputError(ValueError):
+    """A response did not finish or cannot safely be used as an answer."""
 
 
-class ExamAiConfigurationError(RuntimeError):
-    """AI 考试配置错误，例如模型名不受当前接口支持。"""
-
-
-def _is_unsupported_model_error(exc: Exception) -> bool:
-    message = str(exc).lower()
-    return "unsupported model" in message
-
-
-def _extract_chat_message_text(completion) -> str:
-    choices = getattr(completion, "choices", None) or []
-    if not choices:
-        return ""
-
-    message = getattr(choices[0], "message", None)
-    content = getattr(message, "content", "")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if isinstance(item, str):
-                parts.append(item)
-                continue
-            if isinstance(item, dict):
-                text = item.get("text")
-                if text:
-                    parts.append(str(text))
-                continue
-            text = getattr(item, "text", None)
-            if text:
-                parts.append(str(text))
-        return "".join(parts)
-    return str(content or "")
-
-
-def _extract_chat_delta_text(delta) -> tuple[str, str]:
-    """返回 (content_part, reasoning_part)"""
-    def _read_field(value) -> str:
-        if isinstance(value, str):
-            return value
-        if isinstance(value, list):
-            parts = []
-            for item in value:
-                if isinstance(item, str):
-                    parts.append(item)
-                    continue
-                if isinstance(item, dict):
-                    text = item.get("text")
-                    if text:
-                        parts.append(str(text))
-                    continue
-                text = getattr(item, "text", None)
-                if text:
-                    parts.append(str(text))
-            return "".join(parts)
-        return ""
-
-    content = _read_field(getattr(delta, "content", None))
-    reasoning = _read_field(getattr(delta, "reasoning_content", None))
-    return content, reasoning
-
-
-def _close_stream_if_possible(stream_or_response) -> None:
-    close = getattr(stream_or_response, "close", None)
+async def _close_stream(stream) -> None:
+    close = getattr(stream, "close", None)
     if callable(close):
-        try:
-            close()
-        except Exception:
-            pass
+        result = close()
+        if inspect.isawaitable(result):
+            await close_safely(result, label="AI stream")
 
 
-def _extract_responses_output_text(response_or_stream) -> str:
-    if hasattr(response_or_stream, "output_text"):
-        return getattr(response_or_stream, "output_text", "") or ""
-
-    deltas: list[str] = []
-    final_text = None
+async def _extract_responses_output_text(stream) -> str:
+    if hasattr(stream, "output_text"):
+        if getattr(stream, "status", None) != "completed":
+            raise AiOutputError("AI 响应未完成")
+        return stream.output_text or ""
+    parts: dict[tuple[int, int], str] = {}
+    completed = False
     try:
-        for event in response_or_stream:
-            event_type = getattr(event, "type", "")
-            if event_type == "response.output_text.delta":
-                delta = getattr(event, "delta", "")
-                if delta:
-                    deltas.append(str(delta))
-            elif event_type == "response.output_text.done":
-                text = getattr(event, "text", None)
-                if text is not None:
-                    final_text = str(text)
+        async for event in stream:
+            kind = getattr(event, "type", "")
+            if kind in {"error", "response.failed", "response.incomplete", "response.cancelled"} or "refusal" in kind:
+                raise AiOutputError("AI 响应失败、拒绝或不完整")
+            key = (getattr(event, "output_index", 0), getattr(event, "content_index", 0))
+            if kind == "response.output_text.delta":
+                parts[key] = parts.get(key, "") + (getattr(event, "delta", "") or "")
+            elif kind == "response.output_text.done":
+                parts[key] = getattr(event, "text", "") or ""
+            elif kind == "response.completed":
+                completed = getattr(getattr(event, "response", None), "status", None) == "completed"
+            if sum(map(len, parts.values())) > MAX_ANSWER_CHARACTERS:
+                raise AiOutputError("AI 答案超过长度上限")
     finally:
-        _close_stream_if_possible(response_or_stream)
+        await _close_stream(stream)
+    if not completed:
+        raise AiOutputError("AI 流未收到 completed 终态")
+    return "".join(parts[key] for key in sorted(parts))
 
-    return final_text if final_text is not None else "".join(deltas)
 
-
-def _extract_chat_stream_text(stream_or_completion) -> str:
-    if hasattr(stream_or_completion, "choices"):
-        return _extract_chat_message_text(stream_or_completion)
-
-    content_parts: list[str] = []
-    reasoning_parts: list[str] = []
+async def _extract_chat_stream_text(stream) -> str:
+    parts = []
+    finished = False
     try:
-        for chunk in stream_or_completion:
+        async for chunk in stream:
             for choice in getattr(chunk, "choices", None) or []:
+                if getattr(choice, "index", 0) != 0:
+                    raise AiOutputError("AI 返回了多个候选答案")
                 delta = getattr(choice, "delta", None)
-                if delta is None:
-                    continue
-                content, reasoning = _extract_chat_delta_text(delta)
-                if content:
-                    content_parts.append(content)
-                if reasoning:
-                    reasoning_parts.append(reasoning)
+                if getattr(delta, "refusal", None) or getattr(delta, "tool_calls", None):
+                    raise AiOutputError("AI 拒答或请求了未授权工具")
+                content = getattr(delta, "content", None)
+                if isinstance(content, str):
+                    parts.append(content)
+                reason = getattr(choice, "finish_reason", None)
+                if reason is not None:
+                    if reason != "stop":
+                        raise AiOutputError("AI 答案未正常结束")
+                    finished = True
+                if sum(map(len, parts)) > MAX_ANSWER_CHARACTERS:
+                    raise AiOutputError("AI 答案超过长度上限")
     finally:
-        _close_stream_if_possible(stream_or_completion)
-
-    content_text = "".join(content_parts)
-    if content_text:
-        return content_text
-    return "".join(reasoning_parts)
+        await _close_stream(stream)
+    if not finished:
+        raise AiOutputError("AI 流未收到 stop 终态")
+    return "".join(parts)
 
 
-def _build_responses_request(model: str, prompt: str) -> dict:
-    request_kwargs = {
-        "model": model,
-        "instructions": AI_SYSTEM_PROMPT,
-        "input": prompt,
-        "stream": True,
-        "temperature": AI_TEMPERATURE,
-    }
-    if AI_RESPONSE_TOOLS:
-        request_kwargs["tools"] = [tool.copy() for tool in AI_RESPONSE_TOOLS]
-    if AI_REASONING_EFFORT:
-        request_kwargs["reasoning"] = {"effort": AI_REASONING_EFFORT}
-    elif AI_ENABLE_THINKING:
-        request_kwargs["extra_body"] = {"enable_thinking": True}
-    return request_kwargs
+def _build_request(settings: AiSettings, model: str, question: dict) -> dict:
+    prompt = build_question_prompt(question)
+    request = {"model": model, "stream": True}
+    if settings.temperature is not None:
+        request["temperature"] = settings.temperature
+    if settings.request_type == "responses":
+        request.update(instructions=SYSTEM_PROMPT, input=prompt)
+        if settings.web_search:
+            request["tools"] = [{"type": "web_search"}]
+        if settings.reasoning_effort:
+            request["reasoning"] = {"effort": settings.reasoning_effort}
+        if settings.output_mode == "json_schema":
+            request["text"] = {"format": {"type": "json_schema", "name": "exam_answer", "strict": True, "schema": answer_schema(question)}}
+    else:
+        request["messages"] = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
+        if settings.reasoning_effort:
+            request["reasoning_effort"] = settings.reasoning_effort
+        if settings.output_mode == "json_schema":
+            request["response_format"] = {"type": "json_schema", "json_schema": {"name": "exam_answer", "strict": True, "schema": answer_schema(question)}}
+    if settings.provider == "compatible":
+        extra = {}
+        if not settings.reasoning_effort:
+            extra["enable_thinking"] = settings.thinking
+        if settings.request_type == "chat" and settings.web_search:
+            extra["enable_search"] = True
+        if extra:
+            request["extra_body"] = extra
+    return request
 
 
-def _build_chat_request(model: str, prompt: str) -> dict:
-    request_kwargs = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": AI_SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ],
-        "stream": True,
-        "temperature": AI_TEMPERATURE,
-    }
-    extra_body: dict = {"enable_thinking": AI_ENABLE_THINKING}
-    if AI_ENABLE_WEB_SEARCH:
-        extra_body["enable_search"] = True
-    request_kwargs["extra_body"] = extra_body
-    return request_kwargs
-
-
-def _request_ai_answer_text(client, model: str, prompt: str) -> str:
-    def _invoke() -> str:
-        if AI_REQUEST_TYPE == "responses":
-            response_or_stream = client.responses.create(
-                **_build_responses_request(model, prompt),
-            )
-            return _extract_responses_output_text(response_or_stream)
-
-        if AI_REQUEST_TYPE == "chat":
-            completion_or_stream = client.chat.completions.create(
-                **_build_chat_request(model, prompt),
-            )
-            return _extract_chat_stream_text(completion_or_stream)
-
-        raise ExamAiConfigurationError(
-            f"AI_REQUEST_TYPE 配置无效: {AI_REQUEST_TYPE!r}，仅支持 'chat' 或 'responses'。"
-        )
-
-    last_exc: Exception | None = None
-    for attempt in range(AI_MAX_RETRIES + 1):
-        try:
-            return _invoke()
-        except ExamAiConfigurationError:
-            raise
-        except _RETRYABLE_API_ERRORS as exc:
-            last_exc = exc
-            if attempt >= AI_MAX_RETRIES:
-                raise
-            wait_seconds = min(2 ** attempt, 8)
-            logging.warning(
-                f"AI 请求失败({type(exc).__name__})，{wait_seconds}s 后重试 "
-                f"({attempt + 1}/{AI_MAX_RETRIES}): {exc}"
-            )
-            time.sleep(wait_seconds)
-
-    raise last_exc if last_exc else RuntimeError("AI 请求未执行")
-
-
-def build_question_prompt(question_data) -> str:
-    question_type_str = TYPE_LABELS.get(question_data["type"], "")
-    options_str = "".join(
-        f"{option['label']}. {option['text']}\n"
-        for option in question_data["options"]
-    )
-    prompt = f"""
-        请回答以下{question_type_str}：
-
-        问题：{question_data['text']}
-
-        选项：
-        {options_str}
-        """
-    prompt += TYPE_HINTS.get(
-        question_data["type"],
-        "请直接回答选项代号(如A、B、C、D等), 不定项选择题、多选题可以选择多个选项。",
-    )
-    return prompt
+async def _request_ai_answer_text(client, model: str, question: dict, settings: AiSettings) -> str:
+    request = _build_request(settings, model, question)
+    create = client.responses.create if settings.request_type == "responses" else client.chat.completions.create
+    if not inspect.iscoroutinefunction(inspect.unwrap(create)):
+        raise ExamAiConfigurationError("AI 客户端必须使用异步接口")
+    async with asyncio.timeout(settings.total_timeout):
+        for attempt in range(settings.max_retries + 1):
+            try:
+                stream = await create(**request)
+                if settings.request_type == "responses":
+                    return await _extract_responses_output_text(stream)
+                return await _extract_chat_stream_text(stream)
+            except _RETRYABLE_API_ERRORS as exc:
+                if attempt >= settings.max_retries:
+                    raise
+                logging.warning("AI 请求失败 %s，准备第 %s 次重试", type(exc).__name__, attempt + 1)
+                await asyncio.sleep(min(2 ** attempt, 8))
+    raise AiOutputError("AI 请求未完成")
 
 
 def normalize_ai_answer_text(question_type: str, answer_text: str) -> list[str]:
-    final_answer = (answer_text or "").strip()
-    normalized_upper = final_answer.upper()
-
-    if question_type == "judge":
-        lowered = final_answer.lower()
-        if (
-            "错误" in final_answer
-            or re.search(r"\b(false|incorrect|wrong)\b", lowered)
-            or re.search(r"(?<![a-z])f(?![a-z])", lowered)
-        ):
-            return ["错误"]
-        if (
-            "正确" in final_answer
-            or re.search(r"\b(true|correct)\b", lowered)
-            or re.search(r"(?<![a-z])t(?![a-z])", lowered)
-        ):
-            return ["正确"]
-        logging.warning(f"无法识别的判断题答案: {final_answer}，将交由人工处理")
+    """Only a complete JSON payload is accepted; prose and reasoning are rejected."""
+    answers = parse_answer_payload(answer_text)
+    if question_type in {"single", "reading", "judge"} and len(answers) != 1:
         return []
-
-    if question_type == "ordering":
-        sequences = re.findall(r"(?<![A-Z])[A-Z]{2,}(?![A-Z])", normalized_upper)
-        if sequences:
-            return list(max(sequences, key=len))
-        return re.findall(r"(?<![A-Z])[A-Z](?![A-Z])", normalized_upper)
-
-    grouped_answers = re.findall(r"(?<![A-Z])[A-Z]+(?![A-Z])", normalized_upper)
-    answers = [char for group in grouped_answers for char in group]
-    if question_type in {"single", "reading"} and answers:
-        return [answers[-1]]
-
-    seen = set()
-    unique_answers = [x for x in answers if not (x in seen or seen.add(x))]
-    return unique_answers
+    return answers
 
 
 async def get_ai_answers(client, model, question_data):
-    """使用AI分析题目并获取答案"""
+    problem = question_problem(question_data)
+    if problem:
+        logging.info("题目需要人工处理：%s", problem)
+        return []
+    if not model:
+        raise ExamAiConfigurationError("AI 模型配置为空，请在 .env 中设置 MODEL_NAME")
+    settings = getattr(client, "_course_afk_settings", None) or AiSettings.load()
+    started = time.monotonic()
     try:
-        if not model:
-            raise ExamAiConfigurationError("AI 模型配置为空，请在 .env 中设置 MODEL_NAME。")
-
-        if question_data["type"] == "fill_blank":
-            logging.info("检测到填空题, 将跳过自动作答")
-            return []
-
-        answer_content = _request_ai_answer_text(
-            client,
-            model,
-            build_question_prompt(question_data),
-        )
-        logging.info(f"AI最终答案: {answer_content}")
-        return normalize_ai_answer_text(question_data["type"], answer_content)
+        text = await _request_ai_answer_text(client, model, question_data, settings)
+        result = normalize_ai_answer_text(question_data["type"], text)
+        if not valid_answers(question_data, result):
+            raise AiOutputError("AI 输出不满足本题的选项约束")
+        logging.info("AI 答题完成：题目 %s，耗时 %.2fs", question_data.get("item_id", question_data.get("index", "single")), time.monotonic() - started)
+        return result
     except ExamAiConfigurationError:
         raise
     except Exception as exc:
-        if _is_unsupported_model_error(exc):
-            logging.error(f"获取AI答案出错: {exc}")
-            logging.error(traceback.format_exc())
-            raise ExamAiConfigurationError(
-                f"AI 请求方式与模型不兼容: 当前 MODEL_NAME={model!r} 与 AI_REQUEST_TYPE={AI_REQUEST_TYPE!r} 组合不可用，请调整 .env 中的 MODEL_NAME 或 AI_REQUEST_TYPE。"
-            ) from exc
-        logging.error(f"获取AI答案出错: {exc}")
-        logging.error(traceback.format_exc())
+        if "unsupported model" in str(exc).lower():
+            raise ExamAiConfigurationError(f"模型 {model!r} 与当前协议不兼容，请调整 .env 后重试") from exc
+        logging.warning("AI 未提供可执行答案：%s，转人工", type(exc).__name__)
         return []

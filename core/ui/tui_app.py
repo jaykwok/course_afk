@@ -5,7 +5,7 @@
 
 线程模型：
 - Textual 事件循环跑在主线程。
-- launcher.main() 整个阻塞循环跑在一条 daemon 工作线程上
+- launcher.main() 整个阻塞循环跑在一条受管理的工作线程上
   (_spawn_launcher_thread)，浏览器自动化在它内部各自的 run_async 里阻塞，
   不会卡住界面。
 - 桥接层与界面的通信分两类：输出类（状态/日志/仪表盘/进度）走合并写缓冲
@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import sys
+import asyncio
 import threading
 from collections import deque
 from queue import Queue
@@ -295,6 +296,9 @@ class YesNoScreen(ModalScreen[bool]):
         super().__init__()
         self._message = message
         self._default = (default or "N").strip().upper() or "N"
+        if self._default not in {"Y", "N"}:
+            self._default = "N"
+        self.AUTO_FOCUS = "#yes" if self._default == "Y" else "#no"
         self._details_renderable = details_renderable
         if details_renderable is not None:
             self.add_class("with-details")
@@ -835,6 +839,9 @@ class CourseTuiApp(App):
 
     def __init__(self) -> None:
         super().__init__()
+        self._launcher_thread: threading.Thread | None = None
+        self._shutting_down = False
+        self._exit_status = 0
         # 当前「可被 Esc / Ctrl+C 取消」的模态提示队列（是/否、多行、回车、子菜单）。
         # 主菜单不在此列——在主菜单返回即退出。仅 app 线程读写，无需锁。
         self._cancellable_prompt_queue: Queue | None = None
@@ -1005,23 +1012,40 @@ class CourseTuiApp(App):
         self._drain_log_buffer()
 
     # ------------------------------------------------------------------
-    # 工作线程：跑 launcher.main()。daemon=True 保证 Ctrl+C / 退出时
-    # 即使卡在 Playwright 里，进程也能干净退出。
+    # 工作线程有明确所有者；退出时先取消并 join，不依赖 daemon 清理资源。
     # ------------------------------------------------------------------
     def _spawn_launcher_thread(self) -> None:
         import launcher
 
         def target() -> None:
             try:
-                launcher.main()
-            except Exception as exc:  # noqa: BLE001 - 未预期错误展示后退出；SystemExit/KeyboardInterrupt 放行
+                self._exit_status = int(launcher.main() or 0)
+            except SystemExit as exc:
+                self._exit_status = exc.code if isinstance(exc.code, int) else (1 if exc.code else 0)
+            except KeyboardInterrupt:
+                self._exit_status = 130
+            except Exception as exc:  # 未预期错误记录堆栈并以非零退出码结束
+                import logging
+                self._exit_status = 1
+                logging.exception("主工作流出现未处理错误")
                 self._safe_emit_error(f"运行出错：{exc}")
             finally:
                 self._safe_exit()
 
-        threading.Thread(
-            target=target, name="course-launcher", daemon=True
-        ).start()
+        self._launcher_thread = threading.Thread(target=target, name="course-launcher", daemon=False)
+        self._launcher_thread.start()
+
+    async def on_unmount(self) -> None:
+        from core.config import interrupt_running_async
+        self._shutting_down = True
+        if self._active_prompt_queue is not None:
+            self._active_prompt_queue.put(_PROMPT_CANCELLED)
+        interrupt_running_async()
+        thread = self._launcher_thread
+        if thread is not None and thread.is_alive():
+            await asyncio.to_thread(thread.join, 25)
+            if thread.is_alive():
+                self._exit_status = 1
 
     def _safe_exit(self) -> None:
         try:
@@ -1031,19 +1055,20 @@ class CourseTuiApp(App):
         except Exception:
             pass
         try:
-            self.call_from_thread(self.exit)
+            self.call_from_thread(self.exit, self._exit_status)
         except Exception:
             pass
 
     def _safe_emit_error(self, message: str) -> None:
         try:
             from rich.text import Text
+            from core.diagnostics import redact_text
 
             g = ui_glyphs()
             self.call_from_thread(
                 self.emit_log,
                 Text(
-                    f"  {g.pad_icon(g.icon_failure)}  {message}",
+                    f"  {g.pad_icon(g.icon_failure)}  {redact_text(message)}",
                     style=f"bold {ERROR}",
                 ),
             )

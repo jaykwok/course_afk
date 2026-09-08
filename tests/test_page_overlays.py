@@ -3,9 +3,7 @@ import unittest
 from core.browser.overlays import (
     DISMISS_TOPMOST_OVERLAY_SCRIPT,
     dismiss_topmost_overlays_async,
-    dismiss_topmost_overlays_sync,
     prepare_page_after_navigation_async,
-    prepare_page_after_navigation_sync,
 )
 
 
@@ -33,26 +31,6 @@ class FakeAsyncPage:
         self.waits.append(milliseconds)
 
 
-class FakeSyncPage:
-    def __init__(self, results=None):
-        self.results = list(
-            results
-            if results is not None
-            else [
-                {"tag": "svg", "className": "close-button", "zIndex": 999999},
-            ]
-        )
-        self.waits = []
-        self.scripts = []
-
-    def evaluate(self, script):
-        self.scripts.append(script)
-        if self.results:
-            return self.results.pop(0)
-        return None
-
-    def wait_for_timeout(self, milliseconds):
-        self.waits.append(milliseconds)
 
 
 class PageOverlayTests(unittest.IsolatedAsyncioTestCase):
@@ -72,20 +50,12 @@ class PageOverlayTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("AI学升级", DISMISS_TOPMOST_OVERLAY_SCRIPT)
 
 
-class SyncPageOverlayTests(unittest.TestCase):
-    def test_sync_handler_closes_shadow_dom_popup_and_stops(self):
-        page = FakeSyncPage()
+class PageOverlayRoundTests(unittest.IsolatedAsyncioTestCase):
 
-        dismissed = dismiss_topmost_overlays_sync(page)
+    async def test_prepare_is_multi_round_wrapper_of_same_script(self):
+        page = FakeAsyncPage(results=[None, None])
 
-        self.assertEqual(dismissed, 1)
-        self.assertEqual(page.waits, [200])
-        self.assertEqual(page.scripts[0], DISMISS_TOPMOST_OVERLAY_SCRIPT)
-
-    def test_prepare_is_multi_round_wrapper_of_same_script(self):
-        page = FakeSyncPage(results=[None, None])
-
-        total = prepare_page_after_navigation_sync(
+        total = await prepare_page_after_navigation_async(
             page,
             rounds=5,
             between_round_milliseconds=50,
